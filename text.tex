@@ -1,0 +1,85 @@
+\documentclass[10pt,a4paper,notitlepage]{article}
+
+\usepackage[left=1.5cm,text={18cm, 25cm},top=2.5cm]{geometry}
+\usepackage{color}
+\usepackage[utf8]{inputenc}
+
+\author{Michal Šrubař\\xsruba03@stud.fit.vutbr.cz}
+\date{}	
+\title{Zdokonalení integrace SSSD a SUDO}
+
+\begin{document}
+\maketitle
+
+Jedná se pouze o soupis znalostí, abych si ujasnil co už vím a co jsem pochopil
+špatně.
+
+\section{Možnosti administrace unix-like operačního systému}
+Na většině dnešních UNIX-like operačních systémech jsou všechny administrativní
+úlohy prováděny uživatelem \textit{root}. Pouze root, a nikdo jiný, má nad
+systémem plnou kontrolu. Jestliže systém spravovat jiný uživatel, pak musí znát
+heslo uživatele root nebo využí nástroje sudo.
+
+\subsection{su (Substitute User)}
+Program \textbf{su} umožnuje uživateli se dočasně stát jiným uživatelem. Ve
+většině případů je tím jiným uživatelem právě uživatel \textbf{root}. Su tedy
+může libovolnému uživateli dát plnou kontrolu nad systémem, jestliže daný
+uživatel zná heslo uživatele \textbf{root}. Su umí logovat události pomocí
+syslog, pokud je s touto podporou zkompilován.
+
+\subsection{sudo}
+Sudo umožňuje uživateli vykonat jeden příkaz jako jiný uživatel. Většinou je
+jiný uživatel administrátor systému root.  Bezpečnostní politiky, kterými se
+sudo řídí, tj. sudo pravidla, jsou uložena v souboru \texttt{/etc/sudoers}. Na
+každém systému, kde chci sudo využít musí být tento konfigurační soubor
+existovat.  Tento soubor sice může být sdílen mezi více systémy, ale neexistuje
+nativní způsob jak jej mezi více systémy distribuovat. Ve většině firemních
+prostředí se dnes používá adresářových služeb k synchronizaci uživatelů, skupin
+a dalších sdílených informací. Sudo pravidla mohou být na tomto serveru také
+uložena.  Přistoupit k nim můžeme pomocí protokolu LDAP\footnote{Lightweight
+	Directory Access Protocol, which is an application protocol for querying and
+modifying directory services.}. Při použití adresářového serveru je možné sudo
+pravidla centrálně spravovat a globálně k nim přistupovat. Sudo ovšem takto
+nativně nepracuje proto je potřeba plugin. Sudo má plugin pro použítí s
+openLDAP. Schéma v jakém jsou sudo pravidla na LDAP serveru uložena je pevně
+specifikováno a přináší následující nevýhody: 
+\begin{enumerate} 
+	\item problém s	tím překrýváním lokálních uživatelů 
+\end{enumerate}
+
+Pokud chce administrátor tento způsob správy politik využít, pak musí dané
+schéma dodržet i se všemi jeho nevýhodami.
+
+\subsection{su vs. sudo}
+Jedná se dva naprosto odlišné přístupy k tomu jak získat oprávnění uživatele
+root.
+
+\begin{enumerate}
+	\item sudo umožňuje limitovat přístup zatímco su může uživateli dát plnou
+		kontrolu nad systémem
+	\item uživatel nemusí znát heslo uživatele root
+	\item použití sudo může být monitorováno
+	\item je možné definovat, kteří uživatelé mohou provádět jaké úlohy
+\end{enumerate}
+
+
+
+\subsection{FreeIPA}
+FreeIPA používá vlastní schéma a proto musela napsat i vlastní plugin sss.
+
+
+Výhody použití FreeIPA pro správu sudo pravidel - u sudo+openldap musím vytvořit
+schéma a ručně jej přidat mezi ostatní schémata + přidat o tom záznam do
+/etc/sldap.conf
+
+
+Sudo Plugin API\footnote{http://www.sudo.ws/sudo\_plugin.man.html}
+umožňuje vytvoření vlastního modulu, který bude definovat vlastní správu
+politik.  To jaké pluginy bude sudo používat je možné konfigurovat pomocí
+souboru \textit{/etc/sudo.conf}.
+
+
+
+
+
+\end{document}
