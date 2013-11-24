@@ -1,6 +1,6 @@
 #!/bin/sh bash
 
-PRG=text
+PRG=thesis
 LOGIN=xsruba03
 
 $(PRG).pdf: $(PRG).ps
