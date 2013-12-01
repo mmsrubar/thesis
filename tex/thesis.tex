@@ -6,14 +6,14 @@
 
 \author{Michal Šrubař\\xsruba03@stud.fit.vutbr.cz}
 \date{}	
-\title{Improved integration of SSSD and SUDO}
+\title{Zdokonalení integrace SSSD a SUDO}
 
 \begin{document}
 \maketitle
 
 \section*{Možná struktura textu}
 \begin{itemize}
-	\item	Co je smyslem této BP.
+	\item	Smysl BP.
 	\item Uživatelé, root, jak dát běžným uživatelům vyšší práva
 	\item Sudo, su, alternativy
 	\item Proč sudo?
@@ -39,6 +39,7 @@
 		\item mezi uživateli a sudo pravidly neexistuje vazba, pokud odstraním
 			uživatele, tak mně zůstane pravidlo s neexistujícím uživatelem
 	\end{itemize}
+	\item Projekt FreeIPA
 	\item Proč sudo ve FreeIPA (?granularita?)
 	\item Proč má IPA vlastní SUDO LDAP schema a jaké výhody přináší
 
@@ -64,7 +65,7 @@
 		\item u sudo bude třeba přenést něco z /lib do /usr (z ticketu: pe\_task,
 			cron)
 	\end{itemize}
-	\item Forma reklamy na FreeIPA. Vyzdvihnout všechny přednosti
+	\item Vyzdvihnout všechny přednosti
 \end{itemize}
 
 \section*{Hlavní problém, který moje BP řeší}
@@ -81,119 +82,113 @@ navrhnout nové LDAP schéma pro SUDO, ale upravit SSSD daemon a SUDO tak, aby
 podporovaly LDAP schéma, které používá IPA.
 \\
 \\
-Hodně zjednodušeně bude výstupen filter pro \emph{ldapsearch}.
+Hodně zjednodušeně bude výsledkem správný dotaz na LDAP adresář na IPA serveru,
+který pro daného klienta stáhne všechno potřebné.
 
 
-\section{Administration of Linux}
-On most of today's linux and Unix-like operating
-systems\footnote{http://en.wikipedia.org/wiki/Unix-like} administrative tasks
-are performed by special user called a \textbf{root}. Also known as a \textbf{superuser}. The user has
-access to all commands and files on the
-system\footnote{http://www.linfo.org/root.html}. If an other user wants to
-perform administrative task than there are a few ways to do it: 
-\begin{itemize}
-	\item The user has to know password of the root account.
-	\item Use special program (su, sudo)  that can increase user's authority.
+\section{Administrace linuxového systému}
+Na většině dnešních linuxových a
+Unix-like\footnote{http://en.wikipedia.org/wiki/Unix-like} operačních systémech
+provádí správu systému speciální uživatel zvaný \textbf{root}. Někdy také
+označován jako \textbf{superuser}. Tento uživatel má přístup ke všem souborům a
+může spouštět všechny příkazy operačního
+systému\footnote{http://www.linfo.org/root.html}.  Ostatní uživatele systému
+toto právo nemají, až na tyto vyjímky: \begin{itemize}
+	\item uživatel zná heslo uživatele root
+	\item uživatel použije program, který mu dočasně poskytne práva uživatele root
 \end{itemize}
 
 
 \subsection{su (Substitute User)}
-This program allows to a user to temporarily become a particular user. Most
-often the particular user is the root. This means that su can give any user, that
-know root's password,  full control over an operating  system.
+Tento program umožňuje libovolnému uživateli stát se dočasně jiným uživatelem.
+Vě většině případů je jiný uživatel právě uživatel root. To znamená, že program
+su může dát libovolnému uživateli, který zná heslo uživatele root, plnou
+kontrolu nad operačním systémem.
 
 
+\subsection{sudo (Super User DO)}
+Sudo umožňuje uživateli provést jeden příkaz jako jiný uživatel. Bezpečností
+politiky, které definují kteří uživatelé mohou spouštět jaké příkazy se nazývají 
+\textbf{sudo pravidla}. Tyto pravidla jsou uloženy v souboru
+\emph{/etc/sudoers}. Sudo pravidla by měla být upravována výhradně pomocí
+utility \textbf{visudo}, která zároveň provádí kontrolu syntaxe souboru
+\emph{/etc/sudoers}.
 
-\subsection{sudo}
-Sudo allows to a user to execute a single command as a particular user. Security
-poilicy which determines user's privilegies to run sudo, i.e. \textbf{sudo
-rules}, are stored in configuration file \emph{/etc/sudoers}. On every system
-that I want to use sudo the file has to exists.
-
-
-
-\subsection{su vs. sudo}
+\subsubsection{Mezi hlavní výhody SUDO}
 Jedná se dva naprosto odlišné přístupy k tomu jak získat oprávnění uživatele
 root.
 
-\begin{enumerate}
+\begin{itemize}
 	\item sudo umožňuje limitovat přístup zatímco su může uživateli dát plnou
 		kontrolu nad systémem
 	\item uživatel nemusí znát heslo uživatele root
 	\item použití sudo může být monitorováno
 	\item je možné definovat, kteří uživatelé mohou provádět jaké úlohy
-\end{enumerate}
+\end{itemize}
 
+\subsection{Sudo a pluginy}
+Sudo Plugin API\footnote{http://www.sudo.ws/sudo\_plugin.man.html}
+umožňuje vytvoření vlastního modulu, který bude definovat vlastní správu
+politik.  To jaké pluginy bude sudo používat je možné konfigurovat pomocí
+souboru \textit{/etc/sudo.conf}.
 
 \subsection{Distribuce sudo pravidel mezi více počítači}
-There is not a native way to distribute sudo rules among multiple systems. Though there is a few ways to do it:
+Každý systém, na kterém chci využívat SUDO, musí mít soubor obsahující sudo
+pravidla. Sudo ovšem nemá nativní způsob jak tyto pravidla šířit mezi více
+systémy, alčkoliv existuje několik způsobů jako toho dosáhnout:
 
- Manuální šíření
+\subsubsection{Manuální distribuce}
 Administrátor spravující více systémů může může sudo pravidla šířit mezi více systémy pomocí nástrojů jako je cron, scp, rsync, atd. Tento způsob je ovšem velmi pracný.
 
-Centrálním uložiště
-Je možné využít nástrojů, které automaticky sledují a distribuují konfigurační soubory mezi vice systémy. Mezi tyto nástroje patří např. Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet}
+\subsubsection{Centrálním uložiště}
+Je možné využít nástrojů, které automaticky sledují a distribuují soubory mezi
+vice systémy. Mezi tyto nástroje patří např.
+Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet}
  
-
-1.	LDAP
-Ve většině firemních prostředí se dnes používá adresářových služeb k synchronizaci uživatelů, skupin a dalších sdílených informací. Sudo pravidla mohou být na tomto serveru také uložena. 
-
-
- Přistoupit k nim můžeme pomocí protokolu LDAP\footnote{Lightweight
-	Directory Access Protocol, which is an application protocol for querying and
-modifying directory services.}. Při použití adresářového serveru je možné sudo
+\subsubsection{LDAP adresář}
+Ve většině firemních prostředí se dnes používá adresářových služeb k
+synchronizaci uživatelů, skupin a dalších sdílených informací. Sudo pravidla
+mohou být na tomto serveru také uložena.  Přistoupit k nim je možné pomocí
+protokolu LDAP\footnote{Lightweight Directory Access Protocol, which is an
+application protocol for querying and modifying directory services.}. Při
+použití adresářového serveru je možné sudo
 pravidla centrálně spravovat a globálně k nim přistupovat. Sudo ovšem takto
 nativně nepracuje proto je potřeba plugin. Sudo má plugin pro použítí s
 openLDAP. Schéma v jakém jsou sudo pravidla na LDAP serveru uložena je pevně
 specifikováno a přináší následující nevýhody: 
+
 \begin{enumerate} 
 	\item problém s	tím překrýváním lokálních uživatelů 
+	\item další
 \end{enumerate}
 
 Pokud chce administrátor tento způsob správy politik využít, pak musí dané
 schéma dodržet i se všemi jeho nevýhodami.
 
+\subsection{Why is SUDO in LDAP better solution?}
+LDAP is characterized as a "write-once-read-many-times" service. It's eminently
+suitable for maintaining data which are not changed very often. Sudo rules are
+set once by system's administrator but accessed by users many times.
+Administrator will also want to edit the rules but not as often as client will
+access it.
+
+Directories are faster that databases because they don't require consistency as
+much as relational or transactional databases. It doesn't use transactions,
+locking or roll-backs\footnote{www.zytrax.com/books/ldap/ch2/}.
 
 
-\subsection{FreeIPA}
+\subsection{What is meant by LDAP server?}
+Technically, LDAP is just a protocol that defines the method by which directory
+data is accessed. It also defines and describes how data is represented in the
+directory service.
+
+
+\section{FreeIPA}
 FreeIPA používá vlastní schéma a proto musela napsat i vlastní plugin sss.
-
 
 Výhody použití FreeIPA pro správu sudo pravidel - u sudo+openldap musím vytvořit
 schéma a ručně jej přidat mezi ostatní schémata + přidat o tom záznam do
 /etc/sldap.conf
 
 
-Sudo Plugin API\footnote{http://www.sudo.ws/sudo\_plugin.man.html}
-umožňuje vytvoření vlastního modulu, který bude definovat vlastní správu
-politik.  To jaké pluginy bude sudo používat je možné konfigurovat pomocí
-souboru \textit{/etc/sudo.conf}.
-
-
-
-
-LDAP enabled directories:
-- active directory
-- 389 directory service
- všechno programy (adresáře) ke kterým je možno přistoupit pomocí LDAP protokolu
-
-What is meant by LDAP server?
-Technically, LDAP is just a protocol that defines the method by which directory data is accessed. It also defines and describes how data is represented in the directory service.
-
-Why SUDO in LDAP server?
-LDAP is characterized as a "write-once-read-many-times" service. It's eminently suitable for maintaining data which are not changed very often. Sudo rules are set once by system's administrator but accessed by users many times. Administrator will also want to edit the rules but not as often as client will access it.
-
-Directories are faster that databases because they don't require consistency as much as relational or transactional databases. It doesn't use transactions, locking or roll-backs\footnote{www.zytrax.com/books/ldap/ch2/}.
-
-TODO:
-•	simple asynchronous replication process
-•	LDAP provides a remote and local data access method that is standardized. It is thus possible to replace the LDAP implementation completely without affecting the external interface to the data. RDBMS systems provide local access standards, such as SQL, but remote interfaces are always proprietary.
-10	Because LDAP uses standardized data access methods Clients and Servers may be sourced (or developed) independently. By extension of this point LDAP may be used to abstract the view of data contained in transaction oriented databases, say for the purpose of running user queries, while allowing the user to transparently (to the LDAP queries) change the transactional database supplier.
-20	LDAP provides a method whereby data may be moved (delegated) to multiple locations without affecting any external access to that data. By using referral methods LDAP data can be moved to alternate LDAP servers by changing operational parameters only.
-30	LDAP systems can be operationally configured to replicate data to one or more applications without adding either code or changing the external access to that data.
-
-
-
-
-	
 \end{document}
