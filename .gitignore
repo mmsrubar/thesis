@@ -5,3 +5,5 @@
 *.log
 *.ps
 *.swp
+*.out
+*.toc
