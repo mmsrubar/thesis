@@ -18,6 +18,7 @@
 \usepackage[dvipdf]{graphicx}
 % velikost stranky
 \usepackage[top=3.5cm, left=2.5cm, text={17cm, 24cm}, ignorefoot]{geometry}
+\usepackage{listings}
 
 
 \begin{document}
@@ -57,8 +58,7 @@ Jelikož SSSD neumí to FreeIPA schéma, tak se musí dodatečně stahovat mnoho
 informací, což u rozsáhlé databáze způsobuje značné zpomalení. Úkolem není
 navrhnout nové LDAP schéma pro SUDO, ale upravit SSSD daemon a SUDO tak, aby
 podporovaly LDAP schéma, které používá IPA.
-\\
-\\
+
 Hodně zjednodušeně bude výsledkem správný dotaz na LDAP adresář na IPA serveru,
 který pro daného klienta stáhne všechno potřebné.
 
@@ -84,34 +84,32 @@ su může dát libovolnému uživateli, který zná heslo uživatele root, plnou
 kontrolu nad operačním systémem. In a nutshell sudo provides a way to give
 selective root access by user/machine/command.
 
+% ==============================================================================
 
-\subsection{sudo (Super User DO)}
-Sudo umožňuje uživateli provést jeden příkaz jako jiný uživatel. Bezpečností
-politiky, které definují kteří uživatelé mohou spouštět jaké příkazy se nazývají 
-\textbf{sudo pravidla}. Tyto pravidla jsou uloženy v souboru
-\emph{/etc/sudoers}. Sudo pravidla by měla být upravována výhradně pomocí
-utility \textbf{visudo}, která zároveň provádí kontrolu syntaxe tohoto souboru.
+\section{SUDO (Super User DO)}
 
-\subsubsection{výhody sudo oproti su}
-Jedná se dva naprosto odlišné přístupy k tomu jak získat oprávnění uživatele
-root.
+Sudo allows to a user to execute one command as a different user. Security
+policies which defines which users are allowed to execute what commands are
+called \emph{sudo rules}. These rules are stored in configuration file
+\texttt{/etc/sudoers}. The file should be edited only with tool \emph{visudo}
+which provides automatic syntax checking.
+
+\subsection{SUDO vs. su}
+These are two different concepts of giving root access to a user.
 
 \begin{itemize}
-	\item sudo umožňuje limitovat přístup zatímco su může uživateli dát plnou
-		kontrolu nad systémem
+	\item sudo allow limited access but su gives a user a full control over the
+		system
 	\item none of users need to know the root's password
 	\item using sudo can be logged
 	\item it's possible to define which users can execute which commands
 \end{itemize}
 
-% ==============================================================================
 
-\section{SUDO}
-
-\subsection{Distribute sudoers file among multiple systems}
-SUDO doesn't have native way to distribute \emph{sudoers} file among multiple
+\subsection{Distribution of the sudoers file among multiple systems}
+SUDO doesn't have a native way to distribute \emph{sudoers} file among multiple
 clients so the administrators in corporate environemnts faces a problem. How to
-distribute the sudo rules to all machines they administers? There is a few
+distribute the sudo rules to all machines he administers? There is a few
 solutions:
 
 \begin{enumerate} 
@@ -121,17 +119,17 @@ solutions:
 	\item Use tools such as
 		Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet} which
 		automaticaly watch and distribute files among multiple systems.
-	\item store sudo rules in centralized database such as
-		LDAP\footnote{Lightweight Directory Access Protocol, which is an application
-		protocol for querying and modifying directory services.}.
+	\item Use centralized database. If we do so administrator just insert sudo
+		rule into database and all the clients can use it
 \end{enumerate}
 
 \subsection{Why is SUDO in LDAP better solution?}
-LDAP is characterized as a "write-once-read-many-times" service. It's eminently
-suitable for maintaining data which are not changed very often. Sudo rules are
-set once by administrator of the system but accessed by users many times.
-Administrator will also want to edit the rules but not as often as clients will
-access it.
+LDAP \footnote{Lightweight Directory Access Protocol, which is an application
+protocol for querying and modifying directory services.}is characterized as a
+"write-once-read-many-times" service. It's eminently suitable for maintaining
+data which are not changed very often. Sudo rules are set once by administrator
+of the system but accessed by users many times.  Administrator will also want to
+edit the rules but not as often as clients will access it.
 
 Directories are faster that databases because they don't require consistency as
 much as relational or transactional databases. It doesn't use transactions,
@@ -141,12 +139,14 @@ locking or roll-backs\footnote{www.zytrax.com/books/ldap/ch2/}.
 \subsection{SUDO on LDAP server}
 In most today's organization environments there is a LDAP server which can be
 used to centraly manage user's information. These information can be accessed
-with LDAP protocol.
-\\\\
-{\color{blue}{Explain meaning of all sudo LDAP attributes?}}
+with LDAP protocol. SUDO itself has buit-in support for proccessing sudo rules
+stored on LDAP server.
+
 
 \subsection{Benefits of having sudoers on LDAP server}
 \begin{enumerate} 
+	\item if the sudo rules are centralized than the administrator doesn't have to
+		worry about distributing them
 	\item Looking up sudo rules is faster because sudo no longer needs to read
 		entire \emph{sudoers} file. There are only a few LDAP queries per
 		invocation.
@@ -158,18 +158,29 @@ with LDAP protocol.
 		\emph{sudoers} file}.
 \end{enumerate}
 
-\subsection{Difference between sudoers and LDAP}
+\subsection{Difference between LDAP sudoers and non-LDAP sudoers}
 \begin{itemize} 
 	\item The biggest difference, according to the LDAP RFC, is that LDAP ordering
 		of attributes is arbitrary which means that you can not expect that
 		attributes are returned in any specific order. 
 		Let's suppose that we have these two rules in \emph{sudoers} file:
-		\\\\\quad
-		\texttt{adam ALL=/bin/cat /etc/shadow}\\
-		\texttt{adam ALL=!/bin/cat /etc/shadow}\\
-		\\
+
+		\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
+			adam ALL=/bin/cat /etc/shadow
+			adam ALL=!/bin/cat /etc/shadow
+		\end{lstlisting}
+
 		There's an order in reading \emph{sudoers} which means adam will not be able
-		to print content of the \emph{/etc/shadow} file.
+		to print content of the \emph{/etc/shadow} file. The same rule in LDAP would
+		look like this:
+
+		\lstinputlisting[language=C,basicstyle=\ttfamily\small,frame=lines,showtabs=false]{srcs/sudorule_order.ldif}
+		Since there's an arbitrary ordering of attributes there's no guarante of what
+		sudo rules the client will receive as the last one. Which means we are not 
+		%sure whether the user \texttt{adam} will be able to ṕrint \texttt{shadow}
+		file or not. This is the reason why there is the \texttt{SudoOrder}
+		attribute. {\color{blue}Take a closer look at this!}
+
 	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
 	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
 		also be stored in LDAP
@@ -179,28 +190,27 @@ with LDAP protocol.
 		possible to specify per-entry options.
 \end{itemize}
 
+Having sudoers in LDAP has also a few drawbacks. These are discussed in section
+\ref{sec:sudo_ldap_drawbacks}.
 
-
-\subsubsection{Centrálním uložiště}
-
-\subsubsection{LDAP adresář}
-Ve většině firemních prostředí se dnes používá adresářových služeb k
-synchronizaci uživatelů, skupin a dalších sdílených informací. Sudo pravidla
-mohou být na tomto serveru také uložena.  Přistoupit k nim je možné pomocí
-protokolu LDAP. Při
-použití adresářového serveru je možné sudo
-pravidla centrálně spravovat a globálně k nim přistupovat. Sudo ovšem takto
-nativně nepracuje proto je potřeba plugin. Sudo má plugin pro použítí s
-openLDAP. Schéma v jakém jsou sudo pravidla na LDAP serveru uložena je pevně
-specifikováno a přináší následující nevýhody: 
-
-\begin{enumerate} 
-	\item problém s	tím překrýváním lokálních uživatelů 
-	\item další
-\end{enumerate}
-
-Pokud chce administrátor tento způsob správy politik využít, pak musí dané
-schéma dodržet i se všemi jeho nevýhodami.
+\subsection{Drawbacks of having sudoers in LDAP}\label{sec:sudo_ldap_drawbacks}
+\begin{itemize} 
+	\item Administrator has to configure everything via text files. Sudo does not
+		provide any GUI.
+	\item Corporation don't want to maintain their users information a security
+		policies separetly. They want to have those kind of information at one place
+		so it can be link together.
+	\item If there are users information and sudo rules stored in LDAP than there
+		is no relationship among them.
+		rules.
+	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
+	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
+		also be stored in LDAP
+	\item \texttt{Cmnd\_Aliases} are not needed becase it's possible to add more
+		\texttt{sudoCommand} in one \texttt{sudoRole}
+	\item \texttt{/etc/sudoers} file uses global default options but in LDAP it's
+		possible to specify per-entry options.
+\end{itemize}
 
 \subsection{Sudo a pluginy}
 Sudo Plugin API\footnote{http://www.sudo.ws/sudo\_plugin.man.html}
@@ -208,14 +218,30 @@ umožňuje vytvoření vlastního modulu, který bude definovat vlastní správu
 politik.  To jaké pluginy bude sudo používat je možné konfigurovat pomocí
 souboru \textit{/etc/sudo.conf}.
 
-
 \subsection{What is meant by LDAP server?}
 Technically, LDAP is just a protocol that defines the method by which directory
 data is accessed. It also defines and describes how data is represented in the
 directory service.
 
+{\color{blue}
+\subsection{ADD or NOT?}
+\begin{enumerate} 
+	\item example of sudoers configuration and use?
+	\item Explain meaning of all \texttt{sudoRole} attributes and SUDOers container?
+\end{enumerate} 
+}
+
 
 \section{FreeIPA}
+FreeIPA uses LDAP directory to store information such as users information for
+authentication, dns records etc.
+
+\subsection{Advantages the new schema brings}
+\begin{itemize}
+	\item it's possible to disable a rule without deleting it
+	\item Identities, Hosts and Commands uses DNs instead of string attributes
+\end{itemize}
+T
 FreeIPA používá vlastní schéma a proto musela napsat i vlastní plugin sss.
 
 Výhody použití FreeIPA pro správu sudo pravidel - u sudo+openldap musím vytvořit
@@ -223,9 +249,6 @@ schéma a ručně jej přidat mezi ostatní schémata + přidat o tom záznam do
 /etc/sldap.conf
 
 \subsection{How are SUDO rules stored in LDAP on IPA server?}
-{\Large{section keywords:} LDAP, IPA, SUDO legacy schema, IPA SUDO schema,
-container}
-\\
 IPA uses two containers for storing SUDO rules. A \emph{sudoers} container
 which contains SUDO rules in legacy scheme which consists of these attributes:
 \begin{itemize}
@@ -235,7 +258,8 @@ which contains SUDO rules in legacy scheme which consists of these attributes:
 \end{itemize}
 Then there is a \emph{sudo} container and this contains 
 
-\section{Benefits of the SSSD}
+\section{SSSD}
+\subsection{Benefits of the SSSD}
 \textit{unified configuration - instead of configuring the SSSD to perform account
 lookups and then configuring /etc/ldap.conf to perform sudo rules lookups, the
 user only configures one client piece - the SSSD. The SSSD also provides several
@@ -244,65 +268,81 @@ such as the support for server discovery using DNS SRV requests or advanced
 server fail over, which lets the admin define several servers that are tried in
 descending order of preference and then stick to the working server, by Kuba}
 
-\section{Changes}
-{\Large{section keywords:}} changes, proposal, sssd, sudo, ipa, ldap sudo scheme,
-sudoers container, sudo container
+\section{Proposed changes}
+
+\section{Jak to funguje teď}
+\subsection{compat plugin}
+\textbf{Ten compat plugin pracuje za běhu IPA nebo ty pravidla přeloží až, když
+o ně požádá SSSD?}
+
+Myslim ze cely compat strom se generuje v zavislosti na dotazech klientu. Tj
+na serveru je plugin, ktery vi, ze kdyz dojde dotaz na ou=sudoers,\$DC,
+tak se ma interne zeptat do IPA sudo kontejneru a pokud neco dostane zpet,
+vlozi vysledek do compat pluginu, kde si ho precte klient co provadel search.
+
+Klient nemusi byt jen sudo, muze to byt cokoliv, co se umi bavit LDAP
+protokolem.
+
+\subsection{jak jsou uložena pravidla v IPA}
+\textbf{V kontejneru sudores sjou povolené pravidla v takovém formátu, které umí
+zpracovat SUDO. V sudo kontejneru jsou pravidla ve formátu, který používá IPA.
+Ten plugin to překládá za běhu a SSSD si to tahá ze sudoers kontejneru? Když
+potřebuje další informace, tak si je dodatečně stáhne?}
+
+Jo, myslim ze jsi to popsal dobre.
+
+\subsection{externí uživatele}
+\textbf{Funguji momentálně ti externí uživatele. Pravidlo se mně
+stáhne v pořádku, ale sudo mně řekne, že uživatel není v SUDOers.}
+
+Externi uzivatele jsou hlavne na to, kdyz mas nektere uzivatele
+ulozene na jinem serveru nez IPA (typicky Active Directory). Nevim
+jestli jde pomoci externich uzivatelu vlozit treba uzivatele z
+/etc/passwd, ale spis bych rekl, ze ne.
+
+Myslim ze tomuhle se v praci nemusis nijak venovat, max popsat, ze to tam je.
+
+
+
 
 \section*{Možná struktura textu}
 \begin{itemize}
-        \item        Smysl BP.
-        \item Uživatelé, root, jak dát běžným uživatelům vyšší práva
-        \item Sudo, su, alternativy
-        \item Proč sudo?
-        \item        Proč sudo v LDAPu? (alternativy jak a kam ukládát sudo pravidla, např.
-                puppet)
+	\item Problémy a nedostatky defaultního LDAP shématu, které SUDO používá
+	\begin{itemize}
+					\item na uživatele se odkazuje pouze přes řetězec jména, není tam žádná
+									provázanost s počítačem ze kterého dany uživatel je
+					\item pokud LDAP spravuje i uživatele, a je tam stejný uživatel jako na
+									lokální mašině, tak tam vzniká nějaký problém s překrytím těch uživatelů
+					\item mezi uživateli a sudo pravidly neexistuje vazba, pokud odstraním
+									uživatele, tak mně zůstane pravidlo s neexistujícím uživatelem
+	\end{itemize}
+	\item Projekt FreeIPA
+	\item Proč sudo ve FreeIPA (?granularita?)
+	\item Proč má IPA vlastní SUDO LDAP schema a jaké výhody přináší
 
-        \begin{itemize}
-                \item Složitost konfigurace a správy (všechno v textu, není GUI, které FreeIPA má)
-                \item Firma s mnoha zaměstnanci chce centrálně spravovat informace a
-                        politiky o svých uživatelích (chtěla by mít vše na jednom místě a né
-                        informace v ldap, sudo pravidla v LDAPu ale nebylo by to nijak propojeno,
-                        konfiguráky v puppetu, atd...)
-                \item sudo pravidla nejsou nijak propojena s ostatními informacemi, které
-                        mohou a často jsou v LDAPu uloženy (uživatelé, skupiny, atd)
-        \end{itemize}
-        
-        \item Problémy a nedostatky defaultního LDAP shématu, které SUDO používá
-        \begin{itemize}
-                \item na uživatele se odkazuje pouze přes řetězec jména, není tam žádná
-                        provázanost s počítačem ze kterého dany uživatel je
-                \item pokud LDAP spravuje i uživatele, a je tam stejný uživatel jako na
-                        lokální mašině, tak tam vzniká nějaký problém s překrytím těch uživatelů
-                \item mezi uživateli a sudo pravidly neexistuje vazba, pokud odstraním
-                        uživatele, tak mně zůstane pravidlo s neexistujícím uživatelem
-        \end{itemize}
-        \item Projekt FreeIPA
-        \item Proč sudo ve FreeIPA (?granularita?)
-        \item Proč má IPA vlastní SUDO LDAP schema a jaké výhody přináší
+	\begin{itemize}
+					\item umožňuje např. povolit/zakázat pravidlo
+	\end{itemize}
+					
+	\item Jak to funguje teď
 
-        \begin{itemize}
-                \item umožňuje např. povolit/zakázat pravidlo
-        \end{itemize}
-                
-        \item Jak to funguje teď
-
-        \begin{itemize}
-                \item definice pravidla
-                \item jak se uloží v LDAPu
-                \item co tam bude jinak oproti tomu než bych to uložil do LDAPu s legacy
-                        schematem
-                \item konverze do legacy schématu když k tomu přistoupím přes SSSD
-                \item cachování
-        \end{itemize}
-        \item Proč musí IPA nové schéma přeložit do legacy schematu než jej pošle
-                SSSD
-        \item Jaké problémy to přináší
-        \item Jaké úpravy je nutné provést
-        \begin{itemize}
-                \item u sudo bude třeba přenést něco z /lib do /usr (z ticketu: pe\_task,
-                        cron)
-        \end{itemize}
-        \item Vyzdvihnout všechny přednosti
+	\begin{itemize}
+					\item definice pravidla
+					\item jak se uloží v LDAPu
+					\item co tam bude jinak oproti tomu než bych to uložil do LDAPu s legacy
+									schematem
+					\item konverze do legacy schématu když k tomu přistoupím přes SSSD
+					\item cachování
+	\end{itemize}
+	\item Proč musí IPA nové schéma přeložit do legacy schematu než jej pošle
+					SSSD
+	\item Jaké problémy to přináší
+	\item Jaké úpravy je nutné provést
+	\begin{itemize}
+					\item u sudo bude třeba přenést něco z /lib do /usr (z ticketu: pe\_task,
+									cron)
+	\end{itemize}
+	\item Vyzdvihnout všechny přednosti
 \end{itemize} 
 
 \end{document}
