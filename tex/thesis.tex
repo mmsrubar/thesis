@@ -27,7 +27,7 @@
 % titulní strana
 \author{Michal Šrubař\\xsruba03@stud.fit.vutbr.cz}
 \date{}	
-\title{Zdokonalení integrace SSSD a SUDO}
+\title{Improved integration of SUDO and SSSD}
 \maketitle
 %\input{title.tex}
 
@@ -89,16 +89,16 @@ selective root access by user/machine/command.
 \section{SUDO (Super User DO)}
 
 Sudo allows to a user to execute one command as a different user. Security
-policies which defines which users are allowed to execute what commands are
+policies which define which users are allowed to execute what commands are
 called \emph{sudo rules}. These rules are stored in configuration file
 \texttt{/etc/sudoers}. The file should be edited only with tool \emph{visudo}
-which provides automatic syntax checking.
+this provides automatic syntax checking.
 
 \subsection{SUDO vs. su}
 These are two different concepts of giving root access to a user.
 
 \begin{itemize}
-	\item sudo allow limited access but su gives a user a full control over the
+	\item sudo allows limited access but su gives a user a full control over the
 		system
 	\item none of users need to know the root's password
 	\item using sudo can be logged
@@ -108,17 +108,17 @@ These are two different concepts of giving root access to a user.
 
 \subsection{Distribution of the sudoers file among multiple systems}
 SUDO doesn't have a native way to distribute \emph{sudoers} file among multiple
-clients so the administrators in corporate environemnts faces a problem. How to
+clients so the administrators in corporate environments face a problem. How to
 distribute the sudo rules to all machines he administers? There is a few
 solutions:
 
 \begin{enumerate} 
-	\item Administrator can manualy distribute the \emph{sudoers} file among the
-		systems he administers with starndar UNIX tools such as \emph{cron, scp,
+	\item Administrator can manually distribute the \emph{sudoers} file among the
+		systems he administers with standard UNIX tools such as \emph{cron, scp,
 		rsync} etc.
 	\item Use tools such as
 		Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet} which
-		automaticaly watch and distribute files among multiple systems.
+		automatically watch and distribute files among multiple systems.
 	\item Use centralized database. If we do so administrator just insert sudo
 		rule into database and all the clients can use it
 \end{enumerate}
@@ -138,8 +138,8 @@ locking or roll-backs\footnote{www.zytrax.com/books/ldap/ch2/}.
 
 \subsection{SUDO on LDAP server}
 In most today's organization environments there is a LDAP server which can be
-used to centraly manage user's information. These information can be accessed
-with LDAP protocol. SUDO itself has buit-in support for proccessing sudo rules
+used to centrally manage user's information. These information can be accessed
+with LDAP protocol. SUDO itself has built-in support for processing sudo rules
 stored on LDAP server.
 
 
@@ -152,7 +152,7 @@ stored on LDAP server.
 		invocation.
 	\item If there is a typing error in \emph{sudoers} than sudo won't start. With
 		LDAP it's not possible to load data into the LDAP directory which does not
-		conform the sudoers schema so the proper syntax is guaranted. Although you
+		conform the sudoers schema so the proper syntax is guaranteed. Although you
 		can still make a mistake in user name, host name or command. There is no
 		need to use visudo\footnote{utility which provides save editing of the
 		\emph{sudoers} file}.
@@ -167,7 +167,7 @@ stored on LDAP server.
 
 		\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
 			adam ALL=/bin/cat /etc/shadow
-			adam ALL=!/bin/cat /etc/shadow
+			adam ALL=!/bin/cat /etc/shadow/
 		\end{lstlisting}
 
 		There's an order in reading \emph{sudoers} which means adam will not be able
@@ -175,16 +175,16 @@ stored on LDAP server.
 		look like this:
 
 		\lstinputlisting[language=C,basicstyle=\ttfamily\small,frame=lines,showtabs=false]{srcs/sudorule_order.ldif}
-		Since there's an arbitrary ordering of attributes there's no guarante of what
-		sudo rules the client will receive as the last one. Which means we are not 
-		%sure whether the user \texttt{adam} will be able to ṕrint \texttt{shadow}
+		Since there's an arbitrary ordering of attributes there's no guarantee of what
+		sudo rules the client will receive as the last one. That means we are not 
+		sure whether the user \texttt{adam} will be able to print \texttt{shadow}
 		file or not. This is the reason why there is the \texttt{SudoOrder}
 		attribute. {\color{blue}Take a closer look at this!}
 
 	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
 	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
 		also be stored in LDAP
-	\item \texttt{Cmnd\_Aliases} are not needed becase it's possible to add more
+	\item \texttt{Cmnd\_Aliases} are not needed because it's possible to add more
 		\texttt{sudoCommand} in one \texttt{sudoRole}
 	\item \texttt{/etc/sudoers} file uses global default options but in LDAP it's
 		possible to specify per-entry options.
@@ -197,16 +197,16 @@ Having sudoers in LDAP has also a few drawbacks. These are discussed in section
 \begin{itemize} 
 	\item Administrator has to configure everything via text files. Sudo does not
 		provide any GUI.
-	\item Corporation don't want to maintain their users information a security
-		policies separetly. They want to have those kind of information at one place
+	\item Corporations don't want to maintain their user's information a security
+		policies separately. They want to have those kind of information at one place
 		so it can be link together.
-	\item If there are users information and sudo rules stored in LDAP than there
+	\item If there are user's information and sudo rules stored in LDAP than there
 		is no relationship among them.
 		rules.
 	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
 	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
 		also be stored in LDAP
-	\item \texttt{Cmnd\_Aliases} are not needed becase it's possible to add more
+	\item \texttt{Cmnd\_Aliases} are not needed because it's possible to add more
 		\texttt{sudoCommand} in one \texttt{sudoRole}
 	\item \texttt{/etc/sudoers} file uses global default options but in LDAP it's
 		possible to specify per-entry options.
