@@ -109,7 +109,7 @@ These are two different concepts of giving root access to a user.
 \subsection{Distribution of the sudoers file among multiple systems}
 SUDO doesn't have a native way to distribute \emph{sudoers} file among multiple
 clients so the administrators in corporate environments face a problem. How to
-distribute the sudo rules to all machines he administers? There are a few
+distribute the sudo rules to all machines they administers? There are a few
 solutions:
 
 \begin{enumerate} 
@@ -131,7 +131,7 @@ data which are not changed very often. Sudo rules are set once by system's
 administrator but accessed by users many times. The administrator will also want
 to edit the rules but not as often as clients will access it.
 
-Directories are faster because they don't require consistency as
+Directories are faster than databases because they don't require consistency as
 much as relational or transactional databases. It doesn't use transactions,
 locking or roll-backs\footnote{www.zytrax.com/books/ldap/ch2/}.
 
@@ -145,8 +145,8 @@ stored on LDAP server.
 
 \subsection{The benefits of having sudoers on LDAP server}
 \begin{enumerate} 
-	\item if the sudo rules are centralized than the administrator doesn't have to
-		worry about distributing them
+	\item If the sudo rules are centralized than the administrator doesn't have to
+		worry about distributing them.
 	\item Looking up sudo rules is faster because sudo no longer needs to read
 		the entire \emph{sudoers} file. There are only a few LDAP queries per
 		invocation.
