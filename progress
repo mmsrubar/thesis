@@ -1,0 +1,4 @@
+Mon 27 Jan 2014 03:04:41 PM CET
+===============================
+- little example on client/server using UNIX domain sockets for IPC
+- finally know how to use tevent to watch file descriptors
