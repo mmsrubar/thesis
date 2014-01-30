@@ -1,0 +1,8 @@
+IPA
+===
+- K čemu je attribute cmdCategory? Bylo tam napsáno něco o tom, že to má být do
+	budoucna, ale nepochopil jsem k čemu to bude.
+- K jednotlivým pravidlům můžu přidávat options, ale kam se dávají globální
+	options, které si chci aplikovat na všechny nebo vice pravidel?
+- Kdyby šlo ve WebGUI editovat již zadané options, bylo by to super.
+
