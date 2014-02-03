@@ -1,9 +1,0 @@
-# LDAP equivalent of adam's sudo rules
-dn: cn=role1,ou=Sudoers,dc=example,dc=com
-objectClass: sudoRole
-objectClass: top
-cn: role1
-sudoUser: adam
-sudoHost: ALL
-sudoCommand: /bin/cat
-sudoCommand: !/bin/cat

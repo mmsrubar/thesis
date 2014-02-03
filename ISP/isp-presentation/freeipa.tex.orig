@@ -1,0 +1,510 @@
+% vim: set tabstop=4:
+% vim: set shiftwidth=4:
+% vim: set expandtab:
+\RHpresentationHead{
+\documentclass[pdftex,unicode,xcolor=table]{beamer}
+%\documentclass[pdftex,unicode,xcolor=table,notes=show]{beamer}
+}
+
+\RHarticleHead{
+% This does not work, because of colors, \insertauthor, etc.
+\documentclass[a4paper,12pt,pdftex,unicode]{article}
+\usepackage[envcountsect]{beamerarticle}
+}
+
+\mode<presentation> {
+    \usetheme{RedHat}
+    \setbeamertemplate{navigation symbols}{}
+    \setbeamercovered{transparent=5}
+}
+\mode<article> {
+    \usepackage{fullpage}
+}
+\mode<handout> {
+    \usepackage{pgfpages}
+    \pgfpagesuselayout{4 on 1}[a4paper,landscape,border shrink=5mm]
+}
+
+\usepackage{beamerredhat}
+\usepackage{etex}
+\usepackage[utf8]{inputenc}
+%\usepackage{czech}
+\usepackage[czech]{babel}
+\usepackage{setspace,amsfonts,calc,upquote,hyperref,floatflt,graphicx}
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage[absolute,overlay]{textpos}\textposquirk
+
+
+% presentation title/author/etc.
+\title{FreeIPA}
+\institute{Red Hat Czech Open House}
+\author{Jakub Hrozek \and Jan Zelený \and Pavel Zůna}
+%\date{}
+
+% fancy section/part pages?
+\fancySectionOpens
+\fancyPartOpens
+
+\begin{document}
+
+% title pages
+\mode<article> {
+    \maketitle
+    \newpage
+}
+
+\mode<presentation> {
+    \begin{rhbg}
+    \begin{frame}
+        \titlepage
+    \end{frame}
+    \end{rhbg}
+}
+
+% table of contents
+\mode<article> {
+    \newpage
+    \tableofcontents
+    \newpage
+}
+
+\begin{frame}
+    \tableofcontents
+\end{frame}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\section{Přihlašování uživatelů v Linuxu}
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\begin{frame}
+    \frametitle{Přihlášení uživatele}
+    \begin{itemize}
+        \item Jak zjistit seznam všech uživatelů v systému?
+        \item Jak zjistit podrobnosti o konkrétním uživateli?
+        \begin{itemize}
+            \item domovský adresář, seznam skupin, \dots
+        \end{itemize}
+        \item Jak uživatele příhlásit
+    \end{itemize}
+    \begin{figure}
+        \includegraphics[scale=0.25]{img/gdm.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Přihlašování uživatelů obecně}
+    \begin{itemize}
+        \item GDM, ssh, login, \dots
+        \item obecně se přihlášení skládá z více kroků
+        \begin{itemize}
+            \item získání totožnosti - identifikace
+            \item ověření totožností uživatele - autentizace
+            \item ověření, zda uživatel má právo vykonat požadovanou činnost - autorizace
+            \item zpřístupnění služby
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Historický vývoj\,--\,získávání informací}
+    \begin{enumerate}
+        \item vše v souborech 
+        \begin{itemize}
+            \item uživatelé v \texttt{/etc/passwd}, názvy strojů v \texttt{/etc/hosts}, \dots
+            \item aplikace mohou přímo přistupovat k souborům
+        \end{itemize}
+        \item programové rozhraní poskytované knihovnou \texttt{libc}
+        \item postupně bylo třeba získávat informace i z jiných databází
+        \begin{itemize}
+            \item uživatelé v LDAPu, názvy strojů v DNS, \dots 
+            \item staré verze Unixových systémů měly pořadí databázi zakompilováno
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Historický vývoj\,--\,autentizace}
+    \begin{enumerate}
+        \item teoreticky je možné, aby si program např. sám porovnal hash hesel se záznamem v \texttt{/etc/shadow}, ale:
+        \begin{itemize}
+            \item musel by mít oprávnění soubor číst
+            \item každý program by musel toto implementovat (bezpečnost!)
+            \item použitelné jen pro autentizaci heslem v souboru
+            \begin{itemize}
+                \item co když nepoužíváme hesla? (fingerprint, \dots)
+                \item co když hesla nejsou v souboru?
+            \end{itemize}
+        \end{itemize}
+        \item v Unixových systémech se typicky používá systém PAM
+        \begin{itemize}
+            \item podobně jako Name Service Switch je modulární
+            \item pro různé autentizační mechanismy moduly formou knihoven
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Name Service Switch}
+    \begin{itemize}
+        \item prostředek poskytující programům přístup ke zdrojům informací
+        \item modulární - přístup k jednotlivým databázím pomocí samostatných knihoven
+        \begin{itemize}
+            \item k dispozici knihovny pro soubory, LDAP, NIS a další
+        \end{itemize}
+        \item různé databáze pro ruzné druhy informací
+        \begin{itemize}
+            \item uživatelé, skupiny, stroje, \dots
+        \end{itemize}
+        \item konfigurační soubor \texttt{/etc/nsswitch.conf}
+        \begin{itemize}
+            \item určuje jaké moduly se mají použít
+            \item specifikuje jejich pořadí
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{PAM - Pluggable Authentication Modules}
+    \begin{itemize}
+        \item poskytuje API pro aplikace, které jej chtějí využívat
+        \item může provádět následující činnosti
+        \begin{description}
+            \item[account] - Ověření účtu (např. expirace)
+            \item[auth] - Autentizace uživatele (např. kontrola hesla)
+            \item[session] - Nastavení prostředí služby
+            \item[password] - Správa hesel, jejich změna, kontrola kvality
+        \end{description}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{PAM - Pluggable Authentication Modules}
+    \begin{itemize}
+        \item velké množství dostupných modulů
+        \item možnost detailního nastavení přístupových pravidel
+        \begin{itemize}
+            \item autentizace pomocí \texttt{/etc/shadow}, LDAPu, Kerbera
+            \item kontrola kvality hesel, kontrola systémového času
+            \item \dots
+        \end{itemize}
+        \item konfigurační soubory v adresáři \texttt{/etc/pam.d}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Shrnutí}
+    \begin{itemize}
+        \item Pro přihlášení uživatele do systému je třeba:
+        \begin{description}
+            \item[Zjistit informace] - voláním knihovny libc, která přistupuje k informacím přes komponentu Name Service Switch
+            \item[Provést přihlášení] - typicky pomocí autentizačních modulů PAM
+        \end{description}
+    \end{itemize}
+\end{frame}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\section{Centralizované databáze uživatelů}
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\begin{frame}
+    \frametitle{Lokální účty ve větší organizaci}
+    \begin{itemize}
+        \item teoreticky je možné distribuovat soubory
+        \begin{itemize}
+            \item v praxi nastává problém se synchronizací
+        \end{itemize}
+        \item výhodnější řešení: centralizace informací
+        \item v praxi několik běžně používaných řešení
+        \begin{itemize}
+            \item UNIX/Linux -- LDAP, LDAP\,+\,Kerberos, NIS
+            \item Windows -- Active Directory (LDAP\,+\,Kerberos)
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{LDAP}
+    \begin{itemize}
+        \item databáze se stromovou strukturou
+        \item lze použít:
+        \begin{itemize}
+            \item ukládání uživatelů a skupin
+            \item adresář pro e-mailové klienty
+            \item jakákoliv data se stromovou strukturou
+        \end{itemize}
+        \item implementace: OpenLDAP, Active Directory, 389DS, \dots
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Příklad uživatele v LDAPu}
+        \begin{exampleblock}{uživatel v \texttt{/etc/passwd}}
+\begin{verbatim}
+jakub:x:500:500:Jakub Hrozek:/home/jakub:/bin/bash
+\end{verbatim}
+        \end{exampleblock}
+        \begin{exampleblock}{uživatel v LDAPu}
+\begin{verbatim}
+dn: cn=jakub,ou=People,dc=redhat,dc=com
+objectClass: posixAccount
+objectClass: inetOrgPerson
+uid: jakub
+uidNumber: 500
+gidNumber: 500
+homeDirectory: /home/jakub
+gecos: Jakub Hrozek
+loginShell: /bin/bash
+cn: jakub
+\end{verbatim}
+        \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace klientské stanice pro LDAP}
+    \begin{itemize}
+        \item pomocí modulů NSS a PAM
+        \begin{description}
+            \item[NSS] - \texttt{nss\_ldap}
+            \item[PAM] - \texttt{pam\_ldap}
+            \item[parametry serveru] - \texttt{/etc/ldap.conf}
+        \end{description}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace klientské stanice pro LDAP - parametry serveru}
+    \begin{itemize}
+        \item konfigurační soubor \texttt{/etc/ldap.conf}
+        \begin{exampleblock}{/etc/ldap.conf}
+\begin{verbatim}
+host ldaps://ldap.example.com:636
+base dc=example,dc=com
+ssl start_tls
+ssl on
+\end{verbatim}
+        \end{exampleblock}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace klientské stanice pro LDAP - NSS}
+    \begin{itemize}
+        \item konfigurační soubor \texttt{/etc/nsswitch.conf}
+        \begin{exampleblock}{/etc/nsswitch.conf}
+\begin{verbatim}
+passwd:     files ldap
+shadow:     files
+group:      files ldap
+\end{verbatim}
+        \end{exampleblock}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace klientské stanice pro LDAP - PAM}
+    \begin{itemize}
+        \item konfigurační soubory \texttt{/etc/pam.d/system-auth} a \texttt{/etc/pam.d/password-auth}
+        \item v praxi se často nastavuje pomocí GUI/CLI nástrojů
+        \item na ukázku pouze \texttt{auth} modul
+        \begin{exampleblock}{/etc/pam.d/system-auth}
+\begin{verbatim}
+auth required    pam_env.so
+auth sufficient  pam_unix.so nullok try_first_pass
+auth requisite   pam_succeed_if.so uid >= 500 quiet
+auth sufficient  pam_ldap.so use_first_pass
+auth required    pam_deny.so
+\end{verbatim}
+        \end{exampleblock}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Problémy modulů \texttt{nss\_ldap} a \texttt{pam\_ldap}}
+    \begin{itemize}
+        \item jak specifikovat více LDAP serverů pokud jeden z nich vypadne?
+        \item jak specifikovat více LDAP serverů jako více zdrojů informací?
+        \item co se stane, pokud není LDAP server dostupný?
+        \begin{itemize}
+            \item nedostupná síť, laptop ve vlaku, nedostupná korporátní VPN
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Problémy modulů \texttt{nss\_ldap} a \texttt{pam\_ldap}}
+    \begin{itemize}
+        \item řešení je několik:
+        \begin{itemize}
+            \item \texttt{ldapsearch | awk > /etc/passwd} v cronu :-)
+            \item lokální LDAP server synchronizující data
+            \item projekt \texttt{nsscache}
+        \end{itemize}
+        \item ovšem replikují \textit{celý} adresář
+        \begin{itemize}
+            \item potenciálně desítky tisíc záznamů
+            \item u všech uloženy i hashe hesel apod.
+        \end{itemize}
+        \item také neřeší více serverů apod.
+    \end{itemize}
+\end{frame}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\section{SSSD}
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\begin{frame}[fragile]
+    \frametitle{System Security Services Daemon}
+    \begin{itemize}
+        \item \url{http://fedorahosted.org/sssd}
+        \item systémový démon, který umožňuje přístup k adresářovým a autentizačním službám
+        \item komunikuje s operačním systémem pomocí vlastních modulů NSS a PAM
+        \item vyvíjen od září 2008
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Výhody SSSD}
+    \begin{itemize}
+        \item podporuje více "domén"
+        \begin{itemize}
+            \item oddělené servery poskytující různá data
+        \end{itemize}
+        \item podpora více serverů pro jednu doménu
+        \begin{itemize}
+            \item redundance
+        \end{itemize}
+        \item detekce nedostupnosti a opětovné dostupnosti serveru
+        \item cachování informací o uživatelích, případně hesel
+        \begin{itemize}
+            \item do cache se ukládají pouze opravdu použitá data
+            \item není třeba kvůli každému dotazu zatěžovat server
+            \item funguje i při nedostupném serveru
+            \item záznamy v cache mohou postupně expirovat
+            \item pro přihlášení se vždy snaží komunikovat se serverem (oproti \texttt{pam\_ccache})
+        \end{itemize}
+        \item pro některé druhy serverů specializované funkce
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Architektura SSSD}
+    \begin{figure}
+        \includegraphics[scale=0.21]{sssd-architecture.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Architektura SSSD}
+    \begin{itemize}
+        \item monitor - centrální proces sledující ostatní procesy, spouští nebo restartuje je dle potřeby
+        \item specializované služby běží ve vlastních procesech
+        \begin{itemize}
+            \item NSS responder odpovídá na dotazy na identitu uživatelů z NSS modulu \texttt{nss\_sss}
+            \item PAM responder zajišťuje PAM konverzaci přes modul \texttt{pam\_sss}
+            \item každá doména jako samostatný proces, který zajišťuje komunikaci se serverem
+        \end{itemize}
+        \item procesy služeb komunikují s monitorem pomocí protokolu DBus
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace SSSD - PAM a NSS}
+    \begin{itemize}
+        \item konfigurace je velmi podobná nativním modulům pro LDAP
+        \item v podstate stačí jen záměna \texttt{s/ldap/sss/}
+    \end{itemize}
+    \begin{exampleblock}{/etc/nsswitch.conf}
+\begin{verbatim}
+passwd:     files sss
+shadow:     files
+group:      files sss
+\end{verbatim}
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Konfigurace démona SSSD}
+    \begin{itemize}
+        \item konfigurační soubor \texttt{/etc/sssd/sssd.conf}
+        \begin{exampleblock}{/etc/sssd/sssd.conf}
+\begin{verbatim}
+[sssd]
+domains = LDAP.EXAMPLE.COM
+
+[domain/LDAP.EXAMPLE.COM]
+id_provider = ldap
+ldap_uri = ldaps://ldap.example.com
+ldap_search_base = ou=accounts,dc=example,dc=com
+cache_credentials = true
+\end{verbatim}
+        \end{exampleblock}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Stav SSSD}
+    \begin{itemize}
+        \item poslední vydaná verze je 1.4.0
+        \item binární balíčky k dispozici ve Fedoře, RHEL6, Ubuntu, OpenSuse, Gentoo, Debianu
+        \item v současnosti podporuje SSSD několik typů serverů
+        \begin{itemize}
+            \item LDAP
+            \item Kerberos
+            \item FreeIPA
+            \item Active Directory (jako kombinaci LDAP+Kerberos)
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Budoucí vývoj SSSD}
+    \begin{itemize}
+        \item přístup k pravidlům sudo uloženým v LDAP serveru
+        \item ukládání SSH klíčů v LDAPu a přístup k nim
+        \item poskytování lokálních uživatelů
+        \item možnost vytváření externích back endů
+        \begin{itemize}
+            \item i proprietárních - např. RSA servery, Active Directory
+        \end{itemize}
+        \item do vývoje je možné se zapojit i formou bakalářských nebo diplomových prací
+    \end{itemize}
+\end{frame}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\section{Závěr}
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\begin{frame}
+    \frametitle{Workshop}
+    \begin{itemize}
+        \item Možnost v praxi si vyzkoušet SSSD, FreeIPA
+        \item středa 3.11. 15-17\,hodin na Gotexu
+        \item je možné domluvit i jiný termín
+        \item přihlášení e-mailem \texttt{jhrozek@redhat.com}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Bakalářky, diplomky}
+    \begin{itemize}
+        \item příklady témat:
+        \begin{itemize}
+            \item autentizační API pro webové aplikace a SSSD
+            \item sada ukázkových aplikací pomocí knihovny \texttt{tevent}
+            \item analýza výkonnosti 389 Directory Serveru
+            \item podpora novějšího protokolu \texttt{kpasswd} pro server FreeIPA
+            \item podpora OpenLDAP pluginů v 389 Directory Serveru
+        \end{itemize}
+        \item dotazy na workshopu nebo mailem \texttt{jhrozek@redhat.com}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Děkuji za pozornost}
+    \begin{itemize}
+        \item Otázky?
+    \end{itemize}
+\end{frame}
+
+\mode<presentation> {
+    \Rhbg{\frame{\theend}}
+}
+
+\end{document}
