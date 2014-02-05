@@ -1,0 +1,12 @@
+--- sudo-1.8.10b1/configure	2014-02-02 18:19:14.000000000 +0100
++++ configure	2014-02-05 18:05:11.129870298 +0100
+@@ -4008,7 +4008,8 @@
+   withval=$with_sssd_lib;
+ fi
+ 
+-sssd_lib="\"LIBDIR\""
++sssd_lib="/usr/lib/sssd/modules/"
++#sssd_lib="\"LIBDIR\""
+ test -n "$with_sssd_lib" && sssd_lib="$with_sssd_lib"
+ cat >>confdefs.h <<EOF
+ #define _PATH_SSSD_LIB "$sssd_lib"
