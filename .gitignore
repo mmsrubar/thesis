@@ -1,6 +1,5 @@
 *.aux
 *.dvi
-*.log
 *.ps
 *.swp
 *.out
