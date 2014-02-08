@@ -7,46 +7,9 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd] [confdb_get_domain_internal] (0x1000): pwd_expiration_warning is -1
 [sssd] [ldb] (0x0400): server_sort:Unable to register control with rootdse!
 [sssd] [server_setup] (0x0400): CONFDB: /var/lib/sss/db/config.ldb
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9504400
-
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x9504460
-[sssd] [ldb] (0x4000): Running timer event 0x9504400 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x9504460 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9504400 "ltdb_callback"
-
 [sssd] [ldb] (0x4000): no modules required by the db
 [sssd] [ldb] (0x4000): No modules specified for this database
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9504458
-
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x95044b8
-[sssd] [ldb] (0x4000): Running timer event 0x9504458 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x95044b8 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9504458 "ltdb_callback"
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9504550
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x95045b0
-[sssd] [ldb] (0x4000): Running timer event 0x9504550 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x95045b0 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9504550 "ltdb_callback"
-
 [sssd] [sysdb_domain_init_internal] (0x0200): DB File for example.cz: /var/lib/sss/db/cache_example.cz.ldb
-
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9503f18
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x9503f78
-[sssd] [ldb] (0x4000): Running timer event 0x9503f18 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x9503f78 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9503f18 "ltdb_callback"
-[sssd] [ldb] (0x0400): asq: Unable to register control with rootdse!
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9503f90
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x9507258
-[sssd] [ldb] (0x4000): Running timer event 0x9503f90 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x9507258 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9503f90 "ltdb_callback"
-[sssd] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9507310
-[sssd] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x9507370
-[sssd] [ldb] (0x4000): Running timer event 0x9507310 "ltdb_callback"
-[sssd] [ldb] (0x4000): Destroying timer event 0x9507370 "ltdb_timeout"
-[sssd] [ldb] (0x4000): Ending timer event 0x9507310 "ltdb_callback"
-
 [sssd] [sbus_new_server] (0x0400): D-BUS Server listening on unix:path=/var/lib/sss/pipes/private/sbus-monitor,guid=7d6e633bc3f460041d8b616352f4890a
 [sssd] [sbus_add_watch] (0x2000): 0x9507660/0x9504bb0 (12), R/- (enabled)
 [sssd] [get_ping_config] (0x0100): Time between service pings for [example.cz]: [10]
@@ -106,6 +69,10 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd[be[example.cz]]] [create_socket_symlink] (0x1000): Symlinking the dbus path /var/lib/sss/pipes/private/sbus-dp_example.cz.2092 to a link /var/lib/sss/pipes/private/sbus-dp_example.cz
 [sssd[be[example.cz]]] [sbus_new_server] (0x0400): D-BUS Server listening on unix:path=/var/lib/sss/pipes/private/sbus-dp_example.cz.2092,guid=0e79ff90996f01258360e48952f4890a
 [sssd[be[example.cz]]] [sbus_add_watch] (0x2000): 0x9389aa8/0x9389e10 (14), R/- (enabled)
+
+###############################################################################
+# Nacteni IPA backend modulu, coz je vlastne ipa provider
+###############################################################################
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Loading backend [ipa] with path [/usr/lib/sssd/libsss_ipa.so].
 [sssd[be[example.cz]]] [dp_get_options] (0x0400): Option ipa_domain has value example.cz
 [sssd[be[example.cz]]] [dp_get_options] (0x0400): Option ipa_server has value _srv_, ipa.example.cz
@@ -342,16 +309,6 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd[be[example.cz]]] [dp_get_options] (0x0400): Option dyndns_auth has value gss-tsig
 [sssd[be[example.cz]]] [ipa_get_dyndns_options] (0x0080): Deprecation warning: The option ipa_dyndns_update is deprecated and should not be used in favor of dyndns_update
 [sssd[be[example.cz]]] [sssm_ipa_id_init] (0x0100): Dynamic DNS updates are on. Checking for nsupdate..
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_callback": 0x939cb78
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x939cbd8
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Running timer event 0x939cb78 "ltdb_callback"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Destroying timer event 0x939cbd8 "ltdb_timeout"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Ending timer event 0x939cb78 "ltdb_callback"
-
 [sssd[be[example.cz]]] [ipa_idmap_init] (0x0100): Initializing [0] domains for ID-mapping
 [sssd[be[example.cz]]] [sdap_id_setup_tasks] (0x0400): Setting up cleanup task for example.cz
 [sssd[be[example.cz]]] [be_ptask_create] (0x0400): Periodic task [Cleanup of example.cz] was created
@@ -359,6 +316,14 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd[be[example.cz]]] [be_fo_set_srv_lookup_plugin] (0x0400): Trying to set SRV lookup plugin to DNS
 [sssd[be[example.cz]]] [be_fo_set_srv_lookup_plugin] (0x0400): SRV lookup plugin is now DNS
 [sssd[be[example.cz]]] [be_process_init] (0x2000): ID backend target successfully loaded from provider [ipa].
+###########################################################################x###
+# uspesne se nacetl cely IPA backend pro identity
+###########################################################################x###
+
+###########################################################################x###
+# ted potrebuju nacist backend pro autentizaci a zjistim, ze to taky bude
+# obstaravat IPA backend, dotahnou se nektere veci ohledne kerberosu
+###########################################################################x###
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_domain has value example.cz
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_server has value _srv_, ipa.example.cz
@@ -406,6 +371,10 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd[be[example.cz]]] [check_and_export_options] (0x0100): No kpasswd server explicitly configured, using the KDC or defaults.
 [sssd[be[example.cz]]] [check_and_export_options] (0x0100): ccache is of type FILE
 [sssd[be[example.cz]]] [be_process_init] (0x2000): AUTH backend target successfully loaded from provider [ipa].
+
+###########################################################################x###
+# nacteni access backendu - opet se zjisti ze to obstarava IPA
+###########################################################################x###
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_domain has value example.cz
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_server has value _srv_, ipa.example.cz
@@ -426,11 +395,19 @@ Fri Feb  7 08:19:38 CET 2014
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_enable_dns_sites is FALSE
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_server_mode is FALSE
 [sssd[be[example.cz]]] [be_process_init] (0x2000): ACCESS backend target successfully loaded from provider [ipa].
+
+###########################################################################x###
+# nacteni change password backendu - opet se zjisti ze to obstarava IPA
+###########################################################################x###
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
 [sssd[be[example.cz]]] [be_process_init] (0x2000): CHPASS backend target successfully loaded from provider [ipa].
+
+###########################################################################x###
+# nacteni sudo backendu - zjistim ze "sudo_provider" neni uveden v [domain/NAME]
+# a proto se pouzije defaut provider, kterym je IPA
+###########################################################################x###
 [sssd[be[example.cz]]] [load_backend_module] (0x0200): no module name found in confdb, using [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
-
 [sssd[be[example.cz]]] [sssm_ipa_sudo_init] (0x2000): Initializing IPA sudo handler
 [sssd[be[example.cz]]] [ipa_sudo_init] (0x2000): Initializing sudo IPA back end
 [sssd[be[example.cz]]] [sdap_sudo_init] (0x2000): Initializing sudo LDAP back end
@@ -4598,7 +4575,11 @@ Fri Feb  7 08:19:49 CET 2014
 [sssd] [sbus_dispatch] (0x4000): dbus conn: 0x9eaa6c8
 [sssd] [sbus_dispatch] (0x4000): Dispatching.
 [sssd] [ping_check] (0x0100): Service pac replied to ping
-htx> adnim log in
+
+###############################################################################
+# log in of user admin, there is no info about him in cache!
+# htx> non-IPA user$ su admin
+###############################################################################
 [sssd[nss]] [get_client_cred] (0x4000): Client creds: euid[0] egid[0] pid[2112].
 [sssd[nss]] [reset_idle_timer] (0x4000): Idle timer re-set for client [0x99ebaa0][18]
 [sssd[nss]] [accept_fd_handler] (0x0400): Client connected!
@@ -4631,6 +4612,7 @@ htx> adnim log in
 [sssd[be[example.cz]]] [sbus_dispatch] (0x4000): dbus conn: 0x9515fb8
 [sssd[be[example.cz]]] [sbus_dispatch] (0x4000): Dispatching.
 [sssd[be[example.cz]]] [sbus_message_handler] (0x4000): Received SBUS method [getAccountInfo]
+
 [sssd[be[example.cz]]] [be_get_account_info] (0x0100): Got request for [4097][1][name=admin]
 [sssd[be[example.cz]]] [be_req_set_domain] (0x0400): Changing request domain from [example.cz] to [example.cz]
 [sssd[be[example.cz]]] [sdap_idmap_domain_has_algorithmic_mapping] (0x0080): Could not parse domain SID from [(null)]
@@ -7356,6 +7338,8 @@ htx> adnim log in
 [sssd[be[example.cz]]] [sbus_dispatch] (0x4000): dbus conn: 0x95110b0
 [sssd[be[example.cz]]] [sbus_dispatch] (0x4000): Dispatching.
 [sssd[be[example.cz]]] [sbus_message_handler] (0x4000): Received SBUS method [getAccountInfo]
+
+
 [sssd[be[example.cz]]] [be_get_account_info] (0x0100): Got request for [3][1][name=admin]
 [sssd[be[example.cz]]] [be_req_set_domain] (0x0400): Changing request domain from [example.cz] to [example.cz]
 
@@ -7377,6 +7361,10 @@ htx> adnim log in
 
 [sssd[pam]] [sss_dp_internal_get_send] (0x0400): Entering request [0x8065042:3:admin@example.cz]
 
+###############################################################################
+# Uz jsem pripojen k IPA serveru, takze se pouzije existujici SDAP LDAP				#
+# connection k tomu abych stahnul informace o uzivateli admin.								#
+###############################################################################
 [sssd[be[example.cz]]] [sdap_id_op_connect_step] (0x4000): reusing cached connection
 [sssd[be[example.cz]]] [sdap_get_initgr_send] (0x4000): Retrieving info for initgroups call
 [sssd[be[example.cz]]] [sdap_idmap_domain_has_algorithmic_mapping] (0x0080): Could not parse domain SID from [(null)]
@@ -7418,8 +7406,12 @@ htx> adnim log in
 [sssd[be[example.cz]]] [sdap_get_generic_ext_step] (0x1000): Requesting attrs: [loginAllowedTimeMap]
 [sssd[be[example.cz]]] [sdap_get_generic_ext_step] (0x1000): Requesting attrs: [ipaSshPubKey]
 
+
 ###############################################################################
+# Zpracovani vysledku po odeslani SDAP LDAP pozadavku#
+
 # Uz jsem pripojen k IPA serveru, takze se pouzije existujici SDAP LDAP				#
+
 # connection k tomu abych stahnul informace o uzivateli admin.								#
 ###############################################################################
 [sssd[be[example.cz]]] [sdap_get_generic_ext_step] (0x2000): ldap_search_ext called, msgid = 19
