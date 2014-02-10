@@ -1,0 +1,45 @@
+Hi,
+
+those two patches fixes https://fedorahosted.org/sssd/ticket/1983. 
+Sudo modul will be now installed into $libdir/sssd/modules and no longer into
+$libdir. Second fix is for sudo to know where to find this modul by default.
+
+From 4c61915e5f3ae9be0e0f509aeda9075780e7fe7a Mon Sep 17 00:00:00 2001
+From: Michal Srubar <xsruba03@stud.fit.vutbr.cz>
+Date: Mon, 10 Feb 2014 21:00:15 +0100
+Subject: [PATCH] sudo modul is now installed into $libdir/sssd/modules by
+ default and no longer into $libdir
+
+https://fedorahosted.org/sssd/ticket/1983>
+---
+ src/conf_macros.m4 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/conf_macros.m4 b/src/conf_macros.m4
+index 4be819d4a3389dfcf89a0452aab8165c0ec216e4..597e9ec6c9b85880616bb89659bbfc09be556470 100644
+--- a/src/conf_macros.m4
++++ b/src/conf_macros.m4
+@@ -588,7 +588,7 @@ AC_DEFUN([WITH_SUDO_LIB_PATH],
+                                )
+                 ]
+                )
+-    sudolibpath="${libdir}"
++    sudolibpath="${libdir}/sssd/modules"
+     if test x"$with_sudo_lib_path" != x; then
+         sudolibpath=$with_sudo_lib_path
+     fi
+-- 
+1.8.3.1
+
+diff -Naur a/configure b/configure
+--- a/configure	2014-02-10 22:04:20.539319038 +0100
++++ b/configure	2014-02-10 22:20:08.816052826 +0100
+@@ -4008,7 +4008,7 @@
+   withval=$with_sssd_lib;
+ fi
+ 
+-sssd_lib="\"LIBDIR\""
++sssd_lib="\"LIBDIR\"/sssd/modules"
+ test -n "$with_sssd_lib" && sssd_lib="$with_sssd_lib"
+ cat >>confdefs.h <<EOF
+ #define _PATH_SSSD_LIB "$sssd_lib"
