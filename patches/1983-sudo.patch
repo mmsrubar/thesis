@@ -6,7 +6,6 @@
  
 -sssd_lib="\"LIBDIR\""
 +sssd_lib="/usr/lib/sssd/modules/"
-+#sssd_lib="\"LIBDIR\""
  test -n "$with_sssd_lib" && sssd_lib="$with_sssd_lib"
  cat >>confdefs.h <<EOF
  #define _PATH_SSSD_LIB "$sssd_lib"
