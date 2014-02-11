@@ -2969,16 +2969,6 @@ Fri Feb  7 08:19:49 CET 2014
 [sssd[be[example.cz]]] [dp_get_options] (0x0400): Option dyndns_auth has value gss-tsig
 [sssd[be[example.cz]]] [ipa_get_dyndns_options] (0x0080): Deprecation warning: The option ipa_dyndns_update is deprecated and should not be used in favor of dyndns_update
 [sssd[be[example.cz]]] [sssm_ipa_id_init] (0x0100): Dynamic DNS updates are on. Checking for nsupdate..
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9500b78
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x9500bd8
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Running timer event 0x9500b78 "ltdb_callback"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Destroying timer event 0x9500bd8 "ltdb_timeout"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Ending timer event 0x9500b78 "ltdb_callback"
-
 [sssd[be[example.cz]]] [ipa_idmap_init] (0x0100): Initializing [0] domains for ID-mapping
 [sssd[be[example.cz]]] [sdap_id_setup_tasks] (0x0400): Setting up cleanup task for example.cz
 [sssd[be[example.cz]]] [be_ptask_create] (0x0400): Periodic task [Cleanup of example.cz] was created
@@ -3032,6 +3022,7 @@ Fri Feb  7 08:19:49 CET 2014
 [sssd[be[example.cz]]] [check_and_export_options] (0x0100): No KDC explicitly configured, using defaults.
 [sssd[be[example.cz]]] [check_and_export_options] (0x0100): No kpasswd server explicitly configured, using the KDC or defaults.
 [sssd[be[example.cz]]] [check_and_export_options] (0x0100): ccache is of type FILE
+
 [sssd[be[example.cz]]] [be_process_init] (0x2000): AUTH backend target successfully loaded from provider [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_domain has value example.cz
@@ -3052,11 +3043,14 @@ Fri Feb  7 08:19:49 CET 2014
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_ranges_search_base has value cn=ranges,cn=etc,dc=example,dc=cz
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_enable_dns_sites is FALSE
 [sssd[be[example.cz]]] [dp_copy_options] (0x0400): Option ipa_server_mode is FALSE
+
 [sssd[be[example.cz]]] [be_process_init] (0x2000): ACCESS backend target successfully loaded from provider [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
+
 [sssd[be[example.cz]]] [be_process_init] (0x2000): CHPASS backend target successfully loaded from provider [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x0200): no module name found in confdb, using [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
+
 [sssd[be[example.cz]]] [sssm_ipa_sudo_init] (0x2000): Initializing IPA sudo handler
 [sssd[be[example.cz]]] [ipa_sudo_init] (0x2000): Initializing sudo IPA back end
 [sssd[be[example.cz]]] [sdap_sudo_init] (0x2000): Initializing sudo LDAP back end
@@ -3101,16 +3095,6 @@ Fri Feb  7 08:19:49 CET 2014
 [sssd[be[example.cz]]] [load_backend_module] (0x0200): no module name found in confdb, using [ipa].
 [sssd[be[example.cz]]] [load_backend_module] (0x1000): Backend [ipa] already loaded.
 [sssd[be[example.cz]]] [get_config_status] (0x4000): IPA subdomain provider is configured implicit.
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_callback": 0x9505270
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Added timed event "ltdb_timeout": 0x95049d0
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Running timer event 0x9505270 "ltdb_callback"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Destroying timer event 0x95049d0 "ltdb_timeout"
-
-[sssd[be[example.cz]]] [ldb] (0x4000): Ending timer event 0x9505270 "ltdb_callback"
-
 [sssd[be[example.cz]]] [sss_write_domain_mappings] (0x0200): Mapping file for domain [example.cz] is [/var/lib/sss/pubconf/krb5.include.d/domain_realm_example_cz]
 [sssd[be[example.cz]]] [be_process_init] (0x4000): Get-Subdomains backend target successfully loaded from provider [ipa].
 [sssd[be[example.cz]]] [main] (0x0400): Backend provider (example.cz) started!
