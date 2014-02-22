@@ -69,211 +69,90 @@
 }
 
 \begin{frame}
-    \frametitle{SUDO}
-    \begin{itemize}
-        \item allows a user to execute a command as a different user
-        \item SUDOers in \textit{/etc/sudoers}
-        \item SUDOers in LDAP
-    \end{itemize}
-\end{frame}
-
-\begin{frame}
-    \frametitle{FreeIPA}
-    \begin{itemize}
-        \item what is it?
-        \item benefits of having SUDOers in FreeIPA
-    \end{itemize}
-\end{frame}
-
-\begin{frame}
-    \frametitle{SSSD}
-    \begin{itemize}
-        \item popsat vyhody
-    \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]
-    \frametitle{Příklad uživatele v LDAPu}
-        \begin{exampleblock}{uživatel v \texttt{/etc/passwd}}
-\begin{verbatim}
-jakub:x:500:500:Jakub Hrozek:/home/jakub:/bin/bash
-\end{verbatim}
-        \end{exampleblock}
-        \begin{exampleblock}{uživatel v LDAPu}
-\begin{verbatim}
-dn: cn=jakub,ou=People,dc=redhat,dc=com
-objectClass: posixAccount
-objectClass: inetOrgPerson
-uid: jakub
-uidNumber: 500
-gidNumber: 500
-homeDirectory: /home/jakub
-gecos: Jakub Hrozek
-loginShell: /bin/bash
-cn: jakub
-\end{verbatim}
-        \end{exampleblock}
-\end{frame}
-
-\begin{frame}
-    \frametitle{Obecné centralizované řešení}
-    \begin{itemize}
-        \item Open Source komponenty existují a používají se
-        \item složitá integrace, špatná abstrakce
-        \begin{itemize}
-            \item administrátor chce \textit{přidat uživatele}, ne
-            \textit{vytvořit záznam v LDAPu}
-        \end{itemize}
-        \item hotová řešení většinou proprietární
-        \begin{itemize}
-            \item MS Active Directory
-            \item Novell eDirectory
-        \end{itemize}
-    \end{itemize}
-\end{frame}
-
-\section{FreeIPA}
-\begin{frame}
-    \frametitle{FreeIPA}
-    \begin{itemize}
-        \item Free Identity, Policy, Audit
-        \begin{itemize}
-            \item Identity - správá uživatelů, strojů, služeb, DNS
-            \item Policy - kvalita hesel, SUDO, HBAC
-            \item Audit - TBD
-        \end{itemize}
-        \item cílem je jednoduchá instalace a správa
-        \item existující Open Source komponenty
-        \begin{itemize}
-            \item LDAP - 389DS
-            \item Kerberos - MIT Kerberos
-            \item DNS - Bind
-            \item CA - Red Hat Certificate Server
-        \end{itemize}
-        \item FreeIPA 2.0 - Fedora 15, RHEL 6.1
-    \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]
-    \frametitle{Příklad použití FreeIPA (v2)}
-    \begin{exampleblock}{Instalace}
-\begin{verbatim}
-# ipa-server-install
-\end{verbatim}
-    \end{exampleblock}
-
-    \begin{exampleblock}{Administrace - přidání uživatele}
-\begin{verbatim}
-# kinit admin
-Password for admin@EXAMPLE.COM:
-# ipa user-add -f John -l Doe jdoe
-\end{verbatim}
-    \end{exampleblock}
-\end{frame}
-
-\begin{frame}
-    \frametitle{FreeIPA WebUI}
+    \frametitle{High-level overview}
     \begin{figure}
-        \includegraphics[scale=0.28]{img/ipa-webui.png}
-    \end{figure}
-\end{frame}
-
-\section{SSSD}
-\begin{frame}
-    \frametitle{SSSD}
-    \begin{itemize}
-        \item klientská část centralizovaného řešení
-        \item unixový démon, který běží na každém stroji v sítí
-        \item poskytuje informace o uživateli z centrální databáze
-        \item umožňuje uživateli se přihlásit
-    \end{itemize}
-    \begin{figure}
-        \includegraphics[scale=0.25]{img/gdm.png}
+        \includegraphics[scale=0.58]{img/1.pdf}
     \end{figure}
 \end{frame}
 
 \begin{frame}
-    \frametitle{SSSD}
+    \frametitle{Purpose of my thesis}
+    \begin{figure}
+        \includegraphics[scale=0.58]{img/2.pdf}
+    \end{figure}
+\end{frame}
+
+
+
+\begin{frame}
+    \frametitle{Current state}
     \begin{itemize}
-        \item binární balíčky k dispozici ve Fedoře, RHEL6, Ubuntu, OpenSuse, Gentoo, Debianu
-        \item v současnosti podporuje SSSD několik typů serverů
+        \item sudoers in ldap
+        \item sudoers in FreeIPA
+        \item sudoers in SSSD
+        \item differences between sudo LDAP scheme and FreeIPA sudo scheme
+        \item SSSD drawbacks
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Next steps}
+    \begin{itemize}
+        \item fix bugs from sssd's tickets
+        \item design necessary changes
+        \item feedback from developer's community
+            \begin{itemize}
+                \item implement designed changes
+            \end{itemize}
+        \item unit tests
+    \end{itemize}
+\end{frame}
+
+\mode<presentation> {
+    \begin{rhbg}
+    \begin{frame}
+    \vspace
+    {\color{white}{\hfill \huge{The end}\hfill }}
+    {\color{white}{\hfill Thank you for listening.\hfill}}
+    \end{frame}
+    \end{rhbg}
+}
+
+\begin{frame}[fragile]
+    \frametitle{Benefits of the SSSD (System Security Services Daemo}
+    \begin{itemize}
+        \item client can connect into multiple domains
         \begin{itemize}
-            \item LDAP
-            \item LDAP+Kerberos
-            \item FreeIPA
-            \item Active Directory (jako kombinaci LDAP+Kerberos)
+            \item each server can provide different kind of information
+        \end{itemize}
+        \item can detect disconnection from the network
+        \item cache information about user, passwords, sudo rules
+        \begin{itemize}
+            \item cache stores only used data
+            \item offline support
+            \item cache entries expires
+            \item no need of local account anymore
         \end{itemize}
     \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+    \frametitle{Architecture of the SSSD}
+    \begin{figure}
+        \includegraphics[scale=0.20]{img/sssd-architecture.png}
+    \end{figure}
 \end{frame}
 
 \begin{frame}[fragile]
-    \frametitle{Výhody SSSD}
+    \frametitle{Why new LDAP scheme for sudo?}
     \begin{itemize}
-        \item podporuje více "domén"
-        \begin{itemize}
-            \item oddělené servery poskytující různá data
-        \end{itemize}
-        \item podpora více serverů pro jednu doménu
-        \begin{itemize}
-            \item redundance
-        \end{itemize}
-        \item detekce nedostupnosti a opětovné dostupnosti serveru
-        \item cachování informací o uživatelích, případně hesel
-        \begin{itemize}
-            \item do cache se ukládají pouze opravdu použitá data
-            \item není třeba kvůli každému dotazu zatěžovat server
-            \item funguje i při nedostupném serveru
-            \item záznamy v cache mohou postupně expirovat
-            \item pro přihlášení se vždy snaží komunikovat se serverem (oproti \texttt{pam\_ccache})
-        \end{itemize}
-        \item pro některé druhy serverů specializované funkce
+        \item interconnection with IPA objects
+        \item addition information (e.g. ipaRuleEnabled)
+        \item more flexibility for ipa developers
     \end{itemize}
 \end{frame}
 
-\section{Identity Management v Brně}
-\begin{frame}
-    \frametitle{FreeIPA v Brně}
-    \begin{itemize}
-        \item 4 stálí vývojáři + intern
-        \begin{itemize}
-            \item jedno volné místo
-        \end{itemize}
-        \item zbytek týmu v USA, Německu
-        \item možnost spolupráce formou studentských prací
-    \end{itemize}
-\end{frame}
 
-\begin{frame}
-    \frametitle{Zapojte se do vývoje}
-    \begin{itemize}
-    \item home page - \url{www.freeipa.org}
-        \begin{itemize}
-        \item dokumentace, tarbally, zdrojovový kód
-        \end{itemize}
-    \item \url{http://fedorahosted.org/sssd}
-        \begin{itemize}
-            \item HOWTO, bugtracker
-            \item v tarballu manuálové stránky, komentovaný sssd.conf
-        \end{itemize}
-    \item komunikace
-        \begin{itemize}
-        \item IRC - FreeNode, kanál \texttt{\#freeipa}
-        \item konference \texttt{freeipa-\{devel,users,interest\}@redhat.com},
-                         \texttt{sssd-devel@lists.fedorahosted.org}
-        \end{itemize}
-    \item hack on FreeIPA
-        \begin{itemize}
-        \item \url{http://freeipa.org/page/Contribute}
-        \end{itemize}
-    \end{itemize}
-\end{frame}
-
-\begin{frame}
-    \frametitle{Děkuji za pozornost}
-    \begin{itemize}
-        \item Otázky?
-    \end{itemize}
-\end{frame}
 
 \end{document}
-

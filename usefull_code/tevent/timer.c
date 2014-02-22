@@ -2,6 +2,8 @@
  * Tevent which will be repeated for a minute with interval of 2 seconds (will
  * be triggered 30 times). After exceeding this limit, the event loop will
  * finish and all the memory resources will be freed.
+ *
+ * gcc -ltevent -ltalloc
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -51,11 +53,11 @@ int main(void) {
 	struct tevent_timer *time_event;
 	struct timeval schedule;
 
-	// parent - top level context
+	// parent - top level talloc context
 	mem_ctx = talloc_new(NULL); 
-	event_ctx = tevent_context_init(mem_ctx);
+	event_ctx = tevent_context_init(mem_ctx);		// inicialize tevent context
 
-	// allocate new structure and put into talloc tree - child of mem_ctx
+	// allocate new structure and put it into talloc tree - child of mem_ctx
 	struct state *data = talloc(mem_ctx, struct state);
 
 	schedule = tevent_timeval_current_ofs(2, 0); // +2 second time value
