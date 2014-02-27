@@ -1,0 +1,506 @@
+%=========================================================================
+% (c) Michal Bidlo, Bohuslav Køena, 2008
+
+\chapter{Introduction}
+
+The purpose of this thesis is to show how can be 
+
+The thesis supposes that reader has user experiances with sudo and basic
+knowledge of what LDAP directories are and how to use them.
+
+The thesis isn't meant to be a manual for configuring sudo, LDAP, FreeIPA or
+SSSD.
+
+It also doesn't cover NSS\footnote{Name Service Switch} and
+PAM\footnote{Pluggable Authentication Modules} which are necesary for having
+sudo rules somewhere else than in local \texttt{sudoers}.
+
+
+\section*{Smysl této práce:}
+FreeIPA pou¿ívá pro ulo¿ení SUDO pravidel v LDAPu svoje schéma, které p¿iná¿í
+mnoho vylep¿ení. \textbf{SSSD} ov¿em toto schéma neumí zpracovat (FreeIPA
+nejprve pou¿ívala legacy sudo schema pro ulo¿ení a pak se navrhlo nové schéma).
+FreeIPA musí nové schéma p¿elo¿it do legacy schématu (provádí to compat plugin),
+které sssd umí zpracovat. P¿evodem se ov¿em ztrácí mnoho informací.
+
+Jeliko¿ SSSD neumí to FreeIPA schéma, tak se musí dodate¿n¿ stahovat mnoho
+informací, co¿ u rozsáhlého adresá¿e zp¿sobuje zpomalení. Úkolem není
+navrhnout nové LDAP schéma pro SUDO, ale upravit SSSD daemon a SUDO tak, aby
+podporovaly LDAP schéma, které pou¿ívá IPA, pop¿ to nové schéma vylep¿it.
+
+Hodn¿ zjednodu¿en¿ bude výsledkem správný dotaz na LDAP adresá¿ na IPA serveru,
+který pro daného klienta stáhne v¿echno pot¿ebné.
+
+% ==============================================================================
+\chapter{User's Privileges Administration}
+\emph{cursive} - for unknown expressions .\\
+\textbf{bold text} - for key words\\
+\texttt{tt text} - file locations, file names\\
+\\ 
+
+{\color{red}
+Administration tasks on the Linux and
+Unix-like operating systems are
+done by special user called \textbf{root}. Sometimes also called
+\textbf{superuser}. This user has access to all system files and can execute all
+the commands of the operating
+system\footnote{http://www.linfo.org/root.html}. A regular user doesn't have
+this privilege until these exceptions:
+\begin{itemize}
+	\item the user knows the root's password
+	\item the user will use a special program which will give him root's privileges
+\end{itemize}
+}
+
+% ==============================================================================
+
+\section{SUDO (Super User DO)}
+
+The sudo allows for a user to execute one command as a different user. In most
+cases a different user is the \emph{root}. Security policies which define
+which users are allowed to execute what commands are called \emph{sudo
+rules}\footnote{also reffered as sudoers in the following text}.
+If an administrator wants to give a particular user a privilege to do someting then he has
+to define a rule for the user first. Sudo rule has the following syntax:
+
+\begin{itemize} 
+	\item \texttt{USER} - a user to apply the sudo rule at
+	\item \texttt{HOST\_LIST} - a list of machines where the rule will be appliable
+	\item \texttt{USER\_LIST} (optional) - a list of machines where the rule will 
+		be appliable
+	\item \texttt{COMMAND\_LIST} - a list of allowed or denied command
+\end{itemize}
+
+\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
+USER HOST_LIST = (USER_LIST) COMMAND_LIST
+\end{lstlisting}
+
+These rules has to be stored in a configuration file
+\texttt{/etc/sudoers}. The file should be edited only with the tool \emph{visudo}
+which provides automatic syntax checking. Detailed descriptioin of configuration
+of the sudoers file can be found in sudoers manual page
+\footnote{http://www.gratisoft.us/sudo/sudoers.man.html\#sudoers\_options}.
+\\
+\\
+Example: Let's assume that adminstrator wants to
+give a privilege to run /sbin/fdisk command to the user \emph{adam} on
+\emph{client1.example.cz} machine. This example is ilustrated on figure
+\ref{sudo:1} and the sudo rule would be:
+
+\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
+	adam ALL=/sbin/fdisk
+\end{lstlisting}
+
+\begin{figure}[h]	% h means place the figure here
+	\centering % center
+	\scalebox{0.80}{\includegraphics{fig/sudo_01.pdf}}
+	\caption{Example of local sudoers}
+	\label{sudo:1}
+\end{figure}
+
+\subsection{Distributing the sudoers among multiple
+systems}\label{sudo_distribute_sudores}
+Usualy the administrator manages multiple systems but sudo doesn't support
+native way to distribute sudoers among multiple systems. Maintaining sudoers
+individualy at all systems, as shown on figure \ref{sudo:2}, would be very
+complicated and time-consuming.
+
+\begin{figure}[h]	% h means place the figure here
+	\centering % center
+	\scalebox{0.99}{\includegraphics{fig/sudo_02.pdf}}
+	\caption{Example of local sudoers}
+	\label{sudo:2}
+\end{figure}
+
+That is a problem for administrators of large computer networks. The question is
+how to distribute the sudoers to all computers? There are a few solutions to do
+that:
+\begin{enumerate} 
+	\item Manually distribute the \emph{sudoers} file among the
+		systems with standard UNIX tools such as \emph{cron, scp,
+		rsync} etc. But this approach can become very laborious.
+	\item Use special tools such as
+		Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet} which
+		automatically watch and distribute files among multiple systems. 
+	\item Use a centralized database. If he does so administrator just need to
+		insert sudo rules into the centralised database and all the clients can use
+		it.
+\end{enumerate}
+
+\subsection{LDAP directory service as a centralized database}
+LDAP\footnote{Lightweight Directory Access Protocol} directorie service are characterized as a
+"write-once-read-many-times" service. Directories are optiomalized for reading
+and searching because they supposing to store kind of data that is not changed
+very often\cite{ldap} (page: 26). It's eminently suitable for maintaining
+data which are not changed very often. Sudo rules are set once, by administrator of
+the system, but accessed by users many times. 
+
+Having sudoers in LDAP directory instead of in local \texttt{/etc/sudoers} file has
+following benefits: 
+\begin{enumerate} 
+	\item If the sudo rules are centralized than the administrator doesn't have to
+		worry about distributing them. He maintains only one sudoers file.
+	\item Looking up sudo rules in LDAP directory is faster because sudo no longer needs to read
+		the entire \emph{sudoers} file. There are only a few LDAP queries per
+		invocation.
+	\item If there is a typing error in \emph{sudoers} than sudo won't start. With
+		LDAP it's not possible to load data into the LDAP directory which does not
+		conform the sudoers schema so the proper syntax is guaranteed. Although
+		there
+		can still be a mistake in command, user name or host name.
+\end{enumerate}
+
+
+
+
+
+For the purpose of this thesis I reffer as LDAP directore to a server
+what a directory is
+what is the ldap
+what is ldap directory
+
+benefits of having sudores in ldap
+
+Directories can store variety of information and they are used by 
+corporations to store information
+about their employees, users of their networks, company information and ....
+Our faculty also uses public directory to store information about the students and
+their emploeyees.
+
+
+As I said in section \ref{sudo_distribute_sudores} sudo doesn't support a native
+way to distribute sudoers among multiple systems. But it provide API and
+plugins. ...
+
+This problem could be solved by
+cetralize the sudoers. 
+
+A better solution would be put sudoers into a database that all clients would
+have access to. The database should be optimalized for reading
+
+{\color{blue}popis o vlastnostech ldapu atd...}
+
+But SUDO doesn't have a native way to distribute \emph{sudoers} among multiple
+systems 
+
+
+\subsection{SUDOers in LDAP directory}\label{sudoers_in_ldap}
+In most organization environments today there is an LDAP server which can be
+used to centrally manage user's information. This information can be accessed
+by LDAP protocol. SUDO itself has built-in support for processing sudo rules
+stored on LDAP server.
+
+
+\subsection{Difference between LDAP sudoers and non-LDAP sudoers}
+\begin{itemize} 
+	\item The biggest difference, according to the LDAP RFC, is that LDAP ordering
+		of attributes is arbitrary which means that you cannot expect that
+		attributes are returned in any specific order. 
+		Let's suppose that we have these two rules in the \emph{sudoers} file:
+
+		\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
+			adam ALL=/bin/cat /etc/shadow
+			adam ALL=!/bin/cat /etc/shadow/
+		\end{lstlisting}
+
+		There's an order in reading \emph{sudoers} which means user \texttt{adam} will not be
+		able to print content of the \emph{/etc/shadow} file. The same rule in LDAP
+		would look like this:
+
+		\lstinputlisting[language=C,basicstyle=\ttfamily\small,frame=lines,showtabs=false]{srcs/sudorule_order.ldif}
+		Since there's an arbitrary ordering of attributes there's no guarantee of what
+		sudo rules the client will receive as the last one. That means we are not 
+		sure whether the user \texttt{adam} will be able to print \texttt{shadow}
+		file or not. This is the reason why there is the \texttt{SudoOrder}
+		attribute. {\color{blue}Take a closer look at this!}
+
+	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
+	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
+		also be stored in LDAP
+	\item \texttt{Cmnd\_Aliases} are not needed because it's possible to add more
+		\texttt{sudoCommand} in one \texttt{sudoRole}
+	\item \texttt{/etc/sudoers} file uses global default options but in LDAP it's
+		possible to specify per-entry options.
+\end{itemize}
+
+Having sudoers in LDAP has also a few drawbacks. These are discussed in section
+\ref{sec:sudo_ldap_drawbacks}.
+
+\subsection{Drawbacks of having sudoers in LDAP}\label{sec:sudo_ldap_drawbacks}
+\begin{itemize} 
+	\item Administrator has to configure everything via text files. Sudo does not
+		provide any GUI.
+	\item Corporations don't want to maintain their user's information a security
+		policies separately. They want to have those kind of information at one place
+		so it can be link together.
+	\item If there are user's information and sudo rules stored in LDAP than there
+		is no relationship among them.
+		rules.
+	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
+	\item \texttt{User\_Aliases} can be replaced with groups and netgroups which can
+		also be stored in LDAP
+	\item \texttt{Cmnd\_Aliases} are not needed because it's possible to add more
+		\texttt{sudoCommand} in one \texttt{sudoRole}
+	\item \texttt{/etc/sudoers} file uses global default options but in LDAP it's
+		possible to specify per-entry options.
+\end{itemize}
+\subsection{SUDO vs. su}
+These are two different concepts of giving root access to a user.
+
+\begin{itemize}
+	\item sudo allows limited access but su gives a user a full control over the
+		system
+	\item none of users need to know the root's password
+	\item using sudo can be logged
+	\item it's possible to define which users can execute which commands
+\end{itemize}
+
+
+\subsection{Sudo a pluginy}
+Sudo Plugin API\footnote{http://www.sudo.ws/sudo\_plugin.man.html}
+umo¿¿uje vytvo¿ení vlastního modulu, který bude definovat vlastní správu
+politik.  To jaké pluginy bude sudo pou¿ívat je mo¿né konfigurovat pomocí
+souboru \textit{/etc/sudo.conf}.
+
+\subsection{What is meant by LDAP server?}
+Technically, LDAP is just a protocol that defines the method by which directory
+data is accessed. It also defines and describes how data is represented in the
+directory service. LDAP server is server running directory service which can be
+accessed by LDAP protocol.
+
+{\color{blue}
+\subsection{ADD or NOT?}
+\begin{enumerate} 
+	\item example of sudoers configuration and use?
+	\item Explain meaning of all \texttt{sudoRole} attributes and SUDOers container?
+\end{enumerate} 
+}
+
+
+\section{FreeIPA}
+FreeIPA uses LDAP directory to store information such as users information for
+authentication, dns records etc.
+
+It has ability to integrate netgroups or migrate user and host identities from
+existing NIS domain into the freeIPA
+domain\footnote{http://docs.fedoraproject.org/en-US/Fedora/15/html/FreeIPA\_Guide/nis.html}.
+
+\subsection{Why was FreeIPA created}
+
+\subsection{What is it?}
+
+\subsection{sudoers in FreeIPA (the new scheme)}
+
+\subsection{Advantages the new schema brings}
+\begin{itemize}
+	\item it's possible to disable a rule without deleting it
+	\item Identities, Hosts and Commands uses DNs instead of string attributes
+\end{itemize}
+T
+FreeIPA pou¿ívá vlastní schéma a proto musela napsat i vlastní plugin sss.
+
+Výhody pou¿ití FreeIPA pro správu sudo pravidel - u sudo+openldap musím vytvo¿it
+schéma a ru¿n¿ jej p¿idat mezi ostatní schémata + p¿idat o tom záznam do
+/etc/sldap.conf
+
+\subsection{How are SUDO rules stored in LDAP on IPA server?}
+IPA uses two containers for storing SUDO rules. A \emph{sudoers} container
+which contains SUDO rules in legacy scheme which consists of these attributes:
+\begin{itemize}
+	\item sudoHost
+	\item sudoCommand
+	\item sudoUser
+\end{itemize}
+Then there is a \emph{sudo} container and this contains 
+
+\subsection{Known problems}
+
+
+\section{SSSD}
+SSSD or System Security Services Daemon provides access to multiple identity and
+authentication resources with providing caching and offline support to the
+system.
+
+\subsection{The benefits of the SSSD}
+\subsection{offline support}
+SSSD caches previously loged-in user's passord hashes. When the network goes
+down and client need to perform authentication opperation than the UID to
+username mapping can be processed locally.
+\subsection{multiple servers quering}
+
+\textit{unified configuration - instead of configuring the SSSD to perform account
+lookups and then configuring /etc/ldap.conf to perform sudo rules lookups, the
+user only configures one client piece - the SSSD. The SSSD also provides several
+advanced features that might not be available in other LDAP client packages,
+such as the support for server discovery using DNS SRV requests or advanced
+server fail over, which lets the admin define several servers that are tried in
+descending order of preference and then stick to the working server, by Kuba}
+
+\section{Jak to funguje te¿}
+\subsection{}
+\subsection{definice pravidla}
+\subsection{jak se ulo¿í v LDAPu}
+\subsection{co tam bude jinak oproti tomu ne¿ bych to ulo¿il do LDAPu s legacy schematem}
+\subsection{konverze do legacy schématu kdy¿ k tomu p¿istoupím p¿es SSSD}
+\subsection{cachování}
+	
+\subsection{compat plugin}
+\textbf{Ten compat plugin pracuje za b¿hu IPA nebo ty pravidla p¿elo¿í a¿, kdy¿
+o n¿ po¿ádá SSSD?}
+
+Myslim ze cely compat strom se generuje v zavislosti na dotazech klientu. Tj
+na serveru je plugin, ktery vi, ze kdyz dojde dotaz na ou=sudoers,\$DC,
+tak se ma interne zeptat do IPA sudo kontejneru a pokud neco dostane zpet,
+vlozi vysledek do compat pluginu, kde si ho precte klient co provadel search.
+
+Klient nemusi byt jen sudo, muze to byt cokoliv, co se umi bavit LDAP
+protokolem.
+
+\subsection{jak jsou ulo¿ena pravidla v IPA}
+\textbf{V kontejneru sudores sjou povolené pravidla v takovém formátu, které umí
+zpracovat SUDO. V sudo kontejneru jsou pravidla ve formátu, který pou¿ívá IPA.
+Ten plugin to p¿ekládá za b¿hu a SSSD si to tahá ze sudoers kontejneru? Kdy¿
+pot¿ebuje dal¿í informace, tak si je dodate¿n¿ stáhne?}
+
+Jo, myslim ze jsi to popsal dobre.
+
+\subsection{externí u¿ivatele}
+\textbf{Funguji momentáln¿ ti externí u¿ivatele. Pravidlo se mn¿
+stáhne v po¿ádku, ale sudo mn¿ ¿ekne, ¿e u¿ivatel není v SUDOers.}
+
+Externi uzivatele jsou hlavne na to, kdyz mas nektere uzivatele
+ulozene na jinem serveru nez IPA (typicky Active Directory). Nevim
+jestli jde pomoci externich uzivatelu vlozit treba uzivatele z
+/etc/passwd, ale spis bych rekl, ze ne.
+
+Myslim ze tomuhle se v praci nemusis nijak venovat, max popsat, ze to tam je.
+
+
+
+\section{Proposed changes}
+\subsection{u sudo bude t¿eba p¿enést n¿co z /lib do /usr (z ticketu: pe\_task,
+									cron)}
+	
+
+
+\section*{Mo¿ná struktura textu}
+\begin{itemize}
+	\item Problémy a nedostatky defaultního LDAP shématu, které SUDO pou¿ívá
+	\begin{itemize}
+					\item na u¿ivatele se odkazuje pouze p¿es ¿et¿zec jména, není tam ¿ádná
+									provázanost s po¿íta¿em ze kterého dany u¿ivatel je
+					\item pokud LDAP spravuje i u¿ivatele, a je tam stejný u¿ivatel jako na
+									lokální ma¿in¿, tak tam vzniká n¿jaký problém s p¿ekrytím t¿ch u¿ivatel¿
+					\item mezi u¿ivateli a sudo pravidly neexistuje vazba, pokud odstraním
+									u¿ivatele, tak mn¿ z¿stane pravidlo s neexistujícím u¿ivatelem
+	\end{itemize}
+\end{itemize} 
+
+\section*{Co bylo pot¿eba nastudovat:}
+\begin{itemize}
+	\item LDAP (konfigurace 389, FreeIPA serveru)
+	\item talloc knihovna
+	\item tevent knihovna
+\end{itemize} 
+
+Abychom mohli napsat odborný text jasnì a~srozumitelnì, musíme splnit nìkolik základních pøedpokladù:
+\begin{itemize}
+\item Musíme mít co øíci,
+\item musíme vìdìt, komu to chceme øíci,
+\item musíme si dokonale promyslet obsah,
+\item musíme psát strukturovanì. 
+\end{itemize}
+
+Tyto a dal¹í pokyny jsou dostupné té¾ na ¹kolních internetových stránkách \cite{fitWeb}.
+
+Pøehled základù typografie a tvorby dokumentù s vyu¾itím systému \LaTeX je 
+uveden v~\cite{Rybicka}.
+
+\section{Musíme mít co øíci}
+Dal¹ím dùle¾itým pøedpokladem dobrého psaní je {\it psát pro nìkoho}. Pí¹eme-li si poznámky sami pro sebe, pí¹eme je jinak ne¾ výzkumnou zprávu, èlánek, diplomovou práci, knihu nebo dopis. Podle pøedpokládaného ètenáøe se rozhodneme pro zpùsob psaní, rozsah informace a~míru detailù.
+
+\section{Musíme vìdìt, komu to chceme øíci}
+Dal¹ím dùle¾itým pøedpokladem dobrého psaní je psát pro nìkoho. Pí¹eme-li si poznámky sami pro sebe, pí¹eme je jinak ne¾ výzkumnou zprávu, èlánek, diplomovou práci, knihu nebo dopis. Podle pøedpokládaného ètenáøe se rozhodneme pro zpùsob psaní, rozsah informace a~míru detailù.
+
+\section{Musíme si dokonale promyslet obsah}
+Musíme si dokonale promyslet a~sestavit obsah sdìlení a~vytvoøit poøadí, v~jakém chceme ètenáøi své my¹lenky prezentovat. 
+Jakmile víme, co chceme øíci a~komu, musíme si rozvrhnout látku. Ideální je takové rozvr¾ení, které tvoøí logicky pøesný a~psychologicky stravitelný celek, ve kterém je pro v¹echno místo a~jeho¾ jednotlivé èásti do sebe pøesnì zapadají. Jsou jasné v¹echny souvislosti a~je zøejmé, co kam patøí.
+
+Abychom tohoto cíle dosáhli, musíme peèlivì organizovat látku. Rozhodneme, co budou hlavní kapitoly, co podkapitoly a~jaké jsou mezi nimi vztahy. Diagramem takové organizace je graf, který je velmi podobný stromu, ale ne øetìzci. Pøi organizaci látky je stejnì dùle¾itá otázka, co do osnovy zahrnout, jako otázka, co z~ní vypustit. Pøíli¹ mnoho podrobností mù¾e ètenáøe právì tak odradit jako ¾ádné detaily.
+
+Výsledkem této etapy je osnova textu, kterou tvoøí sled hlavních my¹lenek a~mezi nì zaøazené detaily.
+
+\section{Musíme psát strukturovanì} 
+Musíme zaèít psát strukturovanì a~souèasnì pracujeme na co nejsrozumitelnìj¹í formì, vèetnì dobrého slohu a~dokonalého znaèení. 
+Máme-li tedy my¹lenku, pøedstavu o~budoucím ètenáøi, cíl a~osnovu textu, mù¾eme zaèít psát. Pøi psaní prvního konceptu se sna¾íme zaznamenat v¹echny své my¹lenky a~názory vztahující se k~jednotlivým kapitolám a~podkapitolám. Ka¾dou my¹lenku musíme vysvìtlit, popsat a~prokázat. Hlavní my¹lenku má v¾dy vyjadøovat hlavní vìta a~nikoliv vìta vedlej¹í.
+
+I k~procesu psaní textu pøistupujeme strukturovanì. Souèasnì s~tím, jak si ujasòujeme strukturu písemné práce, vytváøíme kostru textu, kterou postupnì doplòujeme. Vyu¾íváme ty prostøedky DTP programu, které podporují strukturovanou stavbu textu (pøeddefinované typy pro nadpisy a~bloky textu). 
+
+
+\chapter{Nìkolik formálních pravidel}
+Na¹ím cílem je vytvoøit jasný a~srozumitelný text. Vyjadøujeme se proto pøesnì, pí¹eme dobrou èe¹tinou (nebo zpravidla angliètinou) a~dobrým slohem podle obecnì pøijatých zvyklostí. Text má upravit ètenáøi cestu k~rychlému pochopení problému, pøedvídat jeho obtí¾e a~pøedcházet jim. Dobrý sloh pøedpokládá bezvadnou gramatiku, správnou interpunkci a~vhodnou volbu slov. Sna¾íme se, aby ná¹ text nepùsobil pøíli¹ jednotvárnì pou¾íváním malého výbìru slov a~tím, ¾e nìkterá zvlá¹» oblíbená slova pou¾íváme pøíli¹ èasto. Pokud pou¾íváme cizích slov, je samozøejmým pøedpokladem, ¾e známe jejich pøesný význam. Ale i~èeských slov musíme pou¾ívat ve správném smyslu. Napø. platí jistá pravidla pøi pou¾ívání slova {\it zøejmì}. Je {\it zøejmé} opravdu zøejmé? A~pøesvìdèili jsme se, zda to, co je {\it zøejmé} opravdu platí? Pozor bychom si mìli dát i~na pøíli¹ èasté pou¾ívání zvratného se. Napøíklad obratu {\it dokázalo se}, ¾e... zásadnì nepou¾íváme. Není ¹patné pou¾ívat autorského {\it my}, tím pøedpokládáme, ¾e nìco øe¹íme, nebo napøíklad zobecòujeme spolu se ètenáøem. V~kvalifikaèních pracích pou¾ijeme autorského {\it já} (napøíklad kdy¾ vymezujeme podíl vlastní práce vùèi pøevzatému textu), ale v~bì¾ném textu se nadmìrné pou¾ívání první osoby jednotného èísla nedoporuèuje.
+
+Za peèlivý výbìr stojí i~symbolika, kterou pou¾íváme ke {\it znaèení}. Máme tím na mysli volbu zkratek a~symbolù pou¾ívaných napøíklad pro vyjádøení typù souèástek, pro oznaèení hlavních èinností programu, pro pojmenování ovládacích kláves na klávesnici, pro pojmenování promìnných v~matematických formulích a~podobnì. Výsti¾né a~dùsledné znaèení mù¾e ètenáøi pøi èetbì textu velmi pomoci. Je vhodné uvést seznam znaèení na zaèátku textu. Nejen ve znaèení, ale i~v~odkazech a~v~celkové tiskové úpravì je dùle¾itá dùslednost.
+
+S tím souvisí i~pojem z~typografie nazývaný {\it vyznaèování}. Zde máme na mysli zpùsob sazby textu pro jeho zvýraznìní. Pro zvolené znaèení by mìl být zvolen i~zpùsob vyznaèování v~textu. Tak napøíklad klávesy mohou být umístìny do obdélníèku, identifikátory ze zdrojového textu mohou být vypisovány {\tt písmem typu psací stroj} a~podobnì.
+
+Uvádíme-li nìkterá fakta, neskrýváme jejich pùvod a~ná¹ vztah k~nim. Kdy¾ nìco tvrdíme, v¾dycky výslovnì uvedeme, co z~toho bylo dokázáno, co teprve bude dokázáno v~na¹em textu a~co pøebíráme z~literatury s~uvedením odkazu na pøíslu¹ný zdroj. V~tomto smìru nenecháváme ètenáøe nikdy na pochybách, zda jde o~my¹lenku na¹i nebo pøevzatou z~literatury.
+
+Nikdy neplýtváme ètenáøovým èasem výkladem triviálních a~nepodstatných informací. Neuvádíme rovnì¾ nìkolikrát toté¾ jen jinými slovy. Pøi pozdìj¹ích úpravách textu se nám mù¾e nìkterá døíve napsaná pasá¾ jevit jako zbyteènì podrobná nebo dokonce zcela zbyteèná. Vypu¹tìní takové pasá¾e nebo alespoò její zestruènìní pøispìje k~lep¹í èitelnosti práce! Tento krok ale vy¾aduje odvahu zahodit èas, který jsme jejímu vytvoøení vìnovali. 
+
+
+\chapter{Nikdy to nebude naprosto dokonalé}
+Kdy¾ jsme u¾ napsali v¹e, o~èem jsme pøemý¹leli, udìláme si den nebo dva dny volna a~pak si pøeèteme sami rukopis znovu. Udìláme je¹tì poslední úpravy a~skonèíme. Jsme si vìdomi toho, ¾e v¾dy zùstane nìco nedokonèeno, v¾dy existuje lep¹í zpùsob, jak nìco vysvìtlit, ale ka¾dá etapa úprav musí být koneèná.
+
+
+\chapter{Typografické a~jazykové zásady}
+Pøi tisku odborného textu typu {\it technická zpráva} (anglicky {\it technical report}), ke kterému patøí napøíklad i~text kvalifikaèních prací, se èasto volí formát A4 a~èasto se tiskne pouze po jedné stranì papíru. V~takovém pøípadì volte levý okraj v¹ech stránek o~nìco vìt¹í ne¾ pravý -- v~tomto místì budou papíry svázány a~technologie vazby si tento po¾adavek vynucuje. Pøi vazbì s~pevným høbetem by se levý okraj mìl dìlat o~nìco ¹ir¹í pro tlusté svazky, proto¾e se stránky budou hùøe rozevírat a~levý okraj se tak bude oku ménì odhalovat.
+
+Horní a~spodní okraj volte stejnì veliký, pøípadnì poti¹tìnou èást posuòte mírnì nahoru (horní okraj men¹í ne¾ dolní). Poèítejte s~tím, ¾e pøi vazbì budou okraje mírnì oøíznuty.
+
+Pro sazbu na stránku formátu A4 je vhodné pou¾ívat pro základní text písmo stupnì (velikosti) 11 bodù. Volte ¹íøku sazby 15 a¾ 16 centimetrù a~vý¹ku 22 a¾ 23 centimetrù (vèetnì pøípadných hlavièek a~patièek). Proklad mezi øádky se volí 120 procent stupnì pou¾itého základního písma, co¾ je optimální hodnota pro rychlost ètení souvislého textu. V~pøípadì pou¾ití systému LaTeX ponecháme implicitní nastavení. Pøi psaní kvalifikaèní práce se øiïte pøíslu¹nými závaznými po¾adavky.
+
+Stupeò písma u~nadpisù rùzné úrovnì volíme podle standardních typografických pravidel. 
+Pro v¹echny uvedené druhy nadpisù se obvykle pou¾ívá polotuèné nebo tuèné písmo (jednotnì buï v¹ude polotuèné nebo v¹ude tuèné). Proklad se volí tak, aby se následující text bì¾ných odstavcù sázel pokud mo¾no na {\it pevný rejstøík}, to znamená jakoby na linky s~pøedem definovanou a~pevnou rozteèí.
+
+Uspoøádání jednotlivých èástí textu musí být pøehledné a~logické. Je tøeba odli¹it názvy kapitol a~podkapitol -- pí¹eme je malými písmeny kromì velkých zaèáteèních písmen. U~jednotlivých odstavcù textu odsazujeme první øádek odstavce asi o~jeden a¾ dva ètverèíky (v¾dy o~stejnou, pøedem zvolenou hodnotu), tedy pøibli¾nì o~dvì ¹íøky velkého písmene M základního textu. Poslední øádek pøedchozího odstavce a~první øádek následujícího odstavce se v~takovém pøípadì neoddìlují svislou mezerou. Proklad mezi tìmito øádky je stejný jako proklad mezi øádky uvnitø odstavce.
+
+Pøi vkládání obrázkù volte jejich rozmìry tak, aby nepøesáhly oblast, do které se tiskne text (tj. okraje textu ze v¹ech stran). Pro velké obrázky vyèleòte samostatnou stránku. Obrázky nebo tabulky o~rozmìrech vìt¹ích ne¾ A4 umístìte do písemné zprávy formou skládanky v¹ité do pøílohy nebo vlo¾ené do zálo¾ek na zadní desce.
+
+Obrázky i~tabulky musí být poøadovì oèíslovány. Èíslování se volí buï prùbì¾né v~rámci celého textu, nebo -- co¾ bývá praktiètìj¹í -- prùbì¾né v~rámci kapitoly. V~druhém pøípadì se èíslo tabulky nebo obrázku skládá z~èísla kapitoly a~èísla obrázku/tabulky v~rámci kapitoly -- èísla jsou oddìlena teèkou. Èísla podkapitol nemají na èíslování obrázkù a~tabulek ¾ádný vliv.
+
+Tabulky a~obrázky pou¾ívají své vlastní, nezávislé èíselné øady. Z toho vyplývá, ¾e v~odkazech uvnitø textu musíme kromì èísla udat i~informaci o~tom, zda se jedná o~obrázek èi tabulku (napøíklad ``... {\it viz tabulka 2.7} ...''). Dodr¾ování této zásady je ostatnì velmi pøirozené.
+
+Pro odkazy na stránky, na èísla kapitol a~podkapitol, na èísla obrázkù a~tabulek a~v~dal¹ích podobných pøíkladech vyu¾íváme speciálních prostøedkù DTP programu, které zajistí vygenerování správného èísla i~v~pøípadì, ¾e se text posune díky zmìnám samotného textu nebo díky úpravì parametrù sazby. Pøíkladem takového prostøedku v~systému LaTeX je odkaz na èíslo odpovídající umístìní znaèky v~textu, napøíklad návì¹tí ($\backslash${\tt ref\{navesti\}} -- podle umístìní návì¹tí se bude jednat o~èíslo kapitoly, podkapitoly, obrázku, tabulky nebo podobného èíslovaného prvku), na stránku, která obsahuje danou znaèku ($\backslash${\tt pageref\{navesti\}}), nebo na literární odkaz ($\backslash${\tt cite\{identifikator\}}).
+
+Rovnice, na které se budeme v~textu odvolávat, opatøíme poøadovými èísly pøi pravém okraji pøíslu¹ného øádku. Tato poøadová èísla se pí¹í v~kulatých závorkách. Èíslování rovnic mù¾e být prùbì¾né v~textu nebo v~jednotlivých kapitolách.
+
+Jste-li na pochybách pøi sazbì matematického textu, sna¾te se dodr¾et zpùsob sazby definovaný systémem LaTeX. Obsahuje-li va¹e práce velké mno¾ství matematických formulí, doporuèujeme dát pøednost pou¾ití systému LaTeX.
+
+Mezeru nedìláme tam, kde se spojují èíslice s~písmeny v~jedno slovo nebo v~jeden znak -- napøíklad {\it 25krát}.
+
+Èlenicí (interpunkèní) znaménka teèka, èárka, støedník, dvojteèka, otazník a~vykøièník, jako¾ i~uzavírací závorky a~uvozovky se pøimykají k~pøedcházejícímu slovu bez mezery. Mezera se dìlá a¾ za nimi. To se ov¹em netýká desetinné èárky (nebo desetinné teèky). Otevírací závorka a~pøední uvozovky se pøimykají k~následujícímu slovu a~mezera se vynechává pøed nimi -- (takto) a~``takto''.
+
+Pro spojovací a~rozdìlovací èárku a~pomlèku nepou¾íváme stejný znak. Pro pomlèku je vyhrazen jiný znak (del¹í). V~systému TeX (LaTeX) se spojovací èárka zapisuje jako jeden znak ``pomlèka'' (napøíklad ``Brno-mìsto''), pro sázení textu ve smyslu intervalu nebo dvojic, soupeøù a~podobnì se ve zdrojovém textu pou¾ívá dvojice znakù ``pomlèka'' (napøíklad ``zápas Sparta -- Slavie''; ``cena 23--25 korun''), pro výrazné oddìlení èásti vìty, pro výrazné oddìlení vlo¾ené vìty, pro vyjádøení nevyslovené my¹lenky a~v~dal¹ích situacích (viz Pravidla èeského pravopisu) se pou¾ívá nejdel¹í typ pomlèky, která se ve zdrojovém textu zapisuje jako trojice znakù ``pomlèka'' (napøíklad ``Dal¹í pojem --- jakkoliv se mù¾e zdát nevýznamný --- bude neformálnì definován v~následujícím odstavci.''). Pøi sazbì matematického mínus se pøi sazbì pou¾ívá rovnì¾ odli¹ný znak. V~systému TeX je ve zdrojovém textu zapsán jako normální mínus (tj. znak ``pomlèka''). Sazba v~matematickém prostøedí, kdy se vzoreèek uzavírá mezi dolary, zajistí vygenerování správného výstupu.
+
+Lomítko se pí¹e bez mezer. Napøíklad ¹kolní rok 2008/2009.
+
+Pravidla pro psaní zkratek jsou uvedena v~Pravidlech èeského pravopisu \cite{Pravidla}. I~z~jiných dùvodù je vhodné, abyste tuto knihu mìli po ruce. 
+
+
+\section{Co to je normovaná stránka?}
+Pojem {\it normovaná stránka} se vztahuje k~posuzování objemu práce, nikoliv k~poètu vyti¹tìných listù. Z historického hlediska jde o~poèet stránek rukopisu, který se psal psacím strojem na speciální pøedti¹tìné formuláøe pøi dodr¾ení prùmìrné délky øádku 60 znakù a~pøi 30 øádcích na stránku rukopisu. Vzhledem k~zápisu korekturních znaèek se pou¾ívalo øádkování 2 (ob jeden øádek). Tyto údaje (poèet znakù na øádek, poèet øádkù a~proklad mezi nimi) se nijak nevztahují ke koneènému vyti¹tìnému výsledku. Pou¾ívají se pouze pro posouzení rozsahu. Jednou normovanou stránkou se tedy rozumí 60*30 = 1800 znakù. Obrázky zaøazené do textu se zapoèítávají do rozsahu písemné práce odhadem jako mno¾ství textu, které by ve výsledném dokumentu potisklo stejnì velkou plochu.
+
+Orientaèní rozsah práce v~normostranách lze v~programu Microsoft Word zjistit pomocí funkce {\it Poèet slov} v~menu {\it Nástroje}, kdy¾ hodnotu {\it Znaky (vèetnì mezer)} vydìlíte konstantou 1800. Do rozsahu práce se zapoèítává pouze text uvedený v~jádru práce. Èásti jako abstrakt, klíèová slova, prohlá¹ení, obsah, literatura nebo pøílohy se do rozsahu práce nepoèítají. Je proto nutné nejdøíve oznaèit jádro práce a~teprve pak si nechat spoèítat poèet znakù. Pøibli¾ný rozsah obrázkù odhadnete ruènì. Podobnì lze postupovat i~pøi pou¾ití OpenOffice. Pøi pou¾ití systému LaTeX pro sazbu je situace trochu slo¾itìj¹í. Pro hrubý odhad poètu normostran lze vyu¾ít souèet velikostí zdrojových souborù práce podìlený konstantou cca 2000 (normálnì bychom dìlili konstantou 1800, jen¾e ve zdrojových souborech jsou i~vyznaèovací pøíkazy, které se do rozsahu nepoèítají). Pro pøesnìj¹í odhad lze pak vyextrahovat holý text z~PDF (napø. metodou cut-and-paste nebo {\it Save as Text...}) a~jeho velikost podìlit konstantou 1800. 
+
+
+\chapter{Závìr}
+Závìreèná kapitola obsahuje zhodnocení dosa¾ených výsledkù se zvlá¹» vyznaèeným vlastním pøínosem studenta. Povinnì se zde objeví i zhodnocení z pohledu dal¹ího vývoje projektu, student uvede námìty vycházející ze zku¹eností s øe¹eným projektem a uvede rovnì¾ návaznosti na právì dokonèené projekty.
+
+\subsection{su (Substitute User)}
+This program allows to a aribtrary user become a different user. In most cases
+the different user is the root. This means that su can give a user which know
+the root's password full control over the operating system.
+
+
+%=========================================================================
