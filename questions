@@ -24,3 +24,5 @@ SSSD
 	pravidla. Proc tam je name? neni tam navic?
 	- k cemu je u sudopravidla navic originalDN a distinguished name atributy?
 - hodila by se najak velka databaze pravidel na testovani
+- priklad nejakeho realneho vyuziti toho ldap_sudo_use_host_filter? => add into
+	thesis text
