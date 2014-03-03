@@ -28,3 +28,9 @@ SSSD
 	thesis text
 	- jinak, kdyz to nastavim na False, tak se sssd ani nerozbehne! Hlasi to ze je
 		to spatna option
+- jak to bude u IPA provideru s temi volbami ldap_sudo_*
+	- musim pri inicializaci ipa provideru brat v potaz je je jinak nastavena
+		search base pres ldap_sudo_search_base
+	- musim resit ldap_sudo_use_host_filter a ty podvolby???
+		- mam pridat ipa_sudo_use_host_filter??
+- radeji vytvaret vlastni kod nebo se co nejvice pokusit vyuzit Pavluv kod
