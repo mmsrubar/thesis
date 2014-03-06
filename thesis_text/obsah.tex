@@ -2,69 +2,59 @@
 % (c) Michal Bidlo, Bohuslav Køena, 2008
 
 \chapter{Introduction}
+\begin{enumerate} 
+	\item vymezeni oblasti kde se pohybuju (pohybuju se v distribuovanem prostredi
+		kde je vice pocitacu a je tam treba resit prava). Budu se zabyvat temito
+		technologiemi proto¾e je pouzivat RHEL klienti (zeptej se na to v
+		redhatu...)
+	\item popsat cile a zadani
+	\item popsat strukturu, co se v ktere sekci a kapitole ctenar dozvi...
+\end{enumerate}
 
-The purpose of this thesis is to show how can be 
 
-The thesis supposes that reader has user experiances with sudo and basic
+The thesis supposes that reader has user experiances with SUDO and basic
 knowledge of what LDAP directories are and how to use them.
 
-The thesis isn't meant to be a manual for configuring sudo, LDAP, FreeIPA or
+The thesis isn't meant to be a manual for configuring SUDO, LDAP, FreeIPA or
 SSSD.
 
 It also doesn't cover NSS\footnote{Name Service Switch} and
 PAM\footnote{Pluggable Authentication Modules} which are necesary for having
-sudo rules somewhere else than in local \texttt{sudoers}.
+SUDO rules somewhere else than in local \texttt{SUDOers}.
 
-
-\section*{Smysl této práce:}
-FreeIPA pou¿ívá pro ulo¿ení SUDO pravidel v LDAPu svoje schéma, které p¿iná¿í
-mnoho vylep¿ení. \textbf{SSSD} ov¿em toto schéma neumí zpracovat (FreeIPA
-nejprve pou¿ívala legacy sudo schema pro ulo¿ení a pak se navrhlo nové schéma).
-FreeIPA musí nové schéma p¿elo¿it do legacy schématu (provádí to compat plugin),
-které sssd umí zpracovat. P¿evodem se ov¿em ztrácí mnoho informací.
-
-Jeliko¿ SSSD neumí to FreeIPA schéma, tak se musí dodate¿n¿ stahovat mnoho
-informací, co¿ u rozsáhlého adresá¿e zp¿sobuje zpomalení. Úkolem není
-navrhnout nové LDAP schéma pro SUDO, ale upravit SSSD daemon a SUDO tak, aby
-podporovaly LDAP schéma, které pou¿ívá IPA, pop¿ to nové schéma vylep¿it.
-
-Hodn¿ zjednodu¿en¿ bude výsledkem správný dotaz na LDAP adresá¿ na IPA serveru,
-který pro daného klienta stáhne v¿echno pot¿ebné.
 
 % ==============================================================================
-\chapter{User's Privileges Administration}
-\emph{cursive} - for unknown expressions .\\
-\textbf{bold text} - for key words\\
-\texttt{tt text} - file locations, file names\\
-\\ 
-
+\chapter{Administration of Users Privileges }
 {\color{red}
-Administration tasks on the Linux and
-Unix-like operating systems are
-done by special user called \textbf{root}. Sometimes also called
-\textbf{superuser}. This user has access to all system files and can execute all
-the commands of the operating
-system\footnote{http://www.linfo.org/root.html}. A regular user doesn't have
-this privilege until these exceptions:
-\begin{itemize}
-	\item the user knows the root's password
-	\item the user will use a special program which will give him root's privileges
-\end{itemize}
+For the purpose of this thesis I reffer as LDAP directore to a server
+
+Administration tasks on the
+Unix-like\footnote{http://www.linfo.org/unix-like.html} operating systems are
+done by a special user called \emph{root}. Sometimes also called
+\emph{superuser}. This user has access to all files and can execute all the
+commands of an operating system.\footnote{http://www.linfo.org/root.html} A
+regular user\footnote{any other than root} does not have this privilege.  On big
+servers or in corporate environment can be more administrators maintaing
+different network services or different kind of administration tasks. From a
+security point of view it is not very desirable to give root's password to every
+administrator. It is much suitable to restrict privileges of those administrator
+and let just a very few of them to know the root's password whereby it also
+limits the human error. This chapter introduces SUDO, FreeIPA and SSSD as one of
+the possible ways to to delegate root's privileges in network domains and its
+problems.
 }
 
-% ==============================================================================
-
 \section{SUDO (Super User DO)}
-
-The sudo allows for a user to execute one command as a different user. In most
-cases a different user is the \emph{root}. Security policies which define
-which users are allowed to execute what commands are called \emph{sudo
-rules}\footnote{also reffered as sudoers in the following text}.
-If an administrator wants to give a particular user a privilege to do someting then he has
-to define a rule for the user first. Sudo rule has the following syntax:
+The SUDO allows for a user to execute one command as a different user. In most
+cases a different user is the \textbf{root}. Security policies which define
+which users are allowed to execute what commands are called \emph{SUDO rules} or
+\emph{sudoers}\footnote{I will use sudoers to refer to sudo rules in the
+following text}.  If an administrator wants to give a particular user a
+privilege to do someting then he has to define a rule for the user first. SUDO
+rule has the following syntax:
 
 \begin{itemize} 
-	\item \texttt{USER} - a user to apply the sudo rule at
+	\item \texttt{USER} - a user to apply the SUDO rule at
 	\item \texttt{HOST\_LIST} - a list of machines where the rule will be appliable
 	\item \texttt{USER\_LIST} (optional) - a list of machines where the rule will 
 		be appliable
@@ -77,15 +67,20 @@ USER HOST_LIST = (USER_LIST) COMMAND_LIST
 
 These rules has to be stored in a configuration file
 \texttt{/etc/sudoers}. The file should be edited only with the tool \emph{visudo}
-which provides automatic syntax checking. Detailed descriptioin of configuration
-of the sudoers file can be found in sudoers manual page
-\footnote{http://www.gratisoft.us/sudo/sudoers.man.html\#sudoers\_options}.
-\\
-\\
+which provides automatic syntax checking. In default sudoers there is a one
+predefined rule which tells us that the \textbf{root} can run \textbf{all
+commands} as \textbf{all users} at \textbf{all machines}.
+\begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
+root ALL = (ALL) ALL
+\end{lstlisting}
+
+{\color{red}Complicated example: skola kde je admin a chce uciteli dat pravo
+instalovat potrebny software, you can find something
+\href{http://www.security-portal.cz/clanky/pou\%C5\%BE\%C3\%ADv\%C3\%A1me-sudoers}{here}}
 Example: Let's assume that adminstrator wants to
 give a privilege to run /sbin/fdisk command to the user \emph{adam} on
 \emph{client1.example.cz} machine. This example is ilustrated on figure
-\ref{sudo:1} and the sudo rule would be:
+\ref{sudo:1} and the SUDO rule would be:
 
 \begin{lstlisting}[basicstyle=\ttfamily\small,frame=lines,showtabs=false]
 	adam ALL=/sbin/fdisk
@@ -94,13 +89,17 @@ give a privilege to run /sbin/fdisk command to the user \emph{adam} on
 \begin{figure}[h]	% h means place the figure here
 	\centering % center
 	\scalebox{0.80}{\includegraphics{fig/sudo_01.pdf}}
-	\caption{Example of local sudoers}
+	\caption{Example of local SUDOers}
 	\label{sudo:1}
 \end{figure}
 
+Detailed descriptioin of configuration
+of the sudoers file can be found in sudoers manual page.
+\footnote{http://www.gratisoft.us/sudo/sudoers.man.html\#sudoers\_options}
+
 \subsection{Distributing the sudoers among multiple
 systems}\label{sudo_distribute_sudores}
-Usualy the administrator manages multiple systems but sudo doesn't support
+Usualy the administrator manages multiple systems but SUDO doesn't support a
 native way to distribute sudoers among multiple systems. Maintaining sudoers
 individualy at all systems, as shown on figure \ref{sudo:2}, would be very
 complicated and time-consuming.
@@ -112,9 +111,9 @@ complicated and time-consuming.
 	\label{sudo:2}
 \end{figure}
 
-That is a problem for administrators of large computer networks. The question is
-how to distribute the sudoers to all computers? There are a few solutions to do
-that:
+That is a problem for administrators of a large computer networks or many
+systems. The question is how to distribute the sudoers to all computers? There
+are a few solutions to do that:
 \begin{enumerate} 
 	\item Manually distribute the \emph{sudoers} file among the
 		systems with standard UNIX tools such as \emph{cron, scp,
@@ -123,60 +122,47 @@ that:
 		Puppet\footnote{http://puppetlabs.com/puppet/what-is-puppet} which
 		automatically watch and distribute files among multiple systems. 
 	\item Use a centralized database. If he does so administrator just need to
-		insert sudo rules into the centralised database and all the clients can use
+		insert SUDO rules into the centralised database and all the clients can use
 		it.
 \end{enumerate}
 
-\subsection{LDAP directory service as a centralized database}
-LDAP\footnote{Lightweight Directory Access Protocol} directorie service are characterized as a
-"write-once-read-many-times" service. Directories are optiomalized for reading
-and searching because they supposing to store kind of data that is not changed
-very often\cite{ldap} (page: 26). It's eminently suitable for maintaining
-data which are not changed very often. Sudo rules are set once, by administrator of
-the system, but accessed by users many times. 
+\subsection{sudoers in LDAP directory service}
+Directories can store a variety of information and they are used by companies to
+strore information about their employees, users or their computer networks. Our
+faculty also uses public directory to store information about the students and
+their emploeyees. 
+
+LDAP\footnote{Lightweight Directory Access Protocol} directorie service are
+characterized as a "write-once-read-many-times" service. Directories are
+optiomalized for reading and searching because they supposing to store kind of
+data that is not changed very often.\cite{ldap} (page: 26).  SUDO rules are set
+once, by administrator of the system, but accessed by users many times. 
 
 Having sudoers in LDAP directory instead of in local \texttt{/etc/sudoers} file has
 following benefits: 
 \begin{enumerate} 
-	\item If the sudo rules are centralized than the administrator doesn't have to
+	\item If the SUDO rules are centralized than the administrator doesn't have to
 		worry about distributing them. He maintains only one sudoers file.
-	\item Looking up sudo rules in LDAP directory is faster because sudo no longer needs to read
+	\item Looking up SUDO rules in LDAP directory is faster because SUDO no longer needs to read
 		the entire \emph{sudoers} file. There are only a few LDAP queries per
 		invocation.
-	\item If there is a typing error in \emph{sudoers} than sudo won't start. With
+	\item If there is a typing error in \emph{sudoers} than SUDO won't
+		start.\footnote{in case you don't use \emph{visudo} to edit sudoers
+		otherwise it won't let you close the sudoers file} With
 		LDAP it's not possible to load data into the LDAP directory which does not
 		conform the sudoers schema so the proper syntax is guaranteed. Although
 		there
 		can still be a mistake in command, user name or host name.
 \end{enumerate}
 
-
-
-
-
-For the purpose of this thesis I reffer as LDAP directore to a server
-what a directory is
-what is the ldap
-what is ldap directory
-
 benefits of having sudores in ldap
 
-Directories can store variety of information and they are used by 
-corporations to store information
-about their employees, users of their networks, company information and ....
-Our faculty also uses public directory to store information about the students and
-their emploeyees.
-
-
-As I said in section \ref{sudo_distribute_sudores} sudo doesn't support a native
+As I said in section \ref{sudo_distribute_sudores} SUDO doesn't support a native
 way to distribute sudoers among multiple systems. But it provide API and
 plugins. ...
 
 This problem could be solved by
 cetralize the sudoers. 
-
-A better solution would be put sudoers into a database that all clients would
-have access to. The database should be optimalized for reading
 
 {\color{blue}popis o vlastnostech ldapu atd...}
 
@@ -187,7 +173,7 @@ systems
 \subsection{SUDOers in LDAP directory}\label{sudoers_in_ldap}
 In most organization environments today there is an LDAP server which can be
 used to centrally manage user's information. This information can be accessed
-by LDAP protocol. SUDO itself has built-in support for processing sudo rules
+by LDAP protocol. SUDO itself has built-in support for processing SUDO rules
 stored on LDAP server.
 
 
@@ -209,7 +195,7 @@ stored on LDAP server.
 
 		\lstinputlisting[language=C,basicstyle=\ttfamily\small,frame=lines,showtabs=false]{srcs/sudorule_order.ldif}
 		Since there's an arbitrary ordering of attributes there's no guarantee of what
-		sudo rules the client will receive as the last one. That means we are not 
+		SUDO rules the client will receive as the last one. That means we are not 
 		sure whether the user \texttt{adam} will be able to print \texttt{shadow}
 		file or not. This is the reason why there is the \texttt{SudoOrder}
 		attribute. {\color{blue}Take a closer look at this!}
@@ -228,12 +214,12 @@ Having sudoers in LDAP has also a few drawbacks. These are discussed in section
 
 \subsection{Drawbacks of having sudoers in LDAP}\label{sec:sudo_ldap_drawbacks}
 \begin{itemize} 
-	\item Administrator has to configure everything via text files. Sudo does not
+	\item Administrator has to configure everything via text files. SUDO does not
 		provide any GUI.
 	\item Corporations don't want to maintain their user's information a security
 		policies separately. They want to have those kind of information at one place
 		so it can be link together.
-	\item If there are user's information and sudo rules stored in LDAP than there
+	\item If there are user's information and SUDO rules stored in LDAP than there
 		is no relationship among them.
 		rules.
 	\item \texttt{User\_Aliases, RunAs\_Aliases and Cmnd\_Aliases} are not supported
@@ -291,6 +277,10 @@ domain\footnote{http://docs.fedoraproject.org/en-US/Fedora/15/html/FreeIPA\_Guid
 
 \subsection{sudoers in FreeIPA (the new scheme)}
 
+\subsection{openLDAP nenabizi propojeni objektu a sudo pravidel}
+Cross-links between entries are often used to describe relationships
+between entries\footnote{http://tools.ietf.org/html/draft-masarati-ldap-deref-00#section-1}
+
 \subsection{Advantages the new schema brings}
 \begin{itemize}
 	\item it's possible to disable a rule without deleting it
@@ -320,6 +310,15 @@ Then there is a \emph{sudo} container and this contains
 SSSD or System Security Services Daemon provides access to multiple identity and
 authentication resources with providing caching and offline support to the
 system.
+
+Provides a set of daemons to manage access to remote directories and
+authentication mechanisms. It provides an NSS and PAM interface toward
+the system and a pluggable backend system to connect to multiple different
+account sources. It is also the basis to provide client auditing and policy
+services for projects like FreeIPA.
+
+The sssd subpackage is a meta-package that contains the deamon as well as all
+the existing back ends.
 
 \subsection{The benefits of the SSSD}
 \subsection{offline support}
@@ -396,6 +395,7 @@ Myslim ze tomuhle se v praci nemusis nijak venovat, max popsat, ze to tam je.
 	\end{itemize}
 \end{itemize} 
 
+
 \section*{Co bylo pot¿eba nastudovat:}
 \begin{itemize}
 	\item LDAP (konfigurace 389, FreeIPA serveru)
@@ -436,6 +436,77 @@ Máme-li tedy my¹lenku, pøedstavu o~budoucím ètenáøi, cíl a~osnovu textu, mù¾eme 
 
 I k~procesu psaní textu pøistupujeme strukturovanì. Souèasnì s~tím, jak si ujasòujeme strukturu písemné práce, vytváøíme kostru textu, kterou postupnì doplòujeme. Vyu¾íváme ty prostøedky DTP programu, které podporují strukturovanou stavbu textu (pøeddefinované typy pro nadpisy a~bloky textu). 
 
+
+% ==============================================================================
+\chapter{SSSD from the prespective of the SUDO}
+\section{why export rules at SSSD and do not store them into sysdb in IPA format?}
+I disagree on the plan here. We should not be storing the rules in the sysdb in
+a specialized format. The point of the sysdb is that it should provide a common
+interface for the responder. It can contain additional attributes that are
+provider-specific, but the responder MUST be able to read the sysdb in its
+expected format.
+
+So the IPA provider MUST do the conversion before storing the data in the sysdb.
+
+I concur, the architecture is that the responder is as fast as possible and does
+as little computation as possible, while the providers digest the data in a
+format that is common to all providers implementations. You definitely do not
+want to have to manage different schemas in the responder. and translate over
+and over again. 
+
+\section{Compat plugin}
+Compat plugin exports all rules from \texttt{cn=sudorules,cn=sudo,\$DC} into
+\texttt{ou=sudoers,\$DC} container. 
+The goal is to eliminate this overhead by creating the native IPA SUDO provider
+which would process the SUDO rules from \texttt{cn=sudo} container. Pak neni
+potreba exportovat vsecny pravidla, ale pouze ty ktere jsou aplikovatelne na
+konkretniho hosta => zmenseni rezie.
+
+Proc je na strane hosta i tak musim prevest do sudo formatu? protoze to sudo
+neumi zpracovat...
+
+\section{LDAP provider}
+By default SSSD downloads all rules that are applicable at host where the SUDO
+was executed. LDAP search filter which is used is following:
+
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\lstset{ %
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  commentstyle=\color{mygreen},    % comment style
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+	language={bash},                 % the language of the code
+  morekeywords={*,...},            % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname,                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+	caption={Descriptive Caption Text},
+	label=DescriptiveLabel
+}
+
+in this\ref{DescriptiveLabel}:
+\lstinputlisting{srcs/sudohost_ldap_filter}
+SSSD will try to discover all IP addresses and hostname of the host. Line 10
+will match any netgroup and lines 11 to 14 uses wildcards\footnote{shell-style
+wildcards, more information can be found in manual page \texttt{sudoers} in
+section wildcards}.
+
+
+{\color{red}Pøiklad reálného pou¾ítí....}
+It's possible to change this behavior by putting 
+\texttt{ldap\_sudo\_use\_host\_filer = True} option into domain section in
+\texttt{sssd.conf}. Then the sudoHost filter can be changed by options
+\texttt{ldap\_sudo\_hostnames, ldap\_sudo\_ip, ldap\_sudo\_include\_netgroups,
+ldap\_sudo\_include\_regexp}.\footnote{more information can be found in section
+SUDO OPTIONS in man page \texttt{sssd-ldap}}
+% ==============================================================================
 
 \chapter{Nìkolik formálních pravidel}
 Na¹ím cílem je vytvoøit jasný a~srozumitelný text. Vyjadøujeme se proto pøesnì, pí¹eme dobrou èe¹tinou (nebo zpravidla angliètinou) a~dobrým slohem podle obecnì pøijatých zvyklostí. Text má upravit ètenáøi cestu k~rychlému pochopení problému, pøedvídat jeho obtí¾e a~pøedcházet jim. Dobrý sloh pøedpokládá bezvadnou gramatiku, správnou interpunkci a~vhodnou volbu slov. Sna¾íme se, aby ná¹ text nepùsobil pøíli¹ jednotvárnì pou¾íváním malého výbìru slov a~tím, ¾e nìkterá zvlá¹» oblíbená slova pou¾íváme pøíli¹ èasto. Pokud pou¾íváme cizích slov, je samozøejmým pøedpokladem, ¾e známe jejich pøesný význam. Ale i~èeských slov musíme pou¾ívat ve správném smyslu. Napø. platí jistá pravidla pøi pou¾ívání slova {\it zøejmì}. Je {\it zøejmé} opravdu zøejmé? A~pøesvìdèili jsme se, zda to, co je {\it zøejmé} opravdu platí? Pozor bychom si mìli dát i~na pøíli¹ èasté pou¾ívání zvratného se. Napøíklad obratu {\it dokázalo se}, ¾e... zásadnì nepou¾íváme. Není ¹patné pou¾ívat autorského {\it my}, tím pøedpokládáme, ¾e nìco øe¹íme, nebo napøíklad zobecòujeme spolu se ètenáøem. V~kvalifikaèních pracích pou¾ijeme autorského {\it já} (napøíklad kdy¾ vymezujeme podíl vlastní práce vùèi pøevzatému textu), ale v~bì¾ném textu se nadmìrné pou¾ívání první osoby jednotného èísla nedoporuèuje.
@@ -494,13 +565,44 @@ Pojem {\it normovaná stránka} se vztahuje k~posuzování objemu práce, nikoliv k~p
 Orientaèní rozsah práce v~normostranách lze v~programu Microsoft Word zjistit pomocí funkce {\it Poèet slov} v~menu {\it Nástroje}, kdy¾ hodnotu {\it Znaky (vèetnì mezer)} vydìlíte konstantou 1800. Do rozsahu práce se zapoèítává pouze text uvedený v~jádru práce. Èásti jako abstrakt, klíèová slova, prohlá¹ení, obsah, literatura nebo pøílohy se do rozsahu práce nepoèítají. Je proto nutné nejdøíve oznaèit jádro práce a~teprve pak si nechat spoèítat poèet znakù. Pøibli¾ný rozsah obrázkù odhadnete ruènì. Podobnì lze postupovat i~pøi pou¾ití OpenOffice. Pøi pou¾ití systému LaTeX pro sazbu je situace trochu slo¾itìj¹í. Pro hrubý odhad poètu normostran lze vyu¾ít souèet velikostí zdrojových souborù práce podìlený konstantou cca 2000 (normálnì bychom dìlili konstantou 1800, jen¾e ve zdrojových souborech jsou i~vyznaèovací pøíkazy, které se do rozsahu nepoèítají). Pro pøesnìj¹í odhad lze pak vyextrahovat holý text z~PDF (napø. metodou cut-and-paste nebo {\it Save as Text...}) a~jeho velikost podìlit konstantou 1800. 
 
 
-\chapter{Závìr}
+\chapter{Conclusion}
+Should consist out of two paragraphs.
+First par:
+\begin{itemize} 
+	\item co jsem naimplementoval a jak se to povedlo
+	\item dostal jsem to do upstreamu?
+	\item kolik jsem udìlal patchù
+	\item pozitivnì to zhodno»
+\end{itemize} 
+Second par:
+\begin{itemize} 
+	\item co bych mohl udìlat do budoucna?
+\end{itemize} 
+
+
 Závìreèná kapitola obsahuje zhodnocení dosa¾ených výsledkù se zvlá¹» vyznaèeným vlastním pøínosem studenta. Povinnì se zde objeví i zhodnocení z pohledu dal¹ího vývoje projektu, student uvede námìty vycházející ze zku¹eností s øe¹eným projektem a uvede rovnì¾ návaznosti na právì dokonèené projekty.
 
 \subsection{su (Substitute User)}
 This program allows to a aribtrary user become a different user. In most cases
 the different user is the root. This means that su can give a user which know
 the root's password full control over the operating system.
+
+\chapter{things to check}
+\begin{itemize} 
+	\item vector pictures
+	\item correct footnotes (different for sentences, pharases/words)
+	\item vse co tvrdis musi byt podlozeno! (
+VUT lib of tech. reasearches:
+\href{http://primo.lib.vutbr.cz/primo_library/libweb/action/search.do?vid=420BUT&reset_config=true}{Wikibooks
+home})
+	\item korektura:
+		\begin{itemize} 
+			\item \emph{cursive} - for unknown expressions .\\
+			\item \textbf{bold text} - for key words\\
+			\item \texttt{tt text} - file locations, file names\\
+		\end{itemize} 
+\end{itemize}
+
 
 
 %=========================================================================
