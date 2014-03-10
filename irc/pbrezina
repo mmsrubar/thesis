@@ -1,0 +1,53 @@
+<mmsrubar> ahoj Pavle, Michal, mel by si nachivli cas? chtel by se na neco zeptat ohledne presunuti te libsss_sudo knihovny
+<pbrezina> čau
+<pbrezina> povídej
+<mmsrubar> na strane suda je v configure promenna sssd_lib defaultne nastavena na LIBDIR, když jsem tam absolutní cestu k té knihovně tak mně to fungovat, ale na ten LIBDIR řetězec se mně to nepovedlo napasovat. Bude to tak stačit?
+<mmsrubar> resp, když jsem zkoušel něco jako LIBDIR/sssd/modules tak mně to tu knihovnu potom nakopírovalo někam do /usr/local/lib ...
+<pbrezina> dalo ti to do /usr/local/lib/sssd/modules?
+<mmsrubar> j myslím, že tam... 
+<pbrezina> tak to je v cajku ne?
+<pbrezina> hodnotu LIBDIR pak specifikuješ přes configure --libdir=cesta
+<mmsrubar> u mně na fedoře je celkově /usr/local/lib/* prázdný, všechny knihovny jsou nasypané v /usr/lib/. měl jsem za to, že sssd tu libsss_sudo.so taky defaultně nakopíruje do /usr/lib/sssd a tam ji má sudo defaultně očekávat pokud neřeknu jinak tím --with-sssd-lib ...
+<pbrezina> ./configure --libdir="/usr/lib"
+<pbrezina> sudo lib by defaultně mělo být očekávané v ${libdir}/sssd/modules
+<pbrezina> ta proměnná libdir má nějakou výchozí hodnotu, což je typicky /usr/local/lib
+<pbrezina> a přepíšeš to parametrem --libdir
+<mmsrubar> aha, takže defaultně se to bude kopírovat do /usr/local/lib a kdo bude chtít podporu s sssd tak buď specifikuje kde se má libsss_sudo nebo nebo nastaví --libdir na /usr/lib
+<pbrezina> ano
+<mmsrubar> super
+<mmsrubar> až ten patch upravím, tak jak se postupuje dál? mám to nahrát k tomu ticketu? nebo se domluvit s Kubou? taky jsem říkali, že je třeba aby to vyšlo zároveň, takže mám napsat Danovi Kopečkovi (je to on kdo má u vás sudo nastarost)? Je třeba o tom dát nějaké info do mailing listu?
+<pbrezina> pošli to na sssd-devel list ( https://lists.fedorahosted.org/mailman/listinfo/sssd-devel ), do zprávy napiš krátké info + odkaz na ticket (viz https://fedorahosted.org/sssd/wiki/DevelTutorials#Submittingapatchupstream )
+<pbrezina> tam to pak budeme řešit dál
+<pbrezina> a ano, Dan má sudo na starosti
+<mmsrubar> super, díky za info
+<pbrezina> není zač
+* pbrezina has quit (Ping timeout: 246 seconds)
+ Python interface unloaded
+* pbrezina has quit (Ping timeout: 245 seconds)
+* pbrezina has quit (Ping timeout: 272 seconds)
+* pbrezina has quit (Client Quit)
+* pbrezina has quit (Client Quit)
+ 
+* Loaded log from Thu Feb 20 15:57:54 2014
+ 
+<mmsrubar> ahoj Pavle, měl by si na mně 10min? 
+<pbrezina> pov9dej
+<mmsrubar> snažím se rozluštit ten FULL refresh, ale začínám se ztrácet v těch tevent requests, jak se to tam začne zanořovat do sebe a pak jak se tam volají ty callbacky... nějaké typy jak se v tom lépe zorientovat?
+<pbrezina> nakresli si graf
+<mmsrubar> zkoušel jsem nějaké vodopády co jsem viděl v té diplomce na tevent, ale v tom sem se taky potom zamotal, nemáš někde nějaký náčrt jak by to mohlo vypadat abych se v tom vyznal?
+<pbrezina> já to dělám zhruba tímhle způsobem http://fpaste.org/83909/44485413/
+<mmsrubar> super, vyzkouším, další věc, zajímalo by mně co bych mohl využít z toho co už je naprogramováno, díval jsem se třeba do sdap_async_sudo.c, vypadá to napsáno dost obecně, dalo by se to použít jako takové API?
+<pbrezina> můžeš to použít jako vzor, ale ty hlavní části - ty co stahují a ukládají pravidla - bude potřeba překopat, aby používaly správné atributy
+<mmsrubar> a co ten časovač a to plánovaní 'refresh' to by se taky nedalo využít?
+<pbrezina> teoreticky ano, ale spíš bych se upnul na náš nový časovač - be_ptask
+<pbrezina> případně ten starý můžeš předělat na be_ptask a pak toho využít
+<mmsrubar> aha, tak na ten sem se ještě nedíval
+<pbrezina> čím míň duplikace kódu to bude, tím líp
+<mmsrubar> jj to zní dobře
+<mmsrubar> takže v podstatě se  mám dívat na to tak to funguje teď skrze LDAP SUDO provider jako na vzor a nehledat tam moc co bych využil, a napsat toho nativního IPA SUDO providera stejně budu muset jakoby odznova celého
+<pbrezina> v podstatě ano
+<pbrezina> myslím si, že tak jak je to teď to přímo znovu použitelné moc není, musel bys to upravovat, tak aby to bylo víc generický
+<pbrezina> bylo by to tak hezčí
+<pbrezina> ale nebude to přímočaré
+<mmsrubar> ok, díky za pomoc, jdu rozluštit ten FULL REFRESH
+<pbrezina> není za co
