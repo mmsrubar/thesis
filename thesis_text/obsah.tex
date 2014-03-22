@@ -42,11 +42,18 @@ and let just a very few of them to know the root's password whereby it also
 limits the human error. This chapter introduces SUDO, FreeIPA and SSSD as one of
 the possible ways to to delegate root's privileges in network domains and its
 problems.
-}
+
+I use term \emph{sudoers in LDAP} for having stored sudo rules on server running
+an LDAP directory such as 389 Directory
+Server\footnote{http://directory.fedoraproject.org} or
+OpenLDAP{http://www.openldap.org/}.  in sudo LDAP scheme. And another term
+\emph{sudoers on IPA} for having sudo rules stored on FreeIPA server in IPA SUDO
+native scheme.  }
 
 \section{SUDO (Super User DO)}
 The SUDO allows for a user to execute one command as a different user. In most
-cases a different user is the \textbf{root}. Security policies which define
+cases a different user is the
+\textbf{root}.\footnote{DVD/sources/Freeipa30\_SSSD\_SUDO\_Integration.pdf} Security policies which define
 which users are allowed to execute what commands are called \emph{SUDO rules} or
 \emph{sudoers}\footnote{I will use sudoers to refer to sudo rules in the
 following text}.  If an administrator wants to give a particular user a
@@ -100,7 +107,7 @@ of the sudoers file can be found in sudoers manual page.
 \subsection{Distributing the sudoers among multiple
 systems}\label{sudo_distribute_sudores}
 Usualy the administrator manages multiple systems but SUDO doesn't support a
-native way to distribute sudoers among multiple systems. Maintaining sudoers
+native way to distribute sudoers among multiple systems.\cite{idm} Maintaining sudoers
 individualy at all systems, as shown on figure \ref{sudo:2}, would be very
 complicated and time-consuming.
 
@@ -154,6 +161,11 @@ following benefits:
 		there
 		can still be a mistake in command, user name or host name.
 \end{enumerate}
+
+When a user run sudo there are only two or three LDAP queries to lookup sudoer
+in LDAP. First query parses the global defautl options. Second one matches
+against the user's name or groups he belongs to (sudoHost=ALL is matched in this
+query too). The thirds...\footnote{http://www.sudo.ws/sudoers.ldap.man.html, Anatomy of LDAP sudoers lookup}
 
 benefits of having sudores in ldap
 
@@ -279,7 +291,8 @@ domain\footnote{http://docs.fedoraproject.org/en-US/Fedora/15/html/FreeIPA\_Guid
 
 \subsection{openLDAP nenabizi propojeni objektu a sudo pravidel}
 Cross-links between entries are often used to describe relationships
-between entries\footnote{http://tools.ietf.org/html/draft-masarati-ldap-deref-00#section-1}
+between
+entries\footnote{http://tools.ietf.org/html/draft-masarati-ldap-deref-00\#section-1}
 
 \subsection{Advantages the new schema brings}
 \begin{itemize}
@@ -321,6 +334,16 @@ The sssd subpackage is a meta-package that contains the deamon as well as all
 the existing back ends.
 
 \subsection{The benefits of the SSSD}
+Nejprve odrazky a pak co odstavec to popsana odrazka.
+\begin{itemize}
+	\item redukuje traffic
+		\begin{itemize}
+			\item sudo dela az 3 LDAP queries
+			\item SSSD to zvladne jednim dotazem
+		\end{itemize} 
+\end{itemize} 
+
+
 \subsection{offline support}
 SSSD caches previously loged-in user's passord hashes. When the network goes
 down and client need to perform authentication opperation than the UID to
@@ -439,6 +462,23 @@ I k~procesu psaní textu pøistupujeme strukturovanì. Souèasnì s~tím, jak si ujasò
 
 % ==============================================================================
 \chapter{SSSD from the prespective of the SUDO}
+\section{Basic components}
+- monitor, backends, responders, providers
+
+\section{Basic data flow}
+Describe basic data flow from sudo $->$ sssd $->$ IPA and back with diagrams.
+
+\section{SUDO Rules Caching Mechanism}
+\subsection{Full Refresh}
+\subsection{Rules Refresh}
+\subsection{Smart Refresh}
+Implementation details can be found in section
+\ref{sssd_ldap_sudo_provider_refreshes}.
+
+
+\section{LDAP SUDO Provider}
+\subsection{Contexts that sudo uses}
+\subsection{Initialization}
 \section{why export rules at SSSD and do not store them into sysdb in IPA format?}
 I disagree on the plan here. We should not be storing the rules in the sysdb in
 a specialized format. The point of the sysdb is that it should provide a common
