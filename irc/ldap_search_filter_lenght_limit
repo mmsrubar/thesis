@@ -1,0 +1,10 @@
+15:19 <jhrozek> ping (LDAP filter question)                                                                                                                                        |
+15:19 <lkrispen> hi                                                                                                                                                                |
+15:19 <jhrozek> Hi, is there a limit on LDAP filter length?                                                                                                                        |
+15:20 <jhrozek> in sssd, we'd like to OR a potentially large number of subfilters when searching for sudo rules                                                                    |
+15:20 <lkrispen> no, if you don't exceede the max ber size                                                                                                                         |
+15:20 <jhrozek> as optimization to avoid multiple searches                                                                                                                         |
+15:20 <jhrozek> and the maximum ber size is?                                                                                                                                       |
+15:21 <lkrispen> default 2mb, but configurable                                                                                                                                     |
+15:21 <jhrozek> ah, that should be more than enough :-)                                                                                                                            |
+15:21 <jhrozek> thanks! 

@@ -1,0 +1,61 @@
+<mmsrubar> ahoj, øeknìmì, ¾e mnì z IPA do¹ly záznamy pro pravidla + pøíkazy a v¹e to mám v jedné odpovìdi, a¾ to nìjak zpracuji, tak bych ty pøíkazy potøeboval vyházet. Vìt¹ina tìch sysdb_attrs_* funkcí iteruje pøes attr na základì poètu tìch attrs, tak¾e je ok, kdy¾ attr, které nepotøebuji uvolním z pamìti a dám misto nich NULL pointery? Nebo je lep¹í udìlat si nové pole, zp
+<mmsrubar> racovat výsledky z IPA a pøekopírovat co se mi hodí?
+<jhrozek> hmm
+<jhrozek> oboji by asi slo
+<jhrozek> ale korektnejsi mi prijde kopirovat
+<jhrozek> protoze v tom poli je myslim i pocet prvku ne?
+<mmsrubar> jj 
+<jhrozek> a pokud bys nuloval, tak ti pocet bude obsahovat i ty NULLy ne?
+<mmsrubar> ano
+<jhrozek> jako oboji by asi slo, ale dokud nenerazis na problem s vykonem, tak bych to neresil :)
+<jhrozek> a proste kopiroval
+<mmsrubar> a mám to vùbec øe¹it u¾ teï nìjaké optimalizace nebo v¹echny ty pravidla exportovat jak nejblbìji to jde a optimalizovat a¾ pak?
+<jhrozek> vzdycky bych optimalizoval az pak
+<jhrozek> tedka ti to zabira trochu pameti -- to je fakt jedno
+<mmsrubar> ok, tak já to teï hlavnì nìjak rozchodím a» to celé funguje a optimalizovat budem potom ...
+<jhrozek> presne tak
+<jhrozek> u bakalarky podle me vykon nikdo resit nebude
+<jhrozek> spis spravnost
+<jhrozek> a i na upstream to muzes poslat s tim, ze vis, ze je tam trochu problem s vykonem..
+<mmsrubar> jinak kdyby si teï mìl je¹tì tak 10min, mohl bych ti poslat 3 návrhy jak stahovat kompletní pravidla z IPA, u¾ jsem to sice probral s Pavlem, ale tvùj názor by mnì taky zajímal ...
+<jhrozek> jasne
+<mmsrubar> se¾ere IRC pdfko?
+<jhrozek> ne :)
+<jhrozek> mas treba dropbox?
+<mmsrubar> hodím ti to na email
+<jhrozek> ok
+<mmsrubar> má¹ to tam, je to sepsané jenom tak na kolenì, snad to z toho pochopí¹
+<mmsrubar> po diskusi s Pavlem, jsme dospìli k tomu ¾e pro FULL REFRESH by se hodil pøístup è.3 a pro SMART a RULES è.2
+<jhrozek> nojo, na full jsem zapomnel
+<jhrozek> jsem ti chtel napsat ze c2 je nejlepsi volba
+<jhrozek> ale pro full je opravdu lepsi c3
+<jhrozek> 2 dotazy jsou OK
+<mmsrubar> no a teï tak tro¹ku z vìt¹ího úhlu, pro è.3 by ¹lo vyu¾ít celý sdap_async_sudo.c modul pøibyla by tam jedna sychnronní funkce, která by udìlal export tìch pravidel do nativního formátu a pak by to dalé pokraèovalo, jako by to ty pravidla pøi¹ly z LDAPu SUDOrs, 
+<mmsrubar> pro è. 2 bych navíc musel dotáhnout ty pøíkazy pro ty pravidla + export a zase bych to dal spátky tomu modulu a» ulo¾í (v podstatì ani nebude vìdìt, ¾e nìjaký export probìhl)
+<jhrozek> jo, pro c3 by asi stacilo mit nejaky wrapper v src/provider/ipa
+<jhrozek> ack
+<jhrozek> moc nevidim problem s c2?
+<mmsrubar> tak¾e to mù¾u napasovat do toho? nebude to tøeba problém do budoucna, kdyby se to chtìlo nìjak roz¹iøovat nebo tak? 
+<jhrozek> no radeji nez napasovat by se mi libil wrapper okolo existujiciho kodu v src/provider/ipa. Samozrejme muze byt treba existujici kod parametrizovat (od boku strelim,,,treba pridat parametr enum schema ktere rekne jestli je to IPA nebo LDAP) ale je lepsi oddelit logicky kod pro genericky LDAP a pro IPA
+<jhrozek> nebo jinak -- LDAP kod by mel vedet co nejmin o IPA specifickych vecech
+<mmsrubar> takhle do toho sdap_sudo_async.c by pøibylo 1 synchroní volání pro è.2 a jedno asychnronní pro è.3 a pak by tam bylo pouze podmínka IF sudo_provider=ipa call ... a ty ipa specific vìci by byly v providers/ipa/ipa_async_sudo.c 
+<jhrozek> tak to je v pohode
+<jhrozek> jako vic se asi budem moct pobavit konkretne nad tim kodem
+<jhrozek> ale takhle mi to zni OK
+<mmsrubar> no to je tro¹ku problém, proto¾e kódu moc nemám, u¾ vím jak to pøesnì funguje, vyzkou¹el jsem si to stahování, vím jak a kde je co ulo¾eno, ale je¹tì nemám napsán ani ten export, zatím to udìlám tak, ¾e vyøe¹ím v¹echny ty REFRESHes, a ptask zatím nebudu øe¹it 
+<jhrozek> jop
+<mmsrubar> btw neví¹ náhodou jak je to s max. délkou filtru u 389?
+<jhrozek> na tvym miste bych proste sel nejkratsi cestou k funkcnimu reseni
+<jhrozek> muzu se zeptat, nejaky limit tam je, ale je to velky
+<mmsrubar> ok, hodím to pak na #freeipa
+<jhrozek> jj
+<mmsrubar> :-) nejkrat¹í cestou k funkènímu øe¹eni ... tohle jsem mìl vìdìt 2 mìsíce zpátky, proto¾e jsem zabil spoustu èasu øe¹ením detailù u kterých zji¹tuji, ¾e se jimi nebylo tøeba hned zabývat...
+<mmsrubar> jinak tu shask mù¾u normálnì vyu¾ít kdybych potøeboval? 
+<mmsrubar> *dhash
+<jhrozek> jasne, sssd na tom zavisi docela hodne
+<mmsrubar> super, ta kdy¾ tak zkrátí export tìch pravidel na 2 cykly...
+<jhrozek> my to pouzivame treba i na zpracovani skupin do kterych patri uzivatel
+<jhrozek> http://www.fpaste.org/90213/96272114/
+<jhrozek> lkrispen vyviji LDAP server, takze o tom neco vi :)
+<mmsrubar> :-) super, díky, ¾e si mi zase o nìco urychlil práci...  
+<jhrozek> :-)

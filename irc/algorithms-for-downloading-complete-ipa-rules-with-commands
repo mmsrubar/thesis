@@ -1,0 +1,29 @@
+<mmsrubar> ahoj, minulý týden jsem ti posílal na email nìjaké návrhy jak stahovat kompletní pravidla, mìl si èas se na to podívat?
+<pbrezina> ahoj, teï jsem si to pøeèetl
+<mmsrubar> mìl by si èas se o tom pobavit?
+<pbrezina> u dvojky by mohl být problém s omezenou velikostí filtru... chtìlo by to zjistit, jak na tom 389ds je
+<pbrezina> nicménì obecnì mno¾ina pøíkazù a skupin pøíkazù je pomìrnì malá, tak¾e myslím, ¾e 3 je akceptovatelné.
+<pbrezina> 3 pro full refresh je dobrý, ale je to nevhodný pro smart a rules refresh - tam bych pou¾il 2
+<mmsrubar> to jsem pøesnì potøeboval vìdìt, je¹tì mnì napadl jiný pøístup a to tak, ¾e bych se IPY ptal uplnì nav¹echno zvá¹» tj. dostanu memberUser, kde DN u¾ivatele a zeptám se IPA na cn u¾ivatele, abych to nemusel parsovat z toho DN ale to je asi kravina ¾e
+<pbrezina> pokud je mo¾ný z dn odhadnout jméno, tak je lep¹í nedìlat LDAP dotaz.
+<pbrezina> u ipy máme garantovaný formát, tak¾e urèitì to parsovat
+<pbrezina> v kódu na to u¾ urèitì nìco máme, kdy¾ pohledá¹
+<pbrezina> napø. v nested group kódu nìco takovýho je
+<mmsrubar> u¾ to hledal, ale nena¹el jsem to mohl by si mnì navést trochu konkrétnìji?
+<pbrezina> sdap_nested_group_get_ipa_user() v sdap_async_nested_groups.c
+<mmsrubar> je¹tì drobnost, kam kouknout do SUDO Respondera, kdy¾ chci aby pøi Rules Refresh vracel OriginalDN místo cn?
+<mmsrubar> resp. aby providerovi dávál originalDN místo cn
+<pbrezina> sss_dp_get_sudoers_msg
+<mmsrubar> super, u¾ to vidím, je¹tì by mnì zajímalo, kdy IPA pøesnì dìlá export tìch pravidel do toho SUDOers kontejneru? Hned kdy¾ ve webGUI pøidám pravidlo?
+<pbrezina> pøi ka¾dé zmìnì
+<mmsrubar> a je¹tì jedna vìc, mohu v IPA pøidat u¾ivatele nebo sudo pravidlo do NIS group? Proto¾e v tom pøekladu, kterým se øídí ten compat plugin, tam je ¾e má brát cn-ka z ipaNisNetgroup záznamù
+<pbrezina> IPA pou¾ívá místo netgroup hostgroupy, co¾ je mírnì odli¹ný koncept a jen pro hosty
+<pbrezina> tak¾e myslím, sudoUser: +netgroup je tady irelevantní, ale mo¾ná se je¹tì zeptej na #ipa
+<pbrezina> tedy #freeipa
+<mmsrubar> super,  a je¹tì úplnì poslední dotaz, kdy¾ pou¾ívám sssd pouze pro sudo, kdy pravidla jsou v èistém LDAPu, musí být zadaná v sssd.conf sudo_search_base? V kódu je nìjaká zmínka typu sudo_search_base not set trying to discover it later, jak to pøesnì funguje?
+<pbrezina> ono se to pak zji¹»uje z rootDSE
+<pbrezina> a nastaví se to na takový to dc=example,dc=com
+<mmsrubar> aha, a pak se hledá v LDAP_SCOPE_SUBTREE SUDOers ¾e
+<mmsrubar> tak to bude asi v¹echno, díky moc za tvùj èas a a» se ti daøí s diplomkou lépe ne¾ mì :-)
+* Disconnected ().
+ 
