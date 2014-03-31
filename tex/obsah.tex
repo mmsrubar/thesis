@@ -40,6 +40,7 @@ práva
 \end{itemize}
 %-------------------------------------------------------------------------------
 \section{SUDO}
+
 \begin{itemize}
 	\item co to je a co nám to umo¾òuje dìlat
 	\item jak to pracuje
@@ -161,6 +162,8 @@ Implementace v¹ech tøí typù aktualizací je popsána v sekcích
 % 3. SSSD
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{SSSD}\label{ch:sssd}
+{\color{blue}{Modøe jsou poznámky k návrhu}}
+
 \begin{itemize}
 	\item popisuje sssd ze sudo prespektivy (a postupnì jde do detailu 1. high
 		level overview -> a pak zamìøení na respondery a providery
@@ -258,7 +261,30 @@ schéma \ref{map_usage}.
 \end{figure}
 
 
-\section {Backed}
+\section{Backend}
+\subsection{sudo\_search\_base}
+Jestli-¾e je pou¾it jako identifikaèní provider
+\texttt{ipa}\footnote{id\_provider=ipa, tj. FreeIPA server}, pak je pøi inicializaci \texttt{ipa}
+modulu nastavena \texttt{sudo\_search\_base} na øetìzec
+\uv{\texttt{ou=SUDOers,basedn}}, kde \texttt{basedn} je jedineèné
+jméno\footnote{distinguished name nebo zkrácenì DN} domény. Ov¹em pouze v
+pøípadì, ¾e hodnota \texttt{sudo\_search\_base} nebyla definována v
+\texttt{sssd.conf}. Pokud tato volba není v \texttt{sssd.conf} specifikována pak
+je \texttt{sudo\_search\_base} nastavena na hodnotu RootDSE, kde se hledá
+\texttt{ou=SUDOers} kontejnér.
+
+Kde je ta search base ulo¾ena u backendu a kde u domény?
+\newline
+{\color{blue}{
+Pokud bych mìl tuto konfiguraci\\
+id\_provider=ipa\\
+sudo\_provider=ldap\\
+ldap\_sudo\_search\_base=nenstavena\\
+a v tom ipa\_common bych zmìnil ten ou=SUDOers øetìzec, tak by se v¾dy pou¾íl,
+co¾ je ¹patnì! Lep¹í bude nechat tam to ou=SUDOers a pro ipa to zmìnit a¾ pøi
+inicializaci ipa provideru....
+}}
+
 \begin{itemize}
 	\item sudo search base
 	\begin{itemize}
@@ -289,6 +315,12 @@ schéma \ref{map_usage}.
 \end{itemize}
 
 \subsection {Inicializace}\label{ldap_sudo_provider_initialization}
+Inicializace zaèíná ve funkci \texttt{sdap\_sudo\_init}, které je pøedán
+\texttt{id\_ctx}. Zde je mo¾né nalézt napø.
+\texttt{sudo\_search\_base}\footnote{\texttt{id\_ctx->basic[SDAP\_SUDO\_SEARCH\_BASE]}},
+	ukazatel na nativní SUDO mapu\footnote{\texttt{id\_ctx->sudorule\_map}} nebo ukzatal na doménu, kde je mo¾né nalézt pole
+	v¹ech search\_sudo\_base\footnote{\texttt{id\_ctx->sdom->sudo\_search\_bases}}, které SSSD aktuálnì pou¾ívá.
+
 \begin{itemize}
 	\item jak to jde po sobì
 	\begin{itemize}
@@ -384,7 +416,7 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \end{itemize}
 
 
-\section{Návrh}
+\section{Návrh a implementace}
 \begin{itemize}
 	\item	stejné schéma jako u high level overview of LDAP SUDO provider a
 		èervenì v nìm zaznaèit nový koncept a lehce popsat
@@ -401,6 +433,8 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 
 \subsection {Full, Smart and Rules refresh (pro ka¾dý typ vlastní sub sekci?)}
 \begin{itemize}
+	\item u filteru je tøeba vzít v úváhu délku filteru, která je omezená (viz.
+		konvezrace z IRC)
 	\item nové LDAP search filtry a proè jsem je vybral
 	\item (refer to LDAP filters in RFC! https://tools.ietf.org/html/rfc2254\#ref-1)
 	\item Proè se musím dotazovat dvakrát abych stáhnul v¹echny potøebné informace
@@ -409,13 +443,27 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 	\item popsat zpùsoby nad kterými si uva¾oval
 \end{itemize}
 
+\subsubsection{Úplná aktualizace}
+\begin{itemize}
+	\item obecnì mno¾ina pøíkazù a skupin pøíkazù je pomìrnì malá, tak¾e myslím, ¾e 3 je akceptovatelné.
+\end{itemize}
+
+\subsubsection{Aktualizace pravidel a smart}
+\begin{itemize}
+	\item vybírám 2 proto¾e je tam dìlají dotazy jenom na malý poèet pravidel,
+		tak¾e stahovat v¹echny pøíkazy je hodvadina
+\end{itemize}
+
+\subsection{Export pravidel}
+\begin{itemize}
+	\item z dn mohu odhadnout jmeno, protoze IPA mnì garantuje format
+\end{itemize}
+
 \subsection {Asychnronní sta¾ení a ulo¾ení pravidel}
 
 \subsection {Nativní mapa sudo pravidel}
 
 \subsection {LDAP SUDO Handler}
-
-\section{Implementace}
 
 \section{Testování}
 \begin{itemize}
