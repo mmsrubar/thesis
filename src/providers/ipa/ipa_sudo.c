@@ -23,7 +23,9 @@
 */
 
 #include "providers/ipa/ipa_common.h"
+//#include "providers/ipa/ipa_opts.h"
 #include "providers/ldap/sdap_sudo.h"
+#include "db/sysdb_sudo.h"
 
 int ipa_sudo_init(struct be_ctx *be_ctx,
                   struct ipa_id_ctx *id_ctx,
