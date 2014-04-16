@@ -1,0 +1,13 @@
+<mmsrubar> ahoj, prosimtě v jaké šířce si představuješ ty unit testy? 
+<jhrozek> mas to v zadani? :-)
+<jhrozek> asi zakladni funkcionalita by byla fajn, treba chyby asi ne
+<jhrozek> jako treba pokud tam budes mit nejaky tevent_req tak by ho ten unit test mohl spustit
+<mmsrubar> takže simulovat IPA a otestovat tak ten export těch pravidel?
+<jhrozek> koukni treba na unit testy pro DNS update
+<jhrozek> spis treba simulovat ze ti neco vrati LDAP a kouknout ze to ten tvuj kod dobre ulozi a rozparsuje
+<jhrozek> kouknout == dotazy do ldb
+<mmsrubar> j přesně takhle jsem to myslel :-)
+<mmsrubar> myslel jsi tenhle test tests/cmocka/test_dyndns.c ?
+<jhrozek> jo
+<jhrozek> je tam i nasimulovana odpoved od utility nsupdate myslim
+<mmsrubar> ok, kouknu na to a snad to dám do kupy, díkes :-)
