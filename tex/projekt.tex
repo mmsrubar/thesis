@@ -22,7 +22,6 @@
 % zde zvolime kodovani, ve kterem je napsan text prace
 % "latin2" pro iso8859-2 nebo "cp1250" pro windows-1250, "utf8" pro "utf-8"
 %\usepackage{ucs}
-\usepackage{graphicx}
 \usepackage[latin2]{inputenc}
 \usepackage[T1, IL2]{fontenc}
 \usepackage{listings}
@@ -30,6 +29,7 @@
 \DeclareUrlCommand\url{\def\UrlLeft{<}\def\UrlRight{>} \urlstyle{tt}}
 
 %zde muzeme vlozit vlastni balicky
+\usepackage{graphicx}
 
 
 % =======================================================================
@@ -55,20 +55,20 @@
 \projectinfo{
   %Prace
   project=BP,            %typ prace BP/SP/DP/DR
-  year=2008,             %rok
+  year=2014,             %rok
   date=\today,           %datum odevzdani
   %Nazev prace
-  title.cs={Název práce},  %nazev prace v cestine
-  title.en={Thesis title}, %nazev prace v anglictine
+  title.cs={Zdokonalení integrace SSSD a SUDO},  %nazev prace v cestine
+  title.en={Improved Integration of SSSD and SUDO}, %nazev prace v anglictine
   %Autor
-  author={Jméno Pøíjmení},   %jmeno prijmeni autora
+  author={Michal ©rubaø},   %jmeno prijmeni autora
   %author.title.p=Bc., %titul pred jmenem (nepovinne)
   %author.title.a=PhD, %titul za jmenem (nepovinne)
   %Ustav
-  department=UPSY, % doplnte prislusnou zkratku: UPSY/UIFS/UITS/UPGM
+  department=UITS, % doplnte prislusnou zkratku: UPSY/UIFS/UITS/UPGM
   %Skolitel
-  supervisor= Jméno Pøíjmení, %jmeno prijmeni skolitele
-  supervisor.title.p=Ing.,   %titul pred jmenem (nepovinne)
+  supervisor=Tomá¹ Vojnar, %jmeno prijmeni skolitele
+  supervisor.title.p=Prof. Ing.,   %titul pred jmenem (nepovinne)
   supervisor.title.a={Ph.D.},    %titul za jmenem (nepovinne)
   %Klicova slova, abstrakty, prohlaseni a podekovani je mozne definovat 
   %bud pomoci nasledujicich parametru nebo pomoci vyhrazenych maker (viz dale)

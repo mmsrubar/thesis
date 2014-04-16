@@ -16,15 +16,10 @@
 \end{itemize}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\chapter{Málo textu?}
-\begin{itemize}
-	\item popi¹ jak se vytváøejí defaults v sudoers, v LDAPu a na IPA
-\end{itemize}
-%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 2. Správa u¾ivatelských práv v doménì
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Správa u¾ivatelských práv v doménì}
+\chapter{Správa u¾ivatelských práv v linuxových prostøedích}
 Sepi¹ vice mo¾ností jakými je mo¾no delegovat práva a potom napi¹, ¾e v
 následujícím textu se bude¹ zabývat právì SUDO+SSSD+IPA proto¾e je to roz¹íøené
 mezi u¾ivateli RHELu.  Jestli¾e máme velký server a vice adminù starající se o
@@ -40,6 +35,92 @@ práva
 \end{itemize}
 %-------------------------------------------------------------------------------
 \section{SUDO}
+
+sudo umo¾òuje u¾ivateli operaèního systému spustit jeden pøíkaz jako jiný
+u¾ivatel. Ve vìt¹inì pøípadù je jiným u¾ivatele root. Tedy správce operaèního
+systému, který má nejvy¹¹í oprávnìní. Bezpeènostní politiky, kterými se sudo
+øídí se nazývají sudo pravidla\footnote{dále oznaèovaná jako \texttt{sudoers}}.
+Sudoers se zapisují v následujícím formátu:
+\\
+\lstset{language=bash}
+\begin{lstlisting}
+user host_list = ( user_list ) command_list
+\end{lstlisting}
+
+
+\begin{itemize}
+	\item \texttt{user} definuje u¾ivatele nebo skupinu, na kterou se bude pravidlo aplikovat
+	\item \texttt{host\_list} reprezentuje seznam koncových systému
+	\item \texttt{user\_list} - (volitelné)
+	\item \texttt{command\_list} - seznam povolených pøíkazù
+\end{itemize}
+
+Jestli-¾e chce správce systému, tj. u¾ivatel root, dát napøíklad u¾ivateli
+\uv{adam} oprávnìní spou¹tìt pøíkaz \texttt{/sbin/fdisk} s právy u¾ivatele root, pak
+musí definovat následující pravidlo:
+\\
+\texttt{adam client1.example.cz = /sbin/fdisk}
+
+Sudo pravidla se definují v konfiguraèním souboru \texttt{/etc/sudoers}. Tento
+soubor by mìl být editován pouze pomocí nástroje \emph{visudo}, který provádí
+automatickou kontrolu syntaxe. Ve výchozím nastavení se v tomto souboru nachází
+jediné pravidlo definující práva u¾ivatele root.
+\\
+\texttt{root ALL = ( ALL ) ALL}
+
+Toto pravidlo dává u¾ivateli root oprávnìní spustit jakýkoliv pøíkaz, jako
+jakýkoliv u¾ivatel na kterémkoliv systému, kde je toto pravidlo definováno.
+
+\section{Distribuce sudo pravidel mezi vícepoèítaèù}
+\label{sudoers_distribution} 
+V rozsáhlej¹í sítích má administrátor na starost více ne¾ jednu koncovou
+stanici. Ka¾dou stanici pou¾ívají u¾ivatelé, kteøí obèas potøebují provést
+úlohu, pro kterou potøebují vy¹¹í oprávnìní. Proto by chtìl správce systému
+¹íøit pravidla mezi více poèítaèù. Sudo ov¹em nemá nativní zpùsob jak
+distribuovat sudo pravidla mezi více poèítaèù. Spravovat sudo pravidla ruènì na
+v¹ech poèítaèích, které administrátor spravuje by bylo velice pracné a èasovì
+nároèné. Viz. obrázek \ref{pic}.
+
+Otázkou tedy zùstává jak sudo pravidla ¹íøit mezi více poèítaèù. Existuje
+nìkolik zpùsobù jak toho docílit.
+
+\begin{enumerate}
+	\item Ruènì distribuovat sudo pravidla mezi více systému za pou¾ití
+		standardních linuxových nástrojù jako jsou \emph{cron, scp, rsync, \dots}.
+		Tento pøístup by mohl být velmi nároèný a né velmi spolehlivý 
+	\item Pou¾ít speciální nástroje jako je napøíklad \emph{Puppet}, který sleduje
+		a automaticky ¹íøí konfiguraèní soubory.  
+	\item Ulo¾it sudo pravidla do centralizované databáze.
+\end{enumerate}
+
+\subsection{Sudo pravidla v LDAP adresáøi}
+Adresáøe mohou uchovávat rùzné typy informací a jsou tak pou¾ívány organizacemi
+a institucemi k ukládání informací o jejich zamìstnancích nebo u¾ivatelích
+jejich poèítaèových sítí.
+
+LDAP adresáøe jsou charakterizovány jako
+"jednou-zapsat-a-mnohokrát-èíst"\footnote{write-once-read-many-times} slu¾ba.
+Jsou optimalizovány pro rychlé ètení a vyhledávání, proto¾e pøedpokládají, ¾e
+budou uchovávat informace, které nebudou pøíli¹ èasto modifikovány.\cite{dfs}.
+Sudo pravidla jsou vìt¹inou jednou definována správcem systému a mnohokrát
+pou¾ita u¾ivateli. Ulo¾ení sudo pravidel do LDAP adresáøe je tedy velice výhodné
+a nabízí následující výhody:
+
+\begin{enumerate}
+	\item Jestli-¾e jsou sudo pravidla centralizována, pak se správce systému
+		nemusí starat o jejich distribuci. Spravuje pouze jediný sudoers soubor.
+	\item Vyhledávání sudo pravidla v LDAP adresáøi je rychlej¹í. Pøi pou¾ití
+		lokálních sudoers\footnote{tj. kdy¾ jsou sudo pravidla definována v lokální
+		\texttt{/etc/sudoers}souboru} musí sudo pøeèíst celý sudoer soubor. Pøi
+		ulo¾ení sudoers v LDAP adresáøi je potøeba pouze nìkolik LDAP
+		dotazù.\cite{sudoers_ldap_manual}.  
+	\item Jesli-¾e udìlá správce v sudoers souboru chybu\footnote{Je mo¾né tomu
+		pøedejít za pou¾ití nástroje \emph{visudo}, který neumo¾ní ulo¾it syntakticky
+		nesprávnou konfiguraci}. Pak se sudo nespustí. Do LDAP adresáøe není mo¾né
+		ulo¾it data, která nesplòují sudoers schéma. Správná syntaxe je tedy zaruèena,
+		ale stále je mo¾né udìlat chybu v u¾ivatelském jménu, pøíkazu nebo názvu
+		koncového systému.
+\end{enumerate}
 
 \begin{itemize}
 	\item co to je a co nám to umo¾òuje dìlat
@@ -62,17 +143,29 @@ práva
 		v jakém vrací záznamy ani atributy)
 	\item stejný pøíklad sudo pravidla jak by vypadalo v LDAPu
 \end{itemize}
+
+\section{Pluginy}
+Jak bylo øeèeno v sekci \ref{sudoers_distribution} sudo nepodporuje zpùsob jak
+sudo pravidla distribuovat. Od verze 1.8.0 ov¹em umo¾òuje pou¾ití politik
+tøetích stran --->koukni na sudo a pluginy....
+
 %-------------------------------------------------------------------------------
+
 \section{FreeIPA}
 \begin{itemize}
+	\item popsat ¾e memberAllowCmd bude v¾dy pøed memberDenyCmd
 	\item	musí¹ vymezit oblast: IPA umí 100 vìcí, ale nás bude v rámci této práce zajímat pouze sudo pravidla
 	\item	co to je a krátce co to v¹echno umí
 	\item	popsat IPA SUDO Schéma a srovnat ho s LDAP SUDO Schématem
-	\item	nezmiòovat detaily compat plugin maximálnì øíct, ¾e sssd je v tom
-		nativním IPA schématu neumí zpracovat a odkzáat se na
-		\ref{ch:sssd:sec:ipa_provider}
+	\item	nezmiòovat detaily compat plugin maximálnì øíct, napi¹ to tak jako by
+		SSSD zpracovávalo ty pravidla z cn=sudo,\$DC a ty detail popi¹ a¾ v nìco ve
+		stylu tohle není tak úplnì pravda, detaily je mo¾né nalézt v sekci ...
+		\ref{ch:sssd:sec:ipa_provider} 
 	\begin{itemize}
-		\item ka¾dé záznam i kontejner v sudo kontejneru má operaèní atribut entryUSN, vèetnì sudo kontejneru samotného
+		\item ka¾dé záznam i kontejner v sudo kontejneru má operaèní atribut
+			entryUSN, vèetnì sudo kontejneru samotného\cite[Chapter 2]{Redhat_Directory_Server_Schema_Reference}
+\cite{Redhat_Directory_Server_Administration_Guide}
+		\item zmínit, ¾e sudo pravidla jsou umístìna ve 3 kontejnérech
 	\end{itemize}
 
 \subsubsection{problem spojené s tím, kdy¾ mám sudoers v LDAPu}
@@ -94,6 +187,17 @@ práva
 		pou¾ito nebo ho musím smazat)
 	\item ty dvì futury z dokumentace (hostgroups)
 \end{itemize}
+
+\subsubsection{USN plugin}
+Tento plugin poskytuje zpùsob, který umo¾òuje informovat IPA klienty o
+modifikaci jakéhokoliv záznamu
+\cite[s.~130, Sekce: Tracking Modifications to Directory Entries]{Redhat_Directory_Server_Administration_Guide}.  Ka¾dý záznam na IPA
+serveru má operaèní atribut entryUSN\footnote{Entry Update Sequence Number}.
+Hodnotu tohoto atributu aktualizuje USN plugin pøi ka¾dé zmìnì daného záznamu.
+Tento atribut je pou¾íván pøi provádìní prùbì¾ných aktualizací\footnote{Smart
+Refreshes} sudo pravidel. Implementaèní detaily je mo¾né nalézt v sekci
+\ref{ch:sssd:sec:ldap_provider:smart_refresh_implementation}.
+
 %-------------------------------------------------------------------------------
 \section{SSSD z u¾ivatelského hlediska}
 \begin{itemize}
@@ -114,7 +218,9 @@ práva
 \subsection{Aktualizace sudo pravidel v cache pamìti}
 SSSD provádí následující tøi typy aktualizací sudo pravidel:
 
-\subsubsection{Smart refresh}
+\subsubsection{Prùbì¾né aktualizace}
+Periodicky stahují pravidla, která jsou na serveru novì pøidány nebo byly od
+posldní aktualizace modifikovány.
 
 \subsubsection{Úplná aktualizace}
 Provede smazání v¹ech pravidel z cache pamìti a sta¾ení v¹ech pravidel ze serveru.
@@ -123,7 +229,7 @@ pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD n
 pøi detekci zmìny pravidel na serveru.
 
 \subsubsection{Aktualizace pravidel}
-Je provedena pøi ka¾dém spu¹tiní SUDO. Zajistí aby u¾ivatel nedostal vìt¹í
+Je provedena pøi ka¾dém spu¹tiní sudo. Zajistí aby u¾ivatel nedostal vìt¹í
 oprávnìní ne¾ je definováno. Tento typ aktualizace stáhne ze serveru pouze
 pravidla, která expirovala\footnote{Èas po kterém pravidla v cache pamìti exspirují je mo¾no
 nastavit v \texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout}, viz.
@@ -132,7 +238,7 @@ nenachází, indikuje to zmìnu na serveru a je provedena úplna aktualizace
 pravidel.
 \newline
 \\
-Implementace v¹ech tøí typù aktualizací je popsána v sekcích 
+Implementaèní detaily jsou popsány v sekcích 
 \ref{ch:sssd:sec:ldap_provider:smart_refresh_implementation},
 \ref{ch:sssd:sec:ldap_provider:rules_refresh_implementation} a
 \ref{ch:sssd:sec:ldap_provider:full_refresh_implementation}.
@@ -167,19 +273,21 @@ Implementace v¹ech tøí typù aktualizací je popsána v sekcích
 \begin{itemize}
 	\item popisuje sssd ze sudo prespektivy (a postupnì jde do detailu 1. high
 		level overview -> a pak zamìøení na respondery a providery
-	\item tato kapitola popisuje vnitøní architekturu SSSD se zamìøením na SUDO
+	\item tato kapitola popisuje vnitøní architekturu SSSD se zamìøením na sudo
 		respondera a providera (spí¹e jen providera ne?)
 	\item popsat ten základ co to je monitor, backendy, provideri, responderi
 	\item popisuje základní koncepty knihoven talloc a tevent na kterých SSSD staví
 \end{itemize}
 %-------------------------------------------------------------------------------
 \section{Talloc}
+literatura: \cite{talloc}
 \begin{itemize}
 	\item	základní concept hierarchického alokátoru
 	\item	nahrazuje malloc
 \end{itemize}
 
 \section {Tevent}
+literatura: \cite{tevent}
 \begin{itemize}
 	\item	událostmi øízené paradigm programování
 	\item	vysvìtlit základní concept událostí, requests, subrequest, asynchronní funkce
@@ -213,11 +321,11 @@ konfiguraèního souboru SSSD\footnote{Ve výchozím nastavení se nachází v
 
 Výchozí mapy jsou definovány v souboru \texttt{providers/ldap/ldap\_opts.h}. Zde
 je také definována výchozí mapa, kterou LDAP SUDO Provider pou¾ívá pøi stahování
-SUDO pravidel z LDAP serveru.  nacházejí se zde i ostatní výchozí mapy pou¾ívané
+sudo pravidel z LDAP serveru.  nacházejí se zde i ostatní výchozí mapy pou¾ívané
 ve spojení s LDAP servery. Mapy pou¾ívané pøi komunikace s IPA serverem se
 nacházejí v souboru \texttt{providers/ipa/ipa\_opts.h}.
 
-Vìt¹ina map je definována jako pole struktur \texttt{sdap\_attr\_map}.
+Vìt¹ina map je definována jako pole následujících struktur.
 
 \lstset{language=c}
 \begin{lstlisting}
@@ -239,6 +347,9 @@ konfiguraèním souboru nenachází, pak je pro promìnnou \texttt{name} pou¾ita
 výchozí hodnota tj. hodnota prommìné \texttt{def\_name}, která bude
 specifikována ve výchozí mapì.  Vytvoøení mapy znázoròuje schéma
 \ref{crate_map}.
+
+{\color{blue}{první musí být v mapì objectClass ... }}
+
 
 \begin{figure}[ht!]
 \centering
@@ -307,6 +418,19 @@ inicializaci ipa provideru....
 %-------------------------------------------------------------------------------
 \section {LDAP SUDO Provider}
 \begin{itemize}
+	\item	vypustit ty IPA èervené vìci
+	\item jednotlivé moduly neoznaèovat
+	\item vyznaèit LDAP SUDO Provider a pøidat ldap server
+\end{itemize}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=120mm]{fig/scan/ldap_provider_basic_concept.jpg}
+\caption{High level overview of LDAP SUDO Provider}
+\label{crate_map}
+\end{figure}
+
+\begin{itemize}
 	\item	Nejprve popsat LDAP provider (a nezmiòovat ipa sudo providera) a a¾ v
 		sekci o ipa sudo providerovi øíct, ¾e v podstatnì není a souèasná
 		implementace je jen wrapper pro LDAP SUDO Proivder pou¾ívající compat plugin, ou=SUDOers kontejnér)
@@ -355,15 +479,24 @@ Context of Identity Provider}. Vytvoøení a pou¾ití map je blí¾e popsáno v sekci 
 \begin{itemize}
 	\item	jakým zpùsobem jsou jednotlivé resfresh plánovany
 	\item podrobnìji se popsat v sekci ní¾e
+	\item	jak se dají èasy ovlivnit v sssd.conf
 \end{itemize}
 
-\subsection {Full refresh (pro ka¾dý typ vlastní sub
+\subsection{Aktualizace pravidel}
+
+\begin{itemize}
+	\item	V¹echny tøi typy aktualizací vyu¾ívají modul
+		\texttt{providers/ldap/sdap\_async\_sudo.c}, který provádí
+		\ref{async_engine_of_ldap_provider}
+	\item v¾dycky se akorát pøedpøipraví paramaetry jako je jsou LDAP filter,
+		sysdb filter
+\end{itemize}
+
+\subsection{Full refresh (pro ka¾dý typ vlastní sub
 sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \begin{itemize}
 	\item	obecné informace v user sekci u SSSD v kapitole 2
 	\item	jak se vyvolávají
-	\item	jak se plánují 
-	\item	jak se dají èasy ovlivnit v sssd.conf
 	\item	jaké LDAP filtry pou¾ívají
 	\item	zmínit ¾e v¹echny vyu¾ívají to asynchronní provádìní od
 		sdap\_sudo\_refresh (v providers/ldap/sdap\_async\_sudo.c)
@@ -372,6 +505,7 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \subsection {Rules refresh}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
 
 \subsection {Asychnronní sta¾ení a ulo¾ení pravidel}
+\label{async_engine_of_ldap_provider}
 \begin{itemize}
 	\item	hlavní motor LDAP SUDO Provideru, který vyu¾ívají v¹echny typy refresh
 	\item	detailní popis se schématy
@@ -395,14 +529,27 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \begin{itemize}
 	\item popsat, ¾e souèasná implementace je jen wrapper LDAP SUDO Providera bez
 		¾ádné funkcionality navíc
-	\item	kdy¾ stahuju pravidla normálnì z LDAP adresáøe tak se pou¾ije tento provider, ale kdy¾ je chci stahovat z IPA, tak se na IPA serveru musí ty pravidla pøekládáat pøes kompat plugin do SUDOers kontejnéru a to pøiná¹í re¾ii, proto¾e musíme pøekládávat v¹echny pravidla
+	\item	kdy¾ stahuju pravidla normálnì z LDAP adresáøe tak se pou¾ije tento
+		provider, ale kdy¾ je chci stahovat z IPA, tak se na IPA serveru musí ty
+		pravidla pøekládáat pøes kompat plugin do SUDOers kontejnéru a to pøiná¹í
+		re¾ii, proto¾e musíme pøekládávat v¹echny pravidla
 	\item	SSSD neumí zpracovat pravidla IPA formátu
-	\item	momentálnì ¾ádný nativní IPA SUDO Provider neexistuje a IPA SUDO Provider vyu¾ívá LDAP SUDO Provider
-	\item	neumo¾òuje to vyu¾ít v¹ech vlastností nového IPA SUDO schemata (ipaSudoOpt)
-	\item	pokud se export pravidel pøesune do SSSD, tak se nemusí exportovat v¹echny pravidla, ale pouze ty aplikovatelná na konkrétního hosta
- 
-	\item	popsat funkci compat palaginu + obrázek
+	\item	momentálnì ¾ádný nativní IPA SUDO Provider neexistuje a IPA SUDO
+		Provider vyu¾ívá LDAP SUDO Provider
 \end{itemize}
+
+\subsection{Compat plugin}
+\begin{itemize}
+	\item co to je a jak to na IPA pracuje (compat plugin ty pravidla pøekládá pøi
+		ka¾dé zmìnì)
+	\item a¾ tady odkrýt jak to funguje se SUDOers kontejnerem na IPA jinak poøád
+		mluvit o sudo pravidlech v cn=sudo,\$DC
+	\item schéma
+	\item	pokud se export pravidel pøesune do SSSD, tak se nemusí exportovat
+		v¹echny pravidla, ale pouze ty aplikovatelná na konkrétního hosta
+	\item	neumo¾òuje to vyu¾ít v¹ech vlastností nového IPA SUDO schemata (ipaSudoOpt)
+\end{itemize}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 4. Nativní IPA SUDO Provider
@@ -489,7 +636,20 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \end{itemize}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\chapter{Zkontroloval pøed odevzdáním}
+\begin{itemize}
+	\item poznámky o èeské gramatice co mám na wikinì
+	\item SUDO -> sudo, pokud to není v názvu napø IPA SUDO Provider
+	\item \uv{èeské úvozovky}
+	\item pøetáhnout to pøes nìjaký czech grammar checker ala word...
+	\item korektura pou¾íté literatury - odkazy na obsah DVD
+\end{itemize}
 
+\chapter{Málo textu?}
+\begin{itemize}
+	\item popi¹ jak se vytváøejí defaults v sudoers, v LDAPu a na IPA
+\end{itemize}
+%
 
 
 
