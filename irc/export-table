@@ -1,0 +1,18 @@
+<mmsrubar> I'd like to know why the plugin isn't exporting the ipaSudoRunAsGroup attr?
+* hke (uid21153@gateway/web/irccloud.com/x-jjrpefdpimgggwsm) has left #freeipa
+<mmsrubar> It isn't used by users or is the problem at my side?
+<mmsrubar> An example: http://fpaste.org/94648/97651361/
+<rcrit> mmsrubar, is ipausers a posix group? By default it isn't
+<mmsrubar> oh, so the group has to be POSIX, otherwise it's not exported, right?
+<rcrit> correct
+<mmsrubar> what is wrong with non-POSIX groups?
+<rcrit> the point of runasgroup is to run with the GID Of that group. non-POSIX groups have no GID
+<mmsrubar> why is it possible to put non-POSIX group into sudo rule then?
+<rcrit> an oversight
+<rcrit> https://fedorahosted.org/freeipa/ticket/4314
+<mmsrubar> thx, I should have found it
+<rcrit> I just filed it :-)
+<mmsrubar> oh :-)
+<mmsrubar> rcrit: could I ask you one more think, I work at this: https://fedorahosted.org/sssd/ticket/1108 and I've created export table and I'd like somebody other to take a look at it if everything is allright ...table: http://www.stud.fit.vutbr.cz/~xsruba03/ipa_sudo_attrs_export_table.pdf
+<rcrit> mmsrubar, sudo isn't my specialty but this looks ok though I'd add a ** to ipaSudoRunAsGroup as well.
+<mmsrubar> rcrit: allright, thx anyway ...
