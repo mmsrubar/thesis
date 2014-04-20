@@ -57,7 +57,7 @@
 
 /* ping time cannot be less then once every few seconds or the
  * monitor will get crazy hammering children with messages */
-#define MONITOR_DEF_PING_TIME 10
+#define MONITOR_DEF_PING_TIME 1800
 /* terminate the child after this interval by default if it
  * doesn't shutdown on receiving SIGTERM */
 #define MONITOR_DEF_FORCE_TIME 60
@@ -504,7 +504,7 @@ static int add_services_startup_timeout(struct mt_ctx *ctx)
     struct timeval tv;
 
     /* 5 seconds should be plenty */
-    tv = tevent_timeval_current_ofs(5, 0);
+    tv = tevent_timeval_current_ofs(3600, 0);
     to = tevent_add_timer(ctx->ev, ctx, tv, services_startup_timeout, ctx);
     if (!to) {
         DEBUG(0,("Out of memory?!\n"));

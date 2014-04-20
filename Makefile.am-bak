@@ -159,6 +159,7 @@ if HAVE_CMOCKA
         ad_access_filter_tests \
         ad_common_tests \
         test_search_bases
+				#ipa_sudo_export-tests
 endif
 
 check_PROGRAMS = \

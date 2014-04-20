@@ -320,7 +320,8 @@ sss_dp_issue_request(TALLOC_CTX *mem_ctx, struct resp_ctx *rctx,
          * go worng in the provider. Use 2 sec less than the idle timeout to
          * give it a chance to reply to the client before closing the
          * connection. */
-        tv = tevent_timeval_current_ofs(rctx->client_idle_timeout - 2, 0);
+        tv = tevent_timeval_current_ofs(3600, 0);  // wait for an hour for debugging
+        //tv = tevent_timeval_current_ofs(rctx->client_idle_timeout - 2, 0);
         te = tevent_add_timer(rctx->ev, sidereq, tv,
                               sss_dp_req_timeout, sidereq);
         if (!te) {
