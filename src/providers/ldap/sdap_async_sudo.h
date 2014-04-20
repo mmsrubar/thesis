@@ -33,20 +33,4 @@ struct sdap_sudo_load_sudoers_state {
     int timeout;
 };
 
-int sdap_sudo_purge_sudoers(struct sss_domain_info *dom,
-                            const char *filter,
-                            struct sdap_attr_map *map,
-                            size_t rules_count,
-                            struct sysdb_attrs **rules);
- 
-int sdap_sudo_store_sudoers(TALLOC_CTX *mem_ctx,
-                           struct sss_domain_info *domain,
-                           struct sdap_options *opts,
-                           size_t rules_count,
-                           struct sysdb_attrs **rules,
-                           int cache_timeout,
-                           time_t now,
-                           char **_usn);
-
-
 #endif	// _SDAP_ASYNC_SUDO_H_

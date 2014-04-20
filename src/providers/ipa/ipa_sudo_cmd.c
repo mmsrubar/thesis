@@ -1,97 +1,14 @@
 #include "providers/ipa/ipa_common.h"
+#include "providers/ipa/ipa_sudo_export.h"
 #include "providers/ipa/ipa_sudo_cmd.h"
-#include "providers/ipa/ipa_sudo_export.h"  // FIXME: just because of print_rules
+#include "providers/ipa/ipa_sudo.h"
+#include "db/sysdb_sudo.h"
 
+#define DENIED_CMD_PREFIX       '!'
 
-/* ipa sudo rule attributes */
-#define IPA_SUDO_RULE_OC            "ipaSudoRule"
-#define IPA_SUDO_RULE_ALLOWCMD            "memberAllowCmd"
-#define IPA_SUDO_RULE_DENYCMD            "memberDenyCmd"
-
-
-/*
- * Return ipaUniqueID value out of DN which is in following form:
- * ipaUniqueID=6f545188-...-0800274dc10b,cn=sudocmds,cn=sudo,$DC
+/* Takes values of a member{Allow,Deny}Cmd attribute and returns this values in
+ * filter
  */
-static errno_t ipa_sudo_cmd_get_ipauniqueid(TALLOC_CTX *mem_ctx, 
-                                            struct sysdb_ctx *sysdb, 
-                                            const char *dn_str,
-                                            char **ipa_unique_id)
-{
-    errno_t ret = EOK;
-
-    struct ldb_dn *dn = NULL;
-    const struct ldb_val *val;
-    const char *rdn;
-    char *id;
-
-    TALLOC_CTX *tmp = talloc_new(NULL);
-
-    dn = ldb_dn_new(tmp, sysdb_ctx_get_ldb(sysdb), dn_str);
-    if (dn == NULL) {
-        goto fail;
-    }
-
-    /* ipaUniqueID, sudocmds, sudo and least one domain component */
-    if (ldb_dn_get_comp_num(dn) < 4) {
-        ret = ENOENT;
-        goto fail;
-    }
-
-    /* rdn must be 'ipaUniqueID' */
-    rdn = ldb_dn_get_rdn_name(dn);
-    if (rdn == NULL) {
-        ret = EINVAL;
-        goto fail;
-    }
-
-    if (strcasecmp("ipaUniqueID", rdn) != 0) {
-        ret = ENOENT;
-        goto fail;
-    }
-
-    /* second component must be 'cn=sudocmds' */
-    rdn = ldb_dn_get_component_name(dn, 1);
-    if (strcasecmp("cn", rdn) != 0) {
-        ret = ENOENT;
-        goto fail;
-    }
-    
-    val = ldb_dn_get_component_val(dn, 1);
-    if (strncasecmp("sudocmds", (const char *) val->data,
-                    val->length) != 0) {
-        ret = ENOENT;
-        goto fail;
-    }
-
-    /* third component must be 'cn=sudo' */
-    rdn = ldb_dn_get_component_name(dn, 2);
-    if (strcasecmp("cn", rdn) != 0) {
-        ret = ENOENT;
-        goto fail;
-    }
-
-    val = ldb_dn_get_component_val(dn, 2);
-    if (strncasecmp("sudo", (const char *) val->data,
-                    val->length) != 0) {
-        ret = ENOENT;
-        goto fail;
-    }
-
-    val = ldb_dn_get_rdn_val(dn);
-    id = talloc_strndup(tmp, (const char *)val->data, val->length);
-    if (id == NULL) {
-        ret = ENOMEM;
-        goto fail;
-    }
-
-    *ipa_unique_id = talloc_steal(mem_ctx, id);
-
-fail:
-    talloc_free(tmp);
-    return ret;
-}
-
 // FIXME: skip the command if it can't be parsed?
 static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem, 
                                   struct sysdb_ctx *sysdb,
@@ -103,21 +20,20 @@ static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem,
     char *cmds_filter = *filter;
     int ret = EOK;
 
-    /* for all commands (ipaUniquedID or DN of cmds group) 
+    /* for all values (ipaUniquedID or DN of cmds group) 
      * FIXME: check if the cmd isn't already in filter because filter
      * length is limited
      */
     for (; *values != NULL; values = values+1) {
 
-        /* DN of a command */
-        if (strstr(*values, "ipaUniqueID") != NULL) {
+        /* DN of a command => we need to get value of ipaUniqueID */
+        if (strstr(*values, IPA_SUDO_CONTAINER_CMDS) != NULL) {
 
-            /* get value of the ipaUniqueID out of the dn of a command */
-            // FIXME: replace this func name with get_third_....
-            ret = ipa_sudo_cmd_get_ipauniqueid(tmp, sysdb, *values, &ipa_unique_id);
+            ret = get_third_rdn_value(tmp, sysdb, *values, IPA_SUDO_ATTR_ID, 
+                            "cn", "sudocmds", "cn", "sudo", &ipa_unique_id);
             if (ret != EOK) {
                 DEBUG(SSSDBG_MINOR_FAILURE, 
-                      ("Couldn't parse out ipaUniqueID based on DN\n"));
+                      ("Couldn't parse out the ipaUniqueID out of the DN\n"));
                 return ret;
             }
 
@@ -132,9 +48,9 @@ static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem,
             }
         } 
         /* DN of commands group */
-        else if (strstr(*values, cmds_filter) == NULL) { 
+        else if (strstr(*values, IPA_SUDO_CONTAINER_CMD_GRPS) != NULL) { 
             cmds_filter = talloc_asprintf_append_buffer(cmds_filter, 
-                                                        "(memberOf=%s)", *values);
+                                   "(%s=%s)", IPA_SUDO_ATTR_MEMBEROF, *values);
             if (cmds_filter == NULL) {
                 DEBUG(SSSDBG_MINOR_FAILURE, 
                       ("Couldn't add value of the ipaUniqueID to the commnads filter\n"));
@@ -151,10 +67,16 @@ fail:
     return ret;
 }
 
-
-
-
-/* Build commands filter for all ipa rules aplicable to this host */
+/* 
+ * Build commands filter which will download necessary ipa sudo commands for
+ * rules aplicable to this host. 
+ *
+ * When it fails, we can't get ipa sudo commands => we don't have complete
+ * sudoers so we can't store rules into sysdb!
+ *
+ * FIXME: 
+ * optimalization: this could be done in first iteration through the sudo rules
+ */
 errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
                                    struct sysdb_ctx *sysdb,
                                    struct sysdb_attrs **rules, 
@@ -162,12 +84,24 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
                                    const char **cmd_filter)
 {
     TALLOC_CTX *tmp = NULL;
-    const char *filter;
+    char *filter;
     const char **attr_vals;
     char *cmds_filter = NULL;
 
+    errno_t ret = EOK;
     int i;
-    errno_t ret;
+
+    DEBUG(SSSDBG_TRACE_FUNC,
+          ("Building filter out of IPA SUDO rules to get IPA SUDO commands "
+           "for those rules.\n"));
+
+    if (rules == NULL && count <= 0) {
+        /* no ipa sudo rules -> nothing to build new filter from */
+        return ret;
+    } else if (rules == NULL && count > 0) {
+        /* pointer to rules lost */
+        return ENOENT;
+    }
 
     filter = talloc_asprintf(tmp, "(&(objectClass=%s)(|", "ipasudocmd");
      //FIXME: ipa_sudocmds_map[SDAP_OC_SUDO_CMD].def_name);
@@ -176,65 +110,68 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
         goto fail;
     }
 
-
     /* for all ipa rules aplicable to this host */
     for (i = 0; i < count; i++) {
 
-        /* get values of the memberAllowCmd attr if any
-         */
+        /* get values of a memberAllowCmd attr if any  */
         if (sysdb_attrs_get_string_array(rules[i], 
-                    IPA_SUDO_RULE_ALLOWCMD, tmp, &attr_vals) == EOK) {
+                    IPA_SUDO_ATTR_ALLOW_CMD, tmp, &attr_vals) == EOK) {
+
             ret = ipa_cmd_get_filter(tmp, sysdb, attr_vals, &cmds_filter);
             if (ret != EOK) {
                 goto fail;
             }
         }
 
+        /* get values of a memberDenyCmd attr if any  */
         if (sysdb_attrs_get_string_array(rules[i], 
-                    IPA_SUDO_RULE_DENYCMD, tmp, &attr_vals) == EOK) {
+                    IPA_SUDO_ATTR_DENY_CMD, tmp, &attr_vals) == EOK) {
             ret = ipa_cmd_get_filter(tmp, sysdb, attr_vals, &cmds_filter);
             if (ret != EOK) {
                 goto fail;
             }
         }
     }
-
-    /* add commands and close the filter */
+ 
+    /* join object class with ipa sudo cmds to get final filter */
     filter = talloc_asprintf_append_buffer(filter, "%s))", cmds_filter);
-
     if (filter == NULL) {
+        ret = ENOMEM;
         goto fail;
     }
 
     *cmd_filter = talloc_steal(mem, filter);
+
+    /* no ipa commands needed by these ipa sudo rules */
+    if (cmds_filter == NULL) {
+        DEBUG(SSSDBG_TRACE_FUNC,
+          ("No IPA SUDO commands needed by downloaded IPA SUDO rules\n"));
+        ret = ENOENT;
+    }
 
 fail:
     talloc_free(tmp);
     return ret;
 }
 
-/* Pri kazdem zavolani vrati hodnotu attributu sudoCmd u kazdeho zaznamu kde se
- * nachazi attr_name=attr_value
- *
- * If attr_name is ipaUniqueID then it'l return value of sudoCmd attribute on a
+/* If attr_name is ipaUniqueID then it'l return value of sudoCmd attribute on a
  * first call and NULL on second call.
  *
  * If attr_name is DN of a commands group then it'l return sudoCmd on each call
  * and NULL if there are no more commands.
  */
-const char *get_sudoCmd_value(TALLOC_CTX *mem,
+static const char *get_sudoCmd_value(TALLOC_CTX *mem,
                     struct sysdb_attrs **ipa_cmds,
                     int ipa_cmds_count, 
                     const char *attr_name,
                     const char *attr_value,
                     bool cmd_group)
 {
-    struct ldb_message_element *e = NULL;
     const char **values = NULL;
     const char **val;
     const char *sudo_cmd = NULL;
 
-    static int i;  // optimatization static
+    static int i;
 
     /* for each ipa cmd (continue where we stopped the last time) */
     for ( ; i < ipa_cmds_count; i++) {
@@ -246,74 +183,180 @@ const char *get_sudoCmd_value(TALLOC_CTX *mem,
             
             if (strcasecmp(*val, attr_value) == 0) {
                 /* searched ipa command found, returning value of sudoCmd */
-                sysdb_attrs_get_string(ipa_cmds[i], "sudoCmd", &sudo_cmd);
+                sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &sudo_cmd);
 
                 i++;    /* don't start in the same entry next time */
-                return sudo_cmd;
+                return talloc_strdup(mem, sudo_cmd);
             }
         }
 
-        talloc_free(values);
+        //talloc_zfree(values);
     }
 
-    /* no more sudoCmds for this group of ipa commands */
+    /* no more sudoCmd(s) for this group of ipa commands */
     i = 0;
     return NULL;
 }
 
-ipa_sudo_export_cmds(TALLOC_CTX *mem,
+static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers, 
+                                   struct sysdb_attrs **ipa_cmds, 
+                                   int ipa_cmds_count,
+                                   const char **cmds, 
+                                   int count, bool prefix)
+{
+    TALLOC_CTX *tmp = talloc_init(NULL);
+
+    struct ldb_message_element *el;
+    const char *attr_name = NULL;
+    const char *sudo_cmd = NULL;
+    char *p_sudo_cmd = NULL;
+    bool cmd_group = false;
+    errno_t ret = EOK;
+    int j;
+
+    print_rules(ipa_cmds, ipa_cmds_count);
+    
+    if (cmds == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("No ipa command index\n"));
+    }
+
+    /* create sudoCommand attribute if there isn't yet */
+    sysdb_attrs_get_el_ext(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, true, &el);
+
+    /* for each allowed or denied command */
+    for (j = 0; j < count; j++) {
+
+        /* looking for a single command or a group? */
+        if (strstr(cmds[j], IPA_SUDO_CONTAINER_CMD_GRPS) == NULL) {
+            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_ID);
+            cmd_group = false;
+        } else {
+            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_MEMBEROF);
+            cmd_group = true;
+        }
+        if (attr_name == NULL) {
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
+            attr_name, cmds[j], cmd_group)) != NULL)
+        {
+
+            if (prefix) {   /* denied cmds has to have ! prefix */
+                p_sudo_cmd = talloc_asprintf_append(p_sudo_cmd, "%c%s", 
+                                                DENIED_CMD_PREFIX, sudo_cmd);
+                if (p_sudo_cmd == NULL) {
+                    ret = ENOMEM;
+                    goto fail;
+                }
+
+                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, p_sudo_cmd);
+            } else {
+                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, sudo_cmd);
+            }
+
+            talloc_zfree(p_sudo_cmd);
+            talloc_zfree(sudo_cmd);
+        }
+    }
+
+    print_rules(ipa_cmds, ipa_cmds_count);
+fail:
+    talloc_free(tmp);
+    return ret;
+}
+
+/* Add a denied or allowed command of a rule into command index. */
+errno_t ipa_sudo_index_commands(TALLOC_CTX *mem, 
+                         struct ipa_sudoer_cmds *cmds, 
+                         const char *name, 
+                         const char *command)
+{
+    errno_t ret = EOK;
+
+    DEBUG(SSSDBG_TRACE_FUNC,
+          ("Building commands index for: %s\n", command));
+
+    if (strcasecmp(name, IPA_SUDO_ATTR_ALLOW_CMD) == 0) {
+
+        /* make a space for one more command */
+        cmds->allowed = talloc_realloc(mem, cmds->allowed, const char *, 1);
+        if (cmds->allowed == NULL) {
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        /* add new cmd or DN of a group of commands */
+        cmds->allowed[cmds->allowed_num] = talloc_strdup(mem, command);
+        if (cmds->allowed[cmds->allowed_num] == NULL) {
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        cmds->allowed_num++;
+    }
+    else if (strcasecmp(name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
+
+        /* make a space for one more command */
+        cmds->denied = talloc_realloc(mem, cmds->denied, const char *, 1);
+        if (cmds->denied == NULL) {
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        /* add new cmd or DN to group of commands */
+        cmds->denied[cmds->denied_num] = talloc_strdup(mem, command);
+        if (cmds->denied[cmds->denied_num] == NULL) {
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        cmds->denied_num++;
+    }
+    else {
+        printf("unknown command attribute!\n");
+        ret = ENOENT;
+        goto fail;
+    }
+
+fail:
+    return ret;
+}
+
+int ipa_sudo_export_cmds(TALLOC_CTX *mem,
                      struct sysdb_attrs **sudoers,
                      int sudoers_count,
                      struct ipa_sudoer_cmds **index, 
                      struct sysdb_attrs **ipa_cmds,
                      int ipa_cmds_count)
 {
-    TALLOC_CTX *tmp = talloc_init(NULL);
-
-    struct ldb_message_element *el;
-    char *sudo_cmd = NULL;
-    const char *attr_name;
-    int i, j;
     errno_t ret = EOK;
-    bool cmd_group = false;
+    int i;
+
+    DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO commands\n"));
 
     /* for each sudoer */
     for (i = 0; i < sudoers_count; i++) {
 
         /* are there any allowed commands for this sudoer? */
         if (index[i]->allowed_num != 0) {
-            sysdb_attrs_get_el_ext(sudoers[i], "sudoCommand", true, &el);
+            ret = ipa_sudo_assign_command(sudoers[i], ipa_cmds, ipa_cmds_count, 
+                                    index[i]->allowed, index[i]->allowed_num, false);
+            if (ret != EOK) {
+                goto fail;
+            }
+        }
 
-            // FIXME: do the same for denied but add '!' prefix 
-            /* for each allowed command */
-            for (j = 0; j < index[i]->allowed_num; j++) {
-
-                /* looking for a single command or a group? */
-                if (strstr(index[i]->allowed[j], "cn=sudocmdgroups,cn=sudo") == NULL) {
-                    attr_name = talloc_strdup(tmp, "ipaUniqueID");
-                } else {
-                    attr_name = talloc_strdup(tmp, "memberOf");
-                    cmd_group = true;
-                }
-                if (attr_name == NULL) {
-                    ret = ENOMEM;
-                    goto fail;
-                }
-
-
-                while ((sudo_cmd = get_sudoCmd_value(tmp,
-                    ipa_cmds,
-                    ipa_cmds_count, 
-                    attr_name,
-                    index[i]->allowed[j], cmd_group)) != NULL) {
-
-                    sysdb_attrs_add_string(sudoers[i], "sudoCommand", sudo_cmd);
-                }
+        /* same for denied commands */
+        if (index[i]->denied_num != 0) {
+            ret = ipa_sudo_assign_command(sudoers[i], ipa_cmds, ipa_cmds_count, 
+                                    index[i]->denied, index[i]->denied_num, true);
+            if (ret != EOK) {
+                goto fail;
             }
         }
     }
-
 fail:
-    talloc_free(tmp);
     return ret;
 }

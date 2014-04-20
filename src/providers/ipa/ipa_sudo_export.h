@@ -2,7 +2,7 @@
 #define _IPA_SUDO_EXPORT_H_
 
 struct sudo_rules {
-    /* sudoers in native SUDO LDAP format */
+    /* sudo rules in native LDAP format */
     struct sysdb_attrs **sudoers;
     int sudoers_count;
 
@@ -16,9 +16,18 @@ struct sudo_rules {
 
     /* commands index created from ipa sudo rules, the length is same as len of
      * ipa_rules 
+     *
+     *     rule[0]       rule[1]
+     * +-------------+-------------+
+     * | allowed     | allowed     |
+     * | allowed_num | allowed_num | ...
+     * | denied      | denied      |
+     * | denied_num  | denied_num  |
+     * +-------------+-------------+
      */
     struct ipa_sudoer_cmds **cmds_index;
 };
+
 
 void print_rules(struct sysdb_attrs **rules, int count);
 
@@ -30,4 +39,14 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
                                 int *sudoers_count,
                                 struct ipa_sudoer_cmds ***index);
 
-  #endif	// _IPA_SUDO_EXPORT_H_
+errno_t get_third_rdn_value( TALLOC_CTX *mem_ctx, 
+                                    struct sysdb_ctx *sysdb,
+                                    const char *dn_str,
+                                    const char *first_attr,
+                                    const char *second_attr,
+                                    const char *second_val,
+                                    const char *third_attr,
+                                    const char *third_val,
+                                    char **value);
+
+#endif	// _IPA_SUDO_EXPORT_H_

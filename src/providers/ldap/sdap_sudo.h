@@ -26,6 +26,8 @@ struct sdap_sudo_ctx {
 
     char **hostnames;
     char **ip_addr;
+    char **hostgroups;          /* ipa host groups */
+
     bool include_netgroups;
     bool include_regexp;
     bool use_host_filter;
@@ -100,5 +102,6 @@ int sdap_sudo_get_hostinfo_recv(TALLOC_CTX *mem_ctx,
 #define SDAP_SUDO_FILTER_UID "(%s=#%u)"
 #define SDAP_SUDO_FILTER_GROUP "(%s=%%%s)"
 #define SDAP_SUDO_FILTER_NETGROUP "(%s=+%s)"
+
 
 #endif /* _SDAP_SUDO_H_ */
