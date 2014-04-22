@@ -158,7 +158,7 @@ if HAVE_CMOCKA
         test_utils \
         ad_access_filter_tests \
         ad_common_tests \
-        test_search_bases
+        test_search_bases \
 endif
 
 check_PROGRAMS = \
@@ -1393,8 +1393,9 @@ dyndns_tests_LDADD = \
 #     $(ldblib_LTLIBRARIES)
 #ipa_sudo_export_tests_SOURCES = \
 #     src/tests/cmocka/test_ipa_sudo_export.c
+#     #src/providers/ipa_sudo_cmd.c \
+#     #src/providers/ipa_sudo_export.c
 #     #src/providers/ipa_async_sudo.c \
-#     #src/providers/ipa_sudo_cmd.c
 #ipa_sudo_export_tests_CFLAGS = \
 #    $(AM_CFLAGS)
 #ipa_sudo_export_tests_LDFLAGS = \

@@ -350,6 +350,14 @@ struct sdap_attr_map ipa_sudorule_map[] = {
     SDAP_ATTR_MAP_TERMINATOR
 };
 
+struct sdap_attr_map ipa_sudocmds_map[] = {
+    { "ipa_sudocmd_object_class", "ipasudocmd", "ipasudocmd", NULL },
+    { "ipa_sudocmd_ipauniqueid", "ipaUniqueID", "ipaUniqueID", NULL },
+    { "ipa_sudocmd_command", "sudoCmd", "sudoCmd", NULL },
+    { "ipa_sudocmd_memberof", "memberOf", "memberOf", NULL },
+    SDAP_ATTR_MAP_TERMINATOR
+};
+
 struct sdap_attr_map service_map[] = {
     { "ldap_service_object_class", "ipService", SYSDB_SVC_CLASS, NULL },
     { "ldap_service_name", "cn", SYSDB_NAME, NULL },

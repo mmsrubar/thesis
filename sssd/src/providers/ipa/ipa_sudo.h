@@ -20,4 +20,10 @@
 #define IPA_HOST_FILTER         "(memberHost=fqdn=%s,cn=computers,cn=accounts,%s)"
 #define IPA_HOST_GROUP_FILTER   "(memberHost=cn=%s,cn=hostgroups,cn=accounts,%s)"
 
+
+#define IPA_SUDO_RULE_FILTER    "(objectClass=%s)(ipaEnabledFlag=TRUE)"
+#define IPA_SUDO_SMART_FILTER   "&(&(objectclass=%s)(ipaEnabledFlag=TRUE)(%s>=%s)(!(%s=%s)))(|"
+#define IPA_SUDO_RULES_FILTER   "&(&(objectClass=%s)(ipaEnabledFlag=TRUE)(|%s))(|"
+#define IPA_SUDO_FULL_FILTER   "&(objectClass=%s)(ipaEnabledFlag=TRUE)(|(cn=defaults)"
+
 #endif	// _IPA_SUDO_H_

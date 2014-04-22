@@ -146,7 +146,7 @@ done:
 }
 
 errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx, 
-                               char *val,
+                               const char *val,
                                char **new_value)
 {
     errno_t ret = EOK;
@@ -270,7 +270,7 @@ errno_t ipa_sudo_export_attr_value(TALLOC_CTX *mem,
             *new_value = talloc_strdup(mem, properties->orig_value);
             break;
         case COPY:
-            *new_value = talloc_strdup(mem, (char *)properties->orig_value);
+            *new_value = talloc_strdup(mem, properties->orig_value);
             break;
     }
 
@@ -369,12 +369,12 @@ fail:
     return ret;
 }
 
-errno_t export_attr_values(TALLOC_CTX *mem, 
-                        struct sysdb_ctx *sysdb, 
-                            struct ldb_message_element *e,
-                            struct ipa_sudoer_cmds **cmd_index,
-                        struct sysdb_attrs **sudoer,
-    const char *new_name)
+errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem, 
+                                    struct sysdb_ctx *sysdb, 
+                                    struct ldb_message_element *e,
+                                    struct ipa_sudoer_cmds **cmd_index,
+                                    struct sysdb_attrs **sudoer,
+                                    const char *new_name)
 {
     struct ldb_message_element *new_el = NULL;
     struct ipa_sudo_export *prop = NULL;
@@ -438,8 +438,6 @@ fail:
  * Export ipa specific attributes, copy attributes that doesn't need to be
  * exported and create command index (remeber commands for each rule so when we
  * got the commands we don't have to iterate through all rules again).
- *
- * FIXME: break it into little more pieces ...?
  */
 errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
                                 struct sysdb_ctx *sysdb,
@@ -454,7 +452,7 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
     struct ipa_sudoer_cmds **cmds_index;
     const char *new_name = NULL;
     errno_t ret = EOK;
-    int i, j, k;
+    int i, j;
 
     /* an array of exported sudoers (without commands) */
     sudoers = talloc_zero_array(mem, struct sysdb_attrs *, rules_count);
@@ -467,7 +465,7 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
 
         DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO rule cn=%s "
                                   "into native LDAP SUDO scheme.\n", 
-                                  ipa_rules[i]->a[1].values[0]));
+                                  (char *)ipa_rules[i]->a[1].values[0].data));
 
         /* new sudo rule */
         sudoers[i] = sysdb_new_attrs(mem);
@@ -489,7 +487,8 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
 
             /* EXPORT all values of the attribute */
             // FIXME: new atttrs has to be stored under sudoers context attrs!
-            ret = export_attr_values(mem, sysdb, e, &(cmds_index[i]), &(sudoers[i]), new_name);
+            ret = ipa_sudo_export_attr_values(mem, sysdb, e, &(cmds_index[i]), 
+                                              &(sudoers[i]), new_name);
             if (ret != EOK) {
                 goto fail;
             }
@@ -500,7 +499,7 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
         (*sudoers_count)++;
     }
 
-    if (rules_count != *sudoers_count) {
+    if (rules_count != *sudoers_count || ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unsuccessful export of IPA SUDO rules\n"));
         goto fail;
     }

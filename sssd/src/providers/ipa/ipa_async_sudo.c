@@ -8,18 +8,15 @@
 #include "providers/ipa/ipa_sudo_cmd.h"
 #include "providers/ipa/ipa_sudo.h"
 
-#define IPA_SUDO_CMD_ATTRS_LEN  4
-
 struct ipa_sudo_get_cmds_state {
 
     struct sdap_sudo_load_sudoers_state *sudo_state;
 
     struct sdap_id_op *sdap_op;
     struct sysdb_ctx *sysdb;
-
     struct tevent_req *req;     /* req from sdap_sudo_load_sudoers_send */
 
-    const char *sysdb_filter;   /* delete */
+    const char *sysdb_filter;   /* sysdb delete filter */
     const char *filter;
     const char *basedn;
     const char **attrs;
@@ -36,24 +33,6 @@ struct ipa_sudo_get_cmds_state {
 static int ipa_sudo_get_cmds_retry(struct tevent_req *req);
 static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq);
 static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
-
-struct sdap_attr_map ipa_sudocmds_map[] = {
-    { "ipa_sudocmd_object_class", "ipasudocmd", "ipasudocmd", NULL },
-    { "ipa_sudocmd_ipauniqueid", "ipaUniqueID", "ipaUniqueID", NULL },
-    { "ipa_sudocmd_command", "sudoCmd", "sudoCmd", NULL },
-    { "ipa_sudocmd_memberof", "memberOf", "memberOf", NULL },
-    SDAP_ATTR_MAP_TERMINATOR
-};
-
-enum sdap_sudocmds_attrs {
-    SDAP_OC_SUDO_CMD = 0,
-    SDAP_OC_SUDO_CMD_CMD,
-    SDAP_OC_SUDO_CMD_MEMBEROF,
-    SDAP_OC_SUDO_CMD_IPAUNIQUEID,
-
-    SDAP_OPTS_SUDO_CMD  /* attrs counter */
-};
-
 
 int ipa_sudo_export_rules_recv(struct tevent_req *req,
                            TALLOC_CTX *mem_ctx,
@@ -127,12 +106,12 @@ ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules,
     }
 
     ret = ipa_sudo_export_sudoers(state, state->sysdb,
-                            ipa_rules, 
-                            ipa_rules_count, 
-                            &(state->rules->sudoers),
-                            &(state->rules->sudoers_count),
-                            &(state->rules->cmds_index));
-    print_rules(state->rules->sudoers, state->rules->sudoers_count);
+                                  ipa_rules, 
+                                  ipa_rules_count, 
+                                  &(state->rules->sudoers),
+                                  &(state->rules->sudoers_count),
+                                  &(state->rules->cmds_index));
+    //print_rules(state->rules->sudoers, state->rules->sudoers_count);
     if (ret != EOK || cmds_ret == ENOENT) {
         /* if building cmds filter returned ENOENT then we don't need to
          * download any ipa sudo commands */
@@ -224,21 +203,13 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
 
     DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO LDAP connection successful\n"));
 
-    struct sdap_attr_map *ipa_sudorules_cmds_map = NULL;
+    struct sdap_attr_map *map = state->sudo_state->opts->ipa_sudocmds_map;
 
-    /* build attrs */
-    state->attrs = talloc_zero_array(state, const char *, IPA_SUDO_CMD_ATTRS_LEN + 1);
-    if (state->attrs == NULL) {
-        ret = ENOMEM;
+    /* create attrs from map */
+    ret = build_attrs_from_map(state, map, SDAP_OPTS_SUDO_CMD, NULL, &state->attrs, NULL);
+    if (ret != EOK) {
         goto fail;
     }
-
-    /* create this map at initialization time ... */
-    state->attrs[0] = talloc_strdup(state->attrs, "ipasudocmd");
-    state->attrs[1] = talloc_strdup(state->attrs, "ipaUniqueID");
-    state->attrs[2] = talloc_strdup(state->attrs, "sudoCmd");
-    state->attrs[3] = talloc_strdup(state->attrs, "memberOf");
-    state->attrs[4] = NULL;
 
     DEBUG(SSSDBG_TRACE_FUNC, ("Searching for IPA SUDO commands\n"));
 
@@ -250,7 +221,7 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
                                    state->scope,
                                    state->filter,
                                    state->attrs,
-                                   ipa_sudorules_cmds_map,
+                                   map,
                                    SDAP_OPTS_SUDO_CMD,
                                    state->sudo_state->timeout,
                                    true);
@@ -264,7 +235,6 @@ fail:
     state->error = ret;
     tevent_req_error(req, ret);
 }
-
 
 static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 {
@@ -295,7 +265,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
         goto fail;
     }
 
-    print_rules(attrs, count);
+    //print_rules(attrs, count);
     ipa_sudo_export_cmds(state, 
                          state->rules->sudoers, 
                          state->rules->sudoers_count,
@@ -305,7 +275,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     DEBUG(SSSDBG_TRACE_FUNC, ("All IPA SUDO rules successfully exported into "
                               "native LDAP SUDO scheme. Giving control back to "
                               "the LDAP SUDO Provider.\n"));
-    print_rules(state->rules->sudoers, state->rules->sudoers_count);
+    //print_rules(state->rules->sudoers, state->rules->sudoers_count);
 
 fail:
     /* ipa_sudo_export_rules_send */

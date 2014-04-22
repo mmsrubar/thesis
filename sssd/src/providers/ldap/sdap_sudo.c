@@ -38,6 +38,10 @@
 
 #define SUDO_MAX_FIRST_REFRESH_DELAY 16
 
+/* just for now since ipa provider doesn't have its handler nor initialization
+ * yet
+ */
+bool ipa_provider = true;
 
 struct sdap_sudo_full_refresh_state {
     struct sdap_sudo_ctx *sudo_ctx;
@@ -99,6 +103,8 @@ struct sdap_sudo_smart_refresh_state {
 
 static struct tevent_req *sdap_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
                                                       struct sdap_sudo_ctx *sudo_ctx);
+static struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
+                                                       struct sdap_sudo_ctx *sudo_ctx);
 
 static void sdap_sudo_smart_refresh_done(struct tevent_req *subreq);
 
@@ -529,14 +535,24 @@ void sdap_sudo_handler(struct be_req *be_req)
     switch (sudo_req->type) {
     case BE_REQ_SUDO_FULL:
         DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a full refresh of sudo rules\n"));
-        req = sdap_sudo_full_refresh_send(be_req, sudo_ctx);
+        if (ipa_provider) {
+            req = sdap_sudo_full_refresh_send(be_req, sudo_ctx);
+        } else {
+            req = sdap_sudo_full_refresh_send(be_req, sudo_ctx);
+        }
+ 
         break;
     case BE_REQ_SUDO_RULES:
         DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a refresh of specific sudo rules\n"));
-        //req = sdap_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
-        req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
-                                           id_ctx->opts, id_ctx->conn->conn_cache,
-                                           sudo_req->rules);
+        if (ipa_provider) {
+            req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
+                                               id_ctx->opts, id_ctx->conn->conn_cache,
+                                               sudo_req->rules);
+        } else {
+            req = sdap_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
+                                            id_ctx->opts, id_ctx->conn->conn_cache,
+                                            sudo_req->rules);
+        }
         break;
     default:
         DEBUG(SSSDBG_CRIT_FAILURE, ("Invalid request type: %d\n",
@@ -899,8 +915,7 @@ static struct tevent_req *sdap_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     /* Download all rules from LDAP that are newer than usn */
     usn = srv_opts->max_sudo_value;
     if (usn != NULL) {
-        ldap_filter = talloc_asprintf(state,
-                                      "(&(objectclass=%s)(%s>=%s)(!(%s=%s)))",
+        ldap_filter = talloc_asprintf(state, "(&(objectclass=%s)(%s>=%s)(!(%s=%s)))",
                                       map[SDAP_OC_SUDORULE].name,
                                       map[SDAP_AT_SUDO_USN].name, usn,
                                       map[SDAP_AT_SUDO_USN].name, usn);
@@ -923,7 +938,7 @@ static struct tevent_req *sdap_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     /* Do not remove any rules that are already in the sysdb
      * sysdb_filter = NULL; */
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a smart refresh of sudo rules "
+    DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a smart refresh of IPA SUDO rules "
                               "(USN > %s)\n", (usn == NULL ? "0" : usn)));
 
     subreq = sdap_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
@@ -1258,12 +1273,11 @@ static int sdap_sudo_schedule_refresh(TALLOC_CTX *mem_ctx,
 
     switch (refresh) {
     case SDAP_SUDO_REFRESH_FULL:
-        send_fn = ipa_sudo_full_refresh_send;
-        //send_fn = sdap_sudo_full_refresh_send;
+        send_fn = ipa_provider ? ipa_sudo_full_refresh_send : sdap_sudo_full_refresh_send;
         name = "Full refresh";
         break;
     case SDAP_SUDO_REFRESH_SMART:
-        send_fn = sdap_sudo_smart_refresh_send;
+        send_fn = ipa_provider ? ipa_sudo_smart_refresh_send : sdap_sudo_smart_refresh_send;
         name = "Smart refresh";
         break;
     case SDAP_SUDO_REFRESH_RULES:
@@ -1335,7 +1349,7 @@ static int sdap_sudo_schedule_smart_refresh(struct sdap_sudo_ctx *sudo_ctx,
  * =========================================================================
  */
 
-/* returns LDAP host filter in following format:
+/* returns IPA LDAP host filter in following format:
  * (hostCategory=ALL)(externalHost=...)(...)
  */
 static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
@@ -1489,8 +1503,8 @@ static struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
     state->domain = id_ctx->be->domain;
 
     /* Download all enabled and aplicable rules to this host from IPA */
-    ldap_filter = talloc_asprintf(state, 
-            "&(objectClass=ipasudorule)(ipaEnabledFlag=TRUE)(|(cn=defaults)");
+    ldap_filter = talloc_asprintf(state, IPA_SUDO_FULL_FILTER,
+                    sudo_ctx->id_ctx->opts->ipa_sudorule_map[SDAP_OC_SUDORULE].name);
     if (ldap_filter == NULL) {
         ret = ENOMEM;
         goto immediately;
@@ -1616,8 +1630,8 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
     state->id_ctx = sudo_ctx->id_ctx;
     state->num_rules = i;
 
-    ldap_filter = talloc_asprintf(tmp_ctx, "&(&(objectClass=%s)(ipaEnabledFlag=TRUE)(|%s))(|",
-                                  opts->ipa_sudorule_map[SDAP_OC_SUDORULE].name,
+    ldap_filter = talloc_asprintf(tmp_ctx, IPA_SUDO_RULES_FILTER,
+                                  opts->ipa_sudorule_map[SDAP_OC_IPA_SUDORULE].name,
                                   ldap_filter);
     if (ldap_filter == NULL) {
         ret = ENOMEM;
@@ -1665,6 +1679,102 @@ immediately:
         tevent_req_error(req, ret);
         tevent_req_post(req, be_ctx->ev);
     }
+
+    return req;
+}
+
+/* issue smart refresh of IPA SUDO rules */
+static struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
+                                                       struct sdap_sudo_ctx *sudo_ctx)
+{
+    struct tevent_req *req = NULL;
+    struct tevent_req *subreq = NULL;
+    struct sdap_id_ctx *id_ctx = sudo_ctx->id_ctx;
+    struct sdap_attr_map *map = id_ctx->opts->ipa_sudorule_map;
+    struct sdap_server_opts *srv_opts = id_ctx->srv_opts;
+    struct sdap_sudo_smart_refresh_state *state = NULL;
+    char *ldap_filter = NULL;
+    char *ldap_smart_filter = NULL;
+    const char *usn;
+    int ret;
+
+    req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_smart_refresh_state);
+    if (req == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("tevent_req_create() failed\n"));
+        return NULL;
+    }
+
+    if (!sudo_ctx->full_refresh_done
+            && (srv_opts == NULL || srv_opts->max_sudo_value == 0)) {
+        /* Perform full refresh first */
+        DEBUG(SSSDBG_TRACE_FUNC, ("USN value is unknown, "
+                                  "waiting for a full refresh!\n"));
+        ret = EINVAL;
+        goto immediately;
+    }
+
+    state->id_ctx = id_ctx;
+    state->sysdb = id_ctx->be->domain->sysdb;
+
+    /* Download all rules from LDAP that are newer than usn */
+    usn = srv_opts->max_sudo_value;
+    if (usn != NULL) {
+        ldap_filter = talloc_asprintf(state, IPA_SUDO_SMART_FILTER,
+                                      map[SDAP_OC_IPA_SUDORULE].name,
+                                      map[SDAP_AT_IPA_SUDO_USN].name, usn,
+                                      map[SDAP_AT_IPA_SUDO_USN].name, usn);
+    } else {
+        /* no valid USN value known, match any sudo rule */
+        ldap_filter = talloc_asprintf(state, IPA_SUDO_FULL_FILTER,
+                                      map[SDAP_OC_SUDORULE].name);
+    }
+    if (ldap_filter == NULL) {
+        ret = ENOMEM;
+        goto immediately;
+    }
+
+    ldap_smart_filter = ipa_sudo_get_filter(state, map, sudo_ctx, ldap_filter);
+    if (ldap_smart_filter == NULL) {
+        ret = ENOMEM;
+        goto immediately;
+    }
+
+    /* close the filter */
+    ldap_smart_filter = talloc_asprintf_append_buffer(ldap_smart_filter, ")");
+    if (ldap_smart_filter == NULL) {
+        goto immediately;
+    }
+
+    /* Do not remove any rules that are already in the sysdb
+     * sysdb_filter = NULL; */
+
+    DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a smart refresh of sudo rules "
+                              "(USN > %s)\n", (usn == NULL ? "0" : usn)));
+
+    subreq = sdap_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
+                                    id_ctx->conn->conn_cache,
+                                    ldap_smart_filter, NULL);
+    if (subreq == NULL) {
+        ret = ENOMEM;
+        goto immediately;
+    }
+
+    state->subreq = subreq;
+    tevent_req_set_callback(subreq, sdap_sudo_smart_refresh_done, req);
+
+    /* free filters */
+    talloc_free(ldap_filter);
+    talloc_free(ldap_smart_filter);
+
+    return req;
+
+immediately:
+    if (ret == EOK) {
+        tevent_req_done(req);
+    } else {
+        tevent_req_error(req, ret);
+    }
+    tevent_req_post(req, id_ctx->be->ev);
 
     return req;
 }

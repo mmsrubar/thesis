@@ -354,6 +354,15 @@ enum ipa_sudorule_attrs {
     SDAP_OPTS_IPA_SUDO  /* attrs counter */
 };
 
+enum sdap_sudocmds_attrs {
+    SDAP_OC_SUDO_CMD = 0,
+    SDAP_OC_SUDO_CMD_CMD,
+    SDAP_OC_SUDO_CMD_MEMBEROF,
+    SDAP_OC_SUDO_CMD_IPAUNIQUEID,
+
+    SDAP_OPTS_SUDO_CMD  /* attrs counter */
+};
+
 enum sdap_service_attrs {
     SDAP_OC_SERVICE = 0,
     SDAP_AT_SERVICE_NAME,
@@ -443,10 +452,13 @@ struct sdap_options {
     /* ID-mapping support */
     struct sdap_idmap_ctx *idmap_ctx;
 
-    /* FIXME - should this go to a special struct to avoid mixing with name-service-switch maps? */
+    /* FIXME 
+     * - should this go to a special struct to avoid mixing with name-service-switch maps? 
+     * - should also sudo stuff go into separate struct?
+     */
     struct sdap_attr_map *sudorule_map;
-    struct sdap_attr_map *ipa_sudorule_map;     /* map for IPA SUDO scheme */
-    struct sdap_attr_map *ipa_sudocmds_map;
+    struct sdap_attr_map *ipa_sudorule_map;         /* map for IPA SUDO scheme */
+    struct sdap_attr_map *ipa_sudocmds_map;         /* map for IPA SUDO commands */
     struct sdap_attr_map *autofs_mobject_map;
     struct sdap_attr_map *autofs_entry_map;
 

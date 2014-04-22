@@ -4,7 +4,6 @@
 #include "providers/ipa/ipa_sudo.h"
 #include "db/sysdb_sudo.h"
 
-#define DENIED_CMD_PREFIX       '!'
 
 /* Takes values of a member{Allow,Deny}Cmd attribute and returns this values in
  * filter
@@ -161,11 +160,11 @@ fail:
  * and NULL if there are no more commands.
  */
 static const char *get_sudoCmd_value(TALLOC_CTX *mem,
-                    struct sysdb_attrs **ipa_cmds,
-                    int ipa_cmds_count, 
-                    const char *attr_name,
-                    const char *attr_value,
-                    bool cmd_group)
+                                     struct sysdb_attrs **ipa_cmds,
+                                     int ipa_cmds_count, 
+                                     const char *attr_name,
+                                     const char *attr_value,
+                                     bool cmd_group)
 {
     const char **values = NULL;
     const char **val;
@@ -269,9 +268,9 @@ fail:
 
 /* Add a denied or allowed command of a rule into command index. */
 errno_t ipa_sudo_index_commands(TALLOC_CTX *mem, 
-                         struct ipa_sudoer_cmds *cmds, 
-                         const char *name, 
-                         const char *command)
+                                struct ipa_sudoer_cmds *cmds, 
+                                const char *name, 
+                                const char *command)
 {
     errno_t ret = EOK;
 
@@ -325,11 +324,11 @@ fail:
 }
 
 int ipa_sudo_export_cmds(TALLOC_CTX *mem,
-                     struct sysdb_attrs **sudoers,
-                     int sudoers_count,
-                     struct ipa_sudoer_cmds **index, 
-                     struct sysdb_attrs **ipa_cmds,
-                     int ipa_cmds_count)
+                         struct sysdb_attrs **sudoers,
+                         int sudoers_count,
+                         struct ipa_sudoer_cmds **index, 
+                         struct sysdb_attrs **ipa_cmds,
+                         int ipa_cmds_count)
 {
     errno_t ret = EOK;
     int i;

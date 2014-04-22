@@ -26,8 +26,8 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
 
 /* Add a denied or allowed command of a rule into command index. */
 errno_t ipa_sudo_index_commands(TALLOC_CTX *mem, 
-                         struct ipa_sudoer_cmds *cmds, 
-                         const char *name, 
-                         const char *value);
+                                struct ipa_sudoer_cmds *cmds, 
+                                const char *name, 
+                                const char *value);
 
 #endif	// _IPA_SUDO_CMD_H_
