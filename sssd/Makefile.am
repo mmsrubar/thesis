@@ -158,7 +158,7 @@ if HAVE_CMOCKA
         test_utils \
         ad_access_filter_tests \
         ad_common_tests \
-        test_search_bases \
+        test_search_bases
 endif
 
 check_PROGRAMS = \
