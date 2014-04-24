@@ -1,8 +1,6 @@
 /*
     SSSD
 
-    Async LDAP Helper routines for sudo
-
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
