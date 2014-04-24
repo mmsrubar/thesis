@@ -29,14 +29,29 @@
 #include <setjmp.h>
 #include <cmocka.h>
 
+#include "db/sysdb.h"
+#include "db/sysdb_private.h"
+#include "confdb/confdb_setup.h"
+
 #include "providers/ldap/sdap.h"
 #include "providers/ldap/sdap_async_sudo.h"
-#include "db/sysdb.h"
-
+#include "providers/ipa/ipa_async_sudo.h"
+#include "providers/ipa/ipa_sudo_export.h"
+#include "providers/ipa/ipa_sudo_cmd.h"
+/*
 #include "providers/ipa/ipa_sudo_export.c"
-#include "providers/ipa/ipa_sudo_cmd.c"
-#include "providers/ipa/ipa_async_sudo.c"
-//#include "src/providers/ipa/ipa_async_sudo.h"
+*/
+
+#define TESTS_PATH "tests_ipa_sudo_export"
+#define TEST_CONF_FILE "tests_conf.ldb"
+
+/* WHAT TO TEST ? */
+/* =================
+ * - situation where there are no command needed for downloaded sudo rules
+ * - projit vsechny mista, kde by se to mohlo posrat a zkusit je nasimulovat
+ *   ... mozna v jinych testech?
+ *
+ */
 
 void __wrap_be_is_offline(void)
 {
@@ -62,6 +77,7 @@ void __wrap_sdap_get_generic_recv(void)
 {
 }
 
+/*
 struct sudo_rule {
     const char *attr;
     const char *val;
@@ -105,12 +121,11 @@ struct sysdb_attrs *create_rule(struct sudo_rule rule[])
 
     for (i = 0; rule[i].attr != NULL && rule[i].val != NULL; i++) {
 
-        /* create attribute */
+        // create attribute //
         if (sysdb_attrs_get_el_ext(sudoer, rule[i].attr, true, &new_el) != EOK) {
             return NULL;
         }
 
-        /* add value */
         if (sysdb_attrs_add_string(sudoer, rule[i].attr, rule[i].val) != EOK) {
             return NULL;
         }
@@ -121,6 +136,139 @@ struct sysdb_attrs *create_rule(struct sudo_rule rule[])
 
 static void test_export_no_rules_done(struct tevent_req *subreq);
 
+*/
+struct sysdb_test_ctx {
+    struct sysdb_ctx *sysdb;
+    struct confdb_ctx *confdb;
+    struct tevent_context *ev;
+    struct sss_domain_info *domain;
+};
+
+static int _setup_sysdb_tests(struct sysdb_test_ctx **ctx, bool enumerate)
+{
+    struct sysdb_test_ctx *test_ctx;
+    struct ldb_context *ldb;
+    char *conf_db;
+    int ret;
+
+    const char *val[2];
+    val[1] = NULL;
+
+    /* Create tests directory if it doesn't exist */
+    /* (relative to current dir) */
+    ret = mkdir(TESTS_PATH, 0775);
+    if (ret == -1 && errno != EEXIST) {
+        //fail("Could not create %s directory", TESTS_PATH);
+        return EFAULT;
+    }
+
+    test_ctx = talloc_zero(NULL, struct sysdb_test_ctx);
+    if (test_ctx == NULL) {
+        //fail("Could not allocate memory for test context");
+        return ENOMEM;
+    }
+
+    test_ctx->sysdb = talloc_zero(NULL, struct sysdb_ctx);
+    if (test_ctx->sysdb == NULL) {
+        //fail("Could not allocate memory for test context");
+        return ENOMEM;
+    }
+
+    conf_db = talloc_asprintf(test_ctx, "%s/%s", TESTS_PATH, TEST_CONF_FILE);
+    if (conf_db == NULL) {
+        //fail("Out of memory, aborting!");
+        talloc_free(test_ctx);
+        return ENOMEM;
+    }
+    DEBUG(3, ("CONFDB: %s\n", conf_db));
+
+
+    test_ctx->sysdb->ldb = ldb_init(NULL, NULL);
+    if (test_ctx->sysdb->ldb == NULL) {
+        return EIO;
+    }
+
+    /* flag 0 to create ldb if it doesn't exists yet? */
+    ret = ldb_connect(test_ctx->sysdb->ldb, conf_db, 0, NULL);
+    if (ret != LDB_SUCCESS) {
+        DEBUG(0, ("Unable to open config database [%s]\n", conf_db));
+        return EIO;
+    }
+
+    test_ctx->sysdb->ldb_file = talloc_strdup(test_ctx, "/home/base/thesis/sssd/i686/tests_ipa_sudo_export/tests_conf.ldb");
+
+    ipa_sudo_export_rules_send(NULL, 0, NULL, NULL);
+#ifdef A
+
+    /* Create an event context
+     * It will not be used except in confdb_init and sysdb_init
+     */
+    test_ctx->ev = tevent_context_init(test_ctx);
+    if (test_ctx->ev == NULL) {
+        //fail("Could not create event context");
+        talloc_free(test_ctx);
+        return EIO;
+    }
+
+    /* Connect to the conf db */
+    ret = confdb_init(test_ctx, &test_ctx->confdb, conf_db);
+    if (ret != EOK) {
+        //fail("Could not initialize connection to the confdb");
+        talloc_free(test_ctx);
+        return ret;
+    }
+
+    val[0] = "LOCAL";
+    ret = confdb_add_param(test_ctx->confdb, true,
+                           "config/sssd", "domains", val);
+    if (ret != EOK) {
+        //fail("Could not initialize domains placeholder");
+        talloc_free(test_ctx);
+        return ret;
+    }
+
+    val[0] = "local";
+    ret = confdb_add_param(test_ctx->confdb, true,
+                           "config/domain/LOCAL", "id_provider", val);
+    if (ret != EOK) {
+        //fail("Could not initialize provider");
+        talloc_free(test_ctx);
+        return ret;
+    }
+
+    val[0] = enumerate ? "TRUE" : "FALSE";
+    ret = confdb_add_param(test_ctx->confdb, true,
+                           "config/domain/LOCAL", "enumerate", val);
+    if (ret != EOK) {
+        //fail("Could not initialize LOCAL domain");
+        talloc_free(test_ctx);
+        return ret;
+    }
+
+    val[0] = "TRUE";
+    ret = confdb_add_param(test_ctx->confdb, true,
+                           "config/domain/LOCAL", "cache_credentials", val);
+    if (ret != EOK) {
+        //("Could not initialize LOCAL domain");
+        talloc_free(test_ctx);
+        return ret;
+    }
+
+    ret = sssd_domain_init(test_ctx, test_ctx->confdb, "local",
+                           TESTS_PATH, &test_ctx->domain);
+    if (ret != EOK) {
+        //("Could not initialize connection to the sysdb (%d)", ret);
+        talloc_free(test_ctx);
+        return ret;
+    }
+    test_ctx->sysdb = test_ctx->domain->sysdb;
+
+    *ctx = test_ctx;
+#endif
+    return EOK;
+}
+
+#ifdef A
 void test_export_no_rules_send(void **state)
 {
     struct tevent_req *req;
@@ -176,11 +324,22 @@ static void test_export_no_rules_done(struct tevent_req *req)
     assert_int_equal(ret, EOK);
 }
 
+#endif
 
 int main(int argc, const char *argv[])
 {
+    struct sysdb_test_ctx *test_ctx;
+    int ret;
+
+    ret = _setup_sysdb_tests(&test_ctx, false);
+    if (ret != EOK) {
+        //fail("Could not set up the test");
+        return;
+    }
+
+
     const UnitTest tests[] = {
-        unit_test(test_export_no_rules_send),
+//        unit_test(test_export_no_rules_send),
     };
 
     run_tests(tests);

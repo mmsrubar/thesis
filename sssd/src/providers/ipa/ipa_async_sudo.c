@@ -22,7 +22,6 @@ struct ipa_sudo_get_cmds_state {
     const char **attrs;
     int scope;
 
-    int timeout;
     int dp_error;
     int error;
 
@@ -86,7 +85,9 @@ ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules,
     state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
     state->scope = LDAP_SCOPE_SUBTREE;
     state->req = req_sdap;  /* req from sdap_sudo_load_sudoers_send */
-
+    state->dp_error = DP_ERR_OK;
+    state->error = EOK;
+ 
     rules = talloc_zero(state, struct sudo_rules);
     state->rules = rules;
 

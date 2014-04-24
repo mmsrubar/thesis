@@ -102,8 +102,7 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
         return ENOENT;
     }
 
-    filter = talloc_asprintf(tmp, "(&(objectClass=%s)(|", "ipasudocmd");
-     //FIXME: ipa_sudocmds_map[SDAP_OC_SUDO_CMD].def_name);
+    filter = talloc_asprintf(tmp, IPA_SUDO_CMD_FILTER, "ipasudocmd");
     if (filter == NULL) {
         ret = ENOMEM;
         goto fail;

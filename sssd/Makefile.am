@@ -158,7 +158,8 @@ if HAVE_CMOCKA
         test_utils \
         ad_access_filter_tests \
         ad_common_tests \
-        test_search_bases
+        test_search_bases \
+				ipa_sudo_export-tests
 endif
 
 check_PROGRAMS = \
@@ -1389,30 +1390,37 @@ dyndns_tests_LDADD = \
     $(SSSD_INTERNAL_LTLIBS) \
     libsss_test_common.la
 
-#EXTRA_ipa_sudo_export_tests_DEPENDENCIES = \
-#     $(ldblib_LTLIBRARIES)
-#ipa_sudo_export_tests_SOURCES = \
-#     src/tests/cmocka/test_ipa_sudo_export.c
-#     #src/providers/ipa_sudo_cmd.c \
-#     #src/providers/ipa_sudo_export.c
-#     #src/providers/ipa_async_sudo.c \
-#ipa_sudo_export_tests_CFLAGS = \
-#    $(AM_CFLAGS)
-#ipa_sudo_export_tests_LDFLAGS = \
-#    -Wl,-wrap,be_is_offline  \
-#    -Wl,-wrap,sdap_id_op_create \
-#		-Wl,-wrap,sdap_id_op_connect_send \
-#		-Wl,-wrap,sdap_id_op_connect_recv \
-#		-Wl,-wrap,sdap_id_op_handle \
-#		-Wl,-wrap,sdap_get_generic_send \
-#		-Wl,-wrap,sdap_get_generic_recv
-#ipa_sudo_export_tests_LDADD = \
-#    $(CARES_LIBS) \
-#    $(CMOCKA_LIBS) \
-#    $(SSSD_LIBS) \
-#    $(SSSD_INTERNAL_LTLIBS) \
-#    libsss_test_common.la
-
+EXTRA_ipa_sudo_export_tests_DEPENDENCIES = \
+    $(ldblib_LTLIBRARIES)
+ipa_sudo_export_tests_SOURCES = \
+     $(SSSD_RESOLV_OBJ) \
+    src/providers/data_provider_opts.c \
+		src/providers/data_provider_be.c \
+     	src/tests/cmocka/test_ipa_sudo_export.c
+    	#src/providers/ipa/ipa_sudo_export.c
+     #providers/ipa_sudo_export.c \
+     #src/providers/ipa_sudo_cmd.c \
+     #src/providers/ipa_sudo_export.c \
+     #src/providers/ipa_async_sudo.c \
+ipa_sudo_export_tests_CFLAGS = \
+    $(AM_CFLAGS)
+ipa_sudo_export_tests_LDFLAGS = \
+    -Wl,-wrap,be_is_offline  \
+    -Wl,-wrap,sdap_id_op_create \
+		-Wl,-wrap,sdap_id_op_connect_send \
+		-Wl,-wrap,sdap_id_op_connect_recv \
+		-Wl,-wrap,sdap_id_op_handle \
+		-Wl,-wrap,sdap_get_generic_send \
+		-Wl,-wrap,sdap_get_generic_recv
+ipa_sudo_export_tests_LDADD = \
+    $(CARES_LIBS) \
+    $(CMOCKA_LIBS) \
+    $(SSSD_LIBS) \
+    $(SSSD_INTERNAL_LTLIBS) \
+    $(KRB5_LIBS) \
+    libsss_test_common.la \
+		libsss_ldap_common.la \
+    libsss_krb5_common.la \
 
 fqnames_tests_SOURCES = \
     src/tests/cmocka/test_fqnames.c

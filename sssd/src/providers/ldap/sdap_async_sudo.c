@@ -109,11 +109,13 @@ struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     state->error = EOK;
     state->highest_usn = NULL;
 
-    /* what kind of provider called this module? */
+    /* what kind of SUDO provider is used? */
     if (strcmp(be_ctx->bet_info[BET_SUDO].mod_name, "ipa") == 0) {  /* IPA */
         state->ipa_provider = true;
-    } else {    /* LDAP */
+    } else if (strcmp(be_ctx->bet_info[BET_SUDO].mod_name, "ldap") == 0) { /* LDAP */
         state->ipa_provider = false;
+    } else {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unknown kind of SUDO provider\n"));
     }
 
     if (state->ldap_filter == NULL) {
