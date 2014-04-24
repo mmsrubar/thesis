@@ -5,6 +5,7 @@
 
     Authors:
         Pavel Březina <pbrezina@redhat.com>
+        Michal Šrubař <mmsrubar@gmail.com>
 
     Copyright (C) 2012 Red Hat
 
@@ -423,9 +424,9 @@ static void sdap_sudo_process_ipa_rules(struct tevent_req *subreq)
         return;
     }
 
-    subsubreq = ipa_sudo_export_rules_send(attrs, count, state, req);
+    subsubreq = ipa_sudo_export_rules_send(state, attrs, count, state, req);
     if (subsubreq == NULL) {
-        return ENOMEM;
+        return ENOMEM;  //FIXME:
     }
 
     tevent_req_set_callback(subsubreq, sdap_sudo_load_ipa_sudoers_process, req);
@@ -436,7 +437,7 @@ static void sdap_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
 
     struct tevent_req *req;
     struct sdap_sudo_load_sudoers_state *state;
-    struct ipa_sudo_get_cmds_state *ipa_state;  /* state of the IPA provider */
+    //struct ipa_sudo_export_rules_state *ipa_state;  /* state of the IPA provider */
     struct sdap_search_base *search_base;
     struct sysdb_attrs **attrs = NULL;
     size_t count;
@@ -446,7 +447,7 @@ static void sdap_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
     /* req from sdap_sudo_load_sudoers_send() */
     req = tevent_req_callback_data(subreq, struct tevent_req);
 
-    ipa_state = tevent_req_data(subreq, struct ipa_sudo_get_cmds_state);
+    //ipa_state = tevent_req_data(subreq, struct ipa_sudo_export_rules_state);
     state = tevent_req_data(req, struct sdap_sudo_load_sudoers_state);
 
     /* get sudoers from IPA SUDO Provider */

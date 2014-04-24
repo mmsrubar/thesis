@@ -1,3 +1,27 @@
+/*
+    SSSD
+
+    Async LDAP Helper routines for sudo
+
+    Authors:
+        Michal Šrubař <mmsrubar@gmail.com>
+
+    Copyright (C) 2014 Michal Srubar
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "db/sysdb_sudo.h"
 #include "providers/ldap/sdap_async.h"
 #include "providers/ldap/sdap_async_sudo.h"
@@ -8,7 +32,11 @@
 #include "providers/ipa/ipa_sudo_cmd.h"
 #include "providers/ipa/ipa_sudo.h"
 
-struct ipa_sudo_get_cmds_state {
+static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req);
+static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq);
+static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
+
+struct ipa_sudo_export_rules_state {
 
     struct sdap_sudo_load_sudoers_state *sudo_state;
 
@@ -29,52 +57,28 @@ struct ipa_sudo_get_cmds_state {
     struct sysdb_attrs **tmp;
 };
 
-static int ipa_sudo_get_cmds_retry(struct tevent_req *req);
-static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq);
-static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
-
-int ipa_sudo_export_rules_recv(struct tevent_req *req,
-                           TALLOC_CTX *mem_ctx,
-                           size_t *reply_count,
-                           struct sysdb_attrs ***reply,
-                           struct sdap_sudo_load_sudoers_state **state,
-                           struct tevent_req **req_sdap)
-{
-    struct ipa_sudo_get_cmds_state *ipa_state;
-
-    ipa_state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
-
-    *reply_count = ipa_state->rules->sudoers_count;
-    *reply = talloc_steal(mem_ctx, ipa_state->rules->sudoers);
-
-    /* req from sdap_sudo_load_sudoers_send */
-    *req_sdap = ipa_state->req;
-
-    *state = tevent_req_data(ipa_state->req, struct sdap_sudo_load_sudoers_state);
-    /*
-    *state->refresh_state->dp_error = ipa_state->dp_error;
-    *state->refresh_state->error = ipa_state->error;
-    */
-
-    return EOK;
-}
-
 struct tevent_req *
-ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules, 
-                           int ipa_rules_count, 
+ipa_sudo_export_rules_send(TALLOC_CTX *mem,
+                           struct sysdb_attrs **ipa_rules,
+                           int ipa_rules_count,
                            struct sdap_sudo_load_sudoers_state *sudo_state,
                            struct tevent_req *req_sdap)
 {
-
-    TALLOC_CTX *tmp = talloc_init(NULL);
-
-    struct ipa_sudo_get_cmds_state *state;
-    struct sudo_rules *rules;
+    struct ipa_sudo_export_rules_state *state;
     struct tevent_req *req;
     errno_t ret = EOK;
     errno_t cmds_ret = EOK;
 
-    req = tevent_req_create(tmp, &state, struct ipa_sudo_get_cmds_state);
+    // FIXME:
+    // REVIEW(FEEDBACK) - state by se mel jmenovat stejne jako _send, tj tady
+    // ipa_sudo_export_rules_state a v kodu by mel byt v .c souboru hned
+    // pred _send()
+    //
+    // V pavlovem modulu jsem ty definice state struktur musel vynest do header
+    // souboru, abych je mohl pouzit (providers/ldap/sdap_async_sudo.h), je to 
+    // ok nebo to musim prepsat tak, abych vse co z tech struktur pouzivam
+    // predaval pres parametry?
+    req = tevent_req_create(mem, &state, struct ipa_sudo_export_rules_state);
     if (!req) {
         return NULL;
     }
@@ -82,28 +86,35 @@ ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules,
     state->sudo_state = sudo_state;
     state->sysdb = sudo_state->refresh_state->sysdb;
     state->sdap_op = NULL;
-    state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
     state->scope = LDAP_SCOPE_SUBTREE;
     state->req = req_sdap;  /* req from sdap_sudo_load_sudoers_send */
     state->dp_error = DP_ERR_OK;
     state->error = EOK;
+    state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
+    if (state->basedn == NULL) {
+        ret = ENOMEM;
+        goto immediately;
+    }
  
-    rules = talloc_zero(state, struct sudo_rules);
-    state->rules = rules;
+    state->rules = talloc_zero(state, struct sudo_rules);
+    if (state->rules == NULL) {
+        ret = ENOMEM;
+        goto immediately;
+    }
 
     /* check this after the state is initialized because we need it to be for
      * #_recv() func
      */
     if (ipa_rules == NULL && ipa_rules_count <= 0) {
         /* no ipa sudo rules -> nothing to build new filter from */
-        goto imediaty;
+        goto immediately;
     }
 
 
     cmds_ret = ipa_sudo_build_cmds_filter(state, state->sysdb, ipa_rules, 
                                      ipa_rules_count, &(state->filter));
     if (cmds_ret != EOK && cmds_ret != ENOENT) {
-        goto imediaty;
+        goto immediately;
     }
 
     ret = ipa_sudo_export_sudoers(state, state->sysdb,
@@ -116,7 +127,7 @@ ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules,
     if (ret != EOK || cmds_ret == ENOENT) {
         /* if building cmds filter returned ENOENT then we don't need to
          * download any ipa sudo commands */
-        goto imediaty;
+        goto immediately;
     }
 
     ret = ipa_sudo_get_cmds_retry(req);
@@ -126,7 +137,7 @@ ipa_sudo_export_rules_send(struct sysdb_attrs **ipa_rules,
         return req;
     }
 
-imediaty:
+immediately:
     if (ret == EOK) {
         tevent_req_done(req);
     } else {
@@ -139,11 +150,11 @@ imediaty:
 
 static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
 {
-    struct ipa_sudo_get_cmds_state *state;
+    struct ipa_sudo_export_rules_state *state;
     struct tevent_req *subreq;
     errno_t ret = EOK;
 
-    state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
+    state = tevent_req_data(req, struct ipa_sudo_export_rules_state);
 
     if (be_is_offline(state->sudo_state->refresh_state->be_ctx)) {
         state->dp_error = DP_ERR_OFFLINE;
@@ -179,13 +190,13 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
 
 static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
 {
-    struct ipa_sudo_get_cmds_state *state;
+    struct ipa_sudo_export_rules_state *state;
     struct tevent_req *req;
     int dp_error;
     int ret;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
-    state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
+    state = tevent_req_data(req, struct ipa_sudo_export_rules_state);
  
     ret = sdap_id_op_connect_recv(subreq, &dp_error);
     talloc_zfree(subreq);
@@ -239,14 +250,14 @@ fail:
 
 static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 {
-    struct ipa_sudo_get_cmds_state *state;
+    struct ipa_sudo_export_rules_state *state;
     struct sysdb_attrs **attrs;
     struct tevent_req *req;
     size_t count;
     int ret;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
-    state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
+    state = tevent_req_data(req, struct ipa_sudo_export_rules_state);
  
     DEBUG(SSSDBG_TRACE_FUNC,
           ("Receiving commands for IPA SUDO rules with base [%s]\n",
@@ -281,4 +292,30 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 fail:
     /* ipa_sudo_export_rules_send */
     tevent_req_done(req);
+}
+
+int ipa_sudo_export_rules_recv(struct tevent_req *req,
+                           TALLOC_CTX *mem_ctx,
+                           size_t *reply_count,
+                           struct sysdb_attrs ***reply,
+                           struct sdap_sudo_load_sudoers_state **state,
+                           struct tevent_req **req_sdap)
+{
+    struct ipa_sudo_export_rules_state *ipa_state;
+
+    ipa_state = tevent_req_data(req, struct ipa_sudo_export_rules_state);
+
+    *reply_count = ipa_state->rules->sudoers_count;
+    *reply = talloc_steal(mem_ctx, ipa_state->rules->sudoers);
+
+    /* req from sdap_sudo_load_sudoers_send */
+    *req_sdap = ipa_state->req;
+
+    *state = tevent_req_data(ipa_state->req, struct sdap_sudo_load_sudoers_state);
+    /*
+    *state->refresh_state->dp_error = ipa_state->dp_error;
+    *state->refresh_state->error = ipa_state->error;
+    */
+
+    return EOK;
 }

@@ -1,3 +1,27 @@
+/*
+    SSSD
+
+    The main logic of exporting IPA SUDO rules into native LDAP SUDO format.
+
+    Authors:
+        Michal Šrubař <mmsrubar@gmail.com>
+
+    Copyright (C) 2014 Michal Srubar
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdio.h>
 #include <ldb.h>
 #include <string.h>
@@ -134,6 +158,7 @@ errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx,
     val = ldb_dn_get_rdn_val(dn);
     str = talloc_strndup(tmp, (const char *)val->data, val->length);
     if (str == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
         goto done;
     }
@@ -159,6 +184,7 @@ errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx,
 
     *new_value = talloc_strdup(mem_ctx, "ALL");
     if (*new_value == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
     }
 
@@ -225,6 +251,11 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
     } else {    /* ipa should NOT sent attr with other name */
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unknown attr name: %s\n", ipa_name));
         ret = ENOENT;
+    }
+    
+    if (sysdb_name == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        ret = ENOMEM;
     }
 
     return ret;
@@ -294,6 +325,7 @@ errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
 
     prop = talloc_zero(mem, struct ipa_sudo_export);
     if (prop == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_zero() failed\n"));
         ret = ENOMEM;
         goto fail;
     }
@@ -354,11 +386,13 @@ errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
     /* make a copy of original name and value of the attribute */
     prop->orig_name = talloc_strdup(prop, attr_name);
     if (prop->orig_name == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
         goto fail;
     }
     prop->orig_value = talloc_strdup(prop, attr_val);
     if (prop->orig_value == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
         goto fail;
     }
@@ -426,7 +460,6 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
         }
 
         talloc_zfree(prop);
-        printf("prop free ok\n");
         talloc_zfree(new_value);
     }
 
@@ -455,10 +488,18 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
     int i, j;
 
     /* an array of exported sudoers (without commands) */
-    sudoers = talloc_zero_array(mem, struct sysdb_attrs *, rules_count);
     *sudoers_count = 0;
+    sudoers = talloc_zero_array(mem, struct sysdb_attrs *, rules_count);
+    if (sudoers == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        goto fail;
+    }
 
     cmds_index = talloc_zero_array(mem, struct ipa_sudoer_cmds *, rules_count);
+    if (cmds_index == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        goto fail;
+    }
 
     /* for each rule aplicable to this host */
     for (i = 0; i < rules_count; i++) {

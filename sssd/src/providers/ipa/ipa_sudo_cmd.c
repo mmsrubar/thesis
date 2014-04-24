@@ -1,3 +1,28 @@
+/*
+    SSSD
+
+    Helper routines for exporting IPA SUDO commands.
+
+    Authors:
+        Michal Šrubař <mmsrubar@gmail.com>
+
+    Copyright (C) 2014 Michal Srubar
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #include "providers/ipa/ipa_common.h"
 #include "providers/ipa/ipa_sudo_export.h"
 #include "providers/ipa/ipa_sudo_cmd.h"
@@ -38,7 +63,6 @@ static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem,
 
             cmds_filter = talloc_asprintf_append_buffer(
                     cmds_filter, "(ipaUniqueID=%s)", ipa_unique_id);
-
             if (cmds_filter == NULL) {
                 DEBUG(SSSDBG_MINOR_FAILURE, 
                       ("Couldn't add value of the ipaUniqueID to the commnads filter\n"));
@@ -104,6 +128,7 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
 
     filter = talloc_asprintf(tmp, IPA_SUDO_CMD_FILTER, "ipasudocmd");
     if (filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprint() failed\n"));
         ret = ENOMEM;
         goto fail;
     }
@@ -134,6 +159,7 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
     /* join object class with ipa sudo cmds to get final filter */
     filter = talloc_asprintf_append_buffer(filter, "%s))", cmds_filter);
     if (filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf_append_buffer() failed\n"));
         ret = ENOMEM;
         goto fail;
     }
@@ -168,6 +194,7 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
     const char **values = NULL;
     const char **val;
     const char *sudo_cmd = NULL;
+    const char *tmp = NULL;
 
     static int i;
 
@@ -181,10 +208,11 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
             
             if (strcasecmp(*val, attr_value) == 0) {
                 /* searched ipa command found, returning value of sudoCmd */
-                sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &sudo_cmd);
+                sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &tmp);
 
                 i++;    /* don't start in the same entry next time */
-                return talloc_strdup(mem, sudo_cmd);
+                sudo_cmd = talloc_strdup(mem, tmp);     // FIXME: check return val
+                return sudo_cmd;
             }
         }
 
@@ -233,6 +261,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
             cmd_group = true;
         }
         if (attr_name == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
             ret = ENOMEM;
             goto fail;
         }
@@ -245,6 +274,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
                 p_sudo_cmd = talloc_asprintf_append(p_sudo_cmd, "%c%s", 
                                                 DENIED_CMD_PREFIX, sudo_cmd);
                 if (p_sudo_cmd == NULL) {
+                    DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
                     ret = ENOMEM;
                     goto fail;
                 }
@@ -281,6 +311,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
         /* make a space for one more command */
         cmds->allowed = talloc_realloc(mem, cmds->allowed, const char *, 1);
         if (cmds->allowed == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             ret = ENOMEM;
             goto fail;
         }
@@ -288,6 +319,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
         /* add new cmd or DN of a group of commands */
         cmds->allowed[cmds->allowed_num] = talloc_strdup(mem, command);
         if (cmds->allowed[cmds->allowed_num] == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
             ret = ENOMEM;
             goto fail;
         }
@@ -299,6 +331,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
         /* make a space for one more command */
         cmds->denied = talloc_realloc(mem, cmds->denied, const char *, 1);
         if (cmds->denied == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             ret = ENOMEM;
             goto fail;
         }
@@ -306,6 +339,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
         /* add new cmd or DN to group of commands */
         cmds->denied[cmds->denied_num] = talloc_strdup(mem, command);
         if (cmds->denied[cmds->denied_num] == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
             ret = ENOMEM;
             goto fail;
         }
@@ -313,7 +347,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
         cmds->denied_num++;
     }
     else {
-        printf("unknown command attribute!\n");
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unknown IPA SUDO command attribute\n"));
         ret = ENOENT;
         goto fail;
     }
