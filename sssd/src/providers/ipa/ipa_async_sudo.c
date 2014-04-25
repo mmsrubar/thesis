@@ -83,10 +83,12 @@ ipa_sudo_export_rules_send(
     // predaval pres parametry?
     //
     // FIXME: pokud to naalokuju pod state od ldap providera, tak mne to spadne
-    // pri zavolani tevent_req_done(req); v ipa_sudo_get_cmds_done(), to musim
-    // jeste osetrit
-    req = tevent_req_create(tmp, &state, struct ipa_sudo_export_rules_state);
+    // (SIGABRT) pri zavolani tevent_req_done(req); v ipa_sudo_get_cmds_done(), 
+    // to musim jeste osetrit Error in `/usr/libexec/sssd/sssd_be': double free
+    // or corruption (out): 0x094a3cd0 
+    //
     //req = tevent_req_create(mem, &state, struct ipa_sudo_export_rules_state);
+    req = tevent_req_create(tmp, &state, struct ipa_sudo_export_rules_state);
     if (!req) {
         return NULL;
     }
