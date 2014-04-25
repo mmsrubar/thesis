@@ -86,6 +86,9 @@ ipa_sudo_export_rules_send(
     // (SIGABRT) pri zavolani tevent_req_done(req); v ipa_sudo_get_cmds_done(), 
     // to musim jeste osetrit Error in `/usr/libexec/sssd/sssd_be': double free
     // or corruption (out): 0x094a3cd0 
+    // 
+    // Tak to padne hned jak ten req vytahnu jako call back data v 
+    // ipa_sudo_get_cmds_connect_done
     //
     //req = tevent_req_create(mem, &state, struct ipa_sudo_export_rules_state);
     req = tevent_req_create(tmp, &state, struct ipa_sudo_export_rules_state);
@@ -172,6 +175,7 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
         return EOK;
     }
 
+
     if (state->sdap_op == NULL) {
         state->sdap_op = sdap_id_op_create(state, 
                 state->sudo_state->refresh_state->sdap_conn_cache);
@@ -194,6 +198,7 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
     }
 
     tevent_req_set_callback(subreq, ipa_sudo_get_cmds_connect_done, req);
+        tevent_req_done(req);
 
     return ret;
 }
@@ -205,12 +210,17 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
     int dp_error;
     int ret;
 
+    /* ipa_sudo_export_rules_send */
     req = tevent_req_callback_data(subreq, struct tevent_req);
+
+    // FIXME: here is a first place where it crashes
+    tevent_req_done(req);
+
     state = tevent_req_data(req, struct ipa_sudo_export_rules_state);
  
     ret = sdap_id_op_connect_recv(subreq, &dp_error);
     talloc_zfree(subreq);
-
+                
     if (dp_error == DP_ERR_OFFLINE) {
         talloc_zfree(state->sdap_op);
         state->dp_error = DP_ERR_OFFLINE;
