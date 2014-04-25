@@ -1420,7 +1420,7 @@ ipa_sudo_export_tests_LDADD = \
     $(KRB5_LIBS) \
     libsss_test_common.la \
 		libsss_ldap_common.la \
-    libsss_krb5_common.la \
+    libsss_krb5_common.la
 
 fqnames_tests_SOURCES = \
     src/tests/cmocka/test_fqnames.c
@@ -1683,10 +1683,7 @@ libsss_ldap_common_la_SOURCES += \
     src/providers/ldap/sdap_async_sudo.c \
     src/providers/ldap/sdap_async_sudo_timer.c \
     src/providers/ldap/sdap_async_sudo_hostinfo.c \
-    src/providers/ldap/sdap_sudo.c \
-    src/providers/ipa/ipa_sudo_cmd.c \
-    src/providers/ipa/ipa_sudo_export.c \
-    src/providers/ipa/ipa_async_sudo.c
+    src/providers/ldap/sdap_sudo.c
 endif
 
 if BUILD_AUTOFS
@@ -1844,7 +1841,10 @@ endif
 
 if BUILD_SUDO
 libsss_ipa_la_SOURCES += \
-    src/providers/ipa/ipa_sudo.c
+    src/providers/ipa/ipa_sudo.c \
+    src/providers/ipa/ipa_async_sudo.c \
+    src/providers/ipa/ipa_sudo_export.c \
+    src/providers/ipa/ipa_sudo_cmd.c
 endif
 
 if BUILD_SSH

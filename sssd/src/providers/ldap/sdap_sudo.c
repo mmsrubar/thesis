@@ -53,16 +53,7 @@ struct sdap_sudo_full_refresh_state {
 };
 
 
-static struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
-                                                      struct sdap_sudo_ctx *sudo_ctx);
 
-struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
-                                               struct sdap_sudo_ctx *sudo_ctx,
-                                               struct be_ctx *be_ctx,
-                                               struct sdap_options *opts,
-                                               struct sdap_id_conn_cache *conn_cache,
-                                               char **rules);
- 
 /* =========================================================================*/
 
 
@@ -90,10 +81,6 @@ static struct tevent_req *sdap_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                                        char **rules);
 
 static void sdap_sudo_rules_refresh_done(struct tevent_req *subreq);
-
-static int sdap_sudo_rules_refresh_recv(struct tevent_req *req,
-                                        int *dp_error,
-                                        int *error);
 
 struct sdap_sudo_smart_refresh_state {
     struct tevent_req *subreq;
@@ -864,7 +851,7 @@ done:
     tevent_req_done(req);
 }
 
-static int sdap_sudo_rules_refresh_recv(struct tevent_req *req,
+int sdap_sudo_rules_refresh_recv(struct tevent_req *req,
                                         int *dp_error,
                                         int *error)
 {
@@ -1477,7 +1464,7 @@ done:
 
 
 /* issue full refresh of sudo rules */
-static struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
+struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
                                                       struct sdap_sudo_ctx *sudo_ctx)
 {
     struct tevent_req *req = NULL;

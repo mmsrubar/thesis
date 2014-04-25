@@ -52,6 +52,23 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
                    struct bet_ops **ops,
                    void **pvt_data);
 
+/* IPA SUDO PROVIDER stuff, will be moved into ipa_sudo_refreshes.h, but there
+ * are cross refrences now
+ * -----------------------------------------------------------------------------
+ */
+struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
+                                              struct sdap_sudo_ctx *sudo_ctx);
+struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
+                                               struct sdap_sudo_ctx *sudo_ctx,
+                                               struct be_ctx *be_ctx,
+                                               struct sdap_options *opts,
+                                               struct sdap_id_conn_cache *conn_cache,
+                                               char **rules);
+int sdap_sudo_rules_refresh_recv(struct tevent_req *req,
+                                int *dp_error,
+                                int *error);
+/* --------------------------------------------------------------------------- */
+ 
 /* sdap async interface */
 struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct be_ctx *be_ctx,
