@@ -57,13 +57,16 @@ struct ipa_sudo_export_rules_state {
     struct sysdb_attrs **tmp;
 };
 
+//ipa_sudo_export_rules_send(TALLOC_CTX *mem,
 struct tevent_req *
-ipa_sudo_export_rules_send(TALLOC_CTX *mem,
+ipa_sudo_export_rules_send(
                            struct sysdb_attrs **ipa_rules,
                            int ipa_rules_count,
                            struct sdap_sudo_load_sudoers_state *sudo_state,
                            struct tevent_req *req_sdap)
 {
+    TALLOC_CTX *tmp = talloc_init(NULL);
+
     struct ipa_sudo_export_rules_state *state;
     struct tevent_req *req;
     errno_t ret = EOK;
@@ -78,7 +81,12 @@ ipa_sudo_export_rules_send(TALLOC_CTX *mem,
     // souboru, abych je mohl pouzit (providers/ldap/sdap_async_sudo.h), je to 
     // ok nebo to musim prepsat tak, abych vse co z tech struktur pouzivam
     // predaval pres parametry?
-    req = tevent_req_create(mem, &state, struct ipa_sudo_export_rules_state);
+    //
+    // FIXME: pokud to naalokuju pod state od ldap providera, tak mne to spadne
+    // pri zavolani tevent_req_done(req); v ipa_sudo_get_cmds_done(), to musim
+    // jeste osetrit
+    req = tevent_req_create(tmp, &state, struct ipa_sudo_export_rules_state);
+    //req = tevent_req_create(mem, &state, struct ipa_sudo_export_rules_state);
     if (!req) {
         return NULL;
     }
@@ -266,7 +274,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     ret = sdap_get_generic_recv(subreq, state, &count, &attrs);
     talloc_zfree(subreq);
     if (ret) {
-        return;
+        goto fail;
     }
 
     /* if we don't have any rules but downloaded some commands then something
@@ -278,11 +286,14 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     }
 
     //print_rules(attrs, count);
-    ipa_sudo_export_cmds(state, 
-                         state->rules->sudoers, 
-                         state->rules->sudoers_count,
-                         state->rules->cmds_index, 
-                         attrs, count);
+    ret = ipa_sudo_export_cmds(state, 
+                               state->rules->sudoers, 
+                               state->rules->sudoers_count,
+                               state->rules->cmds_index, 
+                               attrs, count);
+    if (ret != EOK) {
+        goto fail;
+    }
 
     DEBUG(SSSDBG_TRACE_FUNC, ("All IPA SUDO rules successfully exported into "
                               "native LDAP SUDO scheme. Giving control back to "
@@ -290,8 +301,12 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     //print_rules(state->rules->sudoers, state->rules->sudoers_count);
 
 fail:
-    /* ipa_sudo_export_rules_send */
-    tevent_req_done(req);
+    if (ret == EOK) {
+        /* ipa_sudo_export_rules_send */
+        tevent_req_done(req);
+    } else {
+        tevent_req_error(req, ret);
+    }
 }
 
 int ipa_sudo_export_rules_recv(struct tevent_req *req,

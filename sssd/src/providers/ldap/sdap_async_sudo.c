@@ -424,7 +424,8 @@ static void sdap_sudo_process_ipa_rules(struct tevent_req *subreq)
         return;
     }
 
-    subsubreq = ipa_sudo_export_rules_send(state, attrs, count, state, req);
+    subsubreq = ipa_sudo_export_rules_send(attrs, count, state, req);
+    //subsubreq = ipa_sudo_export_rules_send(state, attrs, count, state, req);
     if (subsubreq == NULL) {
         return ENOMEM;  //FIXME:
     }
