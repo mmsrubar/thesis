@@ -1,0 +1,8 @@
+page 33
+- what ldap acctualy is - defines models and protocol...
+
+page 58
+- LDAP protocol vs. LDAP directory vs. LDAP directory service
+	- LDAP je pouze protokol, a tak by meli software, kdery impementje adresar
+		rikat LDAP-enabled directory service
+	- pouzivame oznaceni "LDAP directory service", protoze
