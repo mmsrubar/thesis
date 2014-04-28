@@ -5,15 +5,25 @@
 % 1. Úvod
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Úvod}
+
+{\color{red}{TODO: pøi svazování je potøeba je¹tì pøidat originál zadání!}}
+
 \section{odstavec - co od ètenáøe oèekávám}
 \begin{itemize}
 	\item základní znalost adresáøù a protokolu LDAP
 \end{itemize}
 
-\section{poslední odstavec - èím se tato práce nezabývá}
+\section{odstavec - èím se tato práce nezabývá}
 \begin{itemize}
 	\item není to tutorial ani dokumentace k sssd, ipa nebo sudo
 \end{itemize}
+
+\section{odstavec - pou¾itá symbolika}
+\begin{itemize}
+	\item názvy souborù, klíèových slov jazyka C, jmen identifikátorù je pou¾it
+		texttt
+\end{itemize}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,6 +186,17 @@ tøetích stran --->koukni na sudo a pluginy....
 	\end{itemize}
 \end{itemize}
 
+\subsubsection{Schéma, které pou¾ívá IPA pro sudo pravidla}
+\label{ipa_sudo_scheme}
+	\begin{itemize}
+		\item *category atributy mají EQUALITY nastaven na caseIgnoreMatch, tak¾e je
+			pøi hledaní mo¾né pou¾ít jak all tak ALL, problem je, ¾e hodnoty tam jsou
+			ulo¾eny malým -> v¾dy all, sudo to ale nese¾ere, tak¾e to musím
+			vyexportovat jako ALL!
+		\item LDAP SUDO schéma má u EQUALITY caseExactIA5Match
+	\end{itemize}
+
+
 \subsubsection{výhody kdy¾ mám sudoers na IPA}
 \begin{itemize}
 	\item webgui pro správu pravidel (sudo+ldap => manuální správa pravidel pøes konfiguraèní soubory)
@@ -188,9 +209,27 @@ tøetích stran --->koukni na sudo a pluginy....
 	\item ty dvì futury z dokumentace (hostgroups)
 \end{itemize}
 
+Identity Management uses its centralized LDAP database to contain the sudo
+configuration, which makes it globally available to all domain hosts. Identity
+Management also has a specialized LDAP schema for sudo entries that allows a lot
+more flexible and simpler configuration. This schema adds two key features: 
+
+\begin{itemize}
+	\item The Identity Management schema supports host groups in addition to
+		netgroups for sudo, while sudo only supports netgroups.  For every host
+		group, Identity Management also creates a corresponding shadow netgroup. T
+		his allows IdM administrators to create sudo rules that reference host
+		groups, while the local sudo command uses the corresponding netgroup.  
+	\item Identity Management introduces the concept of a sudo command group. T he
+		group contains multiple commands, and the command group can be referenced in
+		the sudo configuration.  Because sudo does not support host groups and
+		command groups, Identity Management translates the IdM sudo configuration
+		into native sudo configuration when the sudo rules are created.\cite{Identity_Management_Guide}
+\end{itemize}
+
 \subsubsection{USN plugin}
 Tento plugin poskytuje zpùsob, který umo¾òuje informovat IPA klienty o
-modifikaci jakéhokoliv záznamu
+\textbf{modifikaci} jakéhokoliv záznamu
 \cite[s.~130, Sekce: Tracking Modifications to Directory Entries]{Redhat_Directory_Server_Administration_Guide}.  Ka¾dý záznam na IPA
 serveru má operaèní atribut entryUSN\footnote{Entry Update Sequence Number}.
 Hodnotu tohoto atributu aktualizuje USN plugin pøi ka¾dé zmìnì daného záznamu.
@@ -201,6 +240,9 @@ Refreshes} sudo pravidel. Implementaèní detaily je mo¾né nalézt v sekci
 %-------------------------------------------------------------------------------
 \section{SSSD z u¾ivatelského hlediska}
 \begin{itemize}
+	\item udìlej takový lehký uvod jako tady,
+		$http://docs.fedoraproject.org/en-US/Fedora/16/pdf/System_Administrators_Guide/Fedora-16-System_Administrators_Guide-en-US.pdf$
+	\item koukni do README sssd je tam dobry kratky popis co to je ...
 	\item v¹e o SSSD z u¾ivatelského hlediska, implementaèní detaily v kapitole
 		\ref{ch:sssd}
 	\item obrázek (user -> sudo -> SSSD -> IPA)
@@ -211,7 +253,7 @@ Refreshes} sudo pravidel. Implementaèní detaily je mo¾né nalézt v sekci
 	\item nevýhody, které má øe¹ení stahování pravidel pøes sudo ldap plugin
 	\begin{itemize}
 		\item sí»
-		\item cachování
+		\item cachování (pou¾ívá se LDB\footnote{http://ldb.samba.org/})
 	\end{itemize}
 \end{itemize}
 
@@ -229,7 +271,7 @@ pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD n
 pøi detekci zmìny pravidel na serveru.
 
 \subsubsection{Aktualizace pravidel}
-Je provedena pøi ka¾dém spu¹tiní sudo. Zajistí aby u¾ivatel nedostal vìt¹í
+Je provedena pøi ka¾dém spu¹tìní sudo. Zajistí aby u¾ivatel nedostal vìt¹í
 oprávnìní ne¾ je definováno. Tento typ aktualizace stáhne ze serveru pouze
 pravidla, která expirovala\footnote{Èas po kterém pravidla v cache pamìti exspirují je mo¾no
 nastavit v \texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout}, viz.
@@ -282,6 +324,7 @@ Implementaèní detaily jsou popsány v sekcích
 \section{Talloc}
 literatura: \cite{talloc}
 \begin{itemize}
+	\item asi budu muset zmínit kontexty ...
 	\item	základní concept hierarchického alokátoru
 	\item	nahrazuje malloc
 \end{itemize}
@@ -295,13 +338,80 @@ literatura: \cite{tevent}
 	\item	zmínit ¾e obaluje DBus a OpenLDAP (SDAP)
 \end{itemize}
 
-\section {Dereference u LDAPv3}
-
 \section {Architektura SSSD}
-\begin{itemize}
-	\item	z jakých komponent se SSSD skládá (monitor, backends, responders, provideres)
-	\item	schéma architektury
-\end{itemize}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=120mm]{fig/sssd/sssd_architecture.jpg}
+\caption{Architektura SSSD}
+\label{sssd_architecture}
+\end{figure}
+
+SSSD se skládá z nìkolika komponent, jejich¾ souhrnnou èinnost ukazuje schéma
+\ref{sssd_architecture} a jejich bli¾¹í popis je nachází v následujícím textu.
+
+\subsection{Monitor}
+Je to hlavní proces, který je otcem v¹ech ostatních procesù. Stará se o to, aby
+ostatní procesy zùstaly aktivní. Detekuje sí»ové zmìny a informuje o nich
+ostatní procesy.
+
+\subsection{Responders}
+Jsou to procesy, které pøijímají po¾adavky od klientských
+aplikací\footnote{napø.  sudo, id, getent, ls, \dots} a vracejí odpovìdi na tyto
+po¾adavky. Komunikují pouze s cache pamìtí nebo poskytovali dat, ale nikdy
+nekomunikují se vzdáleným serverem. V následujícím textu bude pro ka¾dý
+takvovýto proces pou¾íván výraz \textbf{responder}.
+
+\subsection{Backend}
+V angliètinì také "Data Provider" nebo "Backend". Tento proces reprezentuje
+jednu doménu. Jestli-¾e je klient pøipojen k více doménám zároveò, pak je tento
+proces vytvoøen pro ka¾dou doménu zvlá¹».  Jeho úlohou je mimo jiné zpracovávání
+po¾adavku od responderù, komunikace se vzdálenými servery a aktualizace sysdb.
+
+Ke komunikaci se vzdálenými servery pou¾ívá pluginy providerù\footnote{Providers
+Plugins}. Které pluginy pro dané providery má SSSD pou¾ít je mo¾no specifikovat
+v konfiguraèním souboru \texttt{sssd.conf}. Mezi providery patøí napø.
+\texttt{id\_provider} specifikující, který plugin se má pou¾ít pro pøístup k
+identitám, nebo  \texttt{sudo\_provider}  specifikující, který
+plugin\footnote{oznaèované také jako "Backend Modules} se má pou¾ít pro pøístup
+k sudo pravidlù. Kde jsou dané identity nebo sudo pravidla ulo¾eny musí být poté
+dále specifikováno. Typy providerù a pluginù, které je mo¾né pro tyto providery
+pou¾ít spoleènì s dal¹ími konfiguraèními volbami je mo¾né nalézt v manuálové
+stránce \texttt{man sssd.conf}.Pøipojení do více domén zároveò, pou¾ítí typù
+providerù a jejich pluginù znároznùje schéma \ref{fig:sssd_multiple_domains} Pro
+oznaèení této komponenty bude dále v textu pou¾íván výraz \textbf{backend}.
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=120mm]{fig/sssd/sssd_multiple_domains.png}
+\caption{Pøipojení k více doménám zároveò}
+\label{fig:sssd_multiple_domains}
+\end{figure}
+
+\label{sssd:bet_info}
+Ka¾dý backend má ve svém kontextu\footnote{\texttt{struct be\_ctx}} ukazatel na
+pole \texttt{bet\_info}, které obsahuje informace o providerech, které daný
+backend pou¾ívá. Ka¾dá polo¾ka tohoto pole je tvoøena strukturou
+\texttt{bet\_info}. Ta obsahuje napø. jméno pluginu, který se má pro daný
+provider pou¾ít, ukazatel na privátní data nebo ukazatel na strukturu
+\texttt{bet\_ops}, kde se nachází ukazatel na funkci, kterou volají respondeøi,
+pokud chtìjí danému pluginu zaslat po¾adavek. Jméno této funkce má v SSSD obecnì
+pøíponu \textbf{handler}\footnote{napøíklad \texttt{sdap\_sudo\_handler} je
+SUDO handler pro LDAP SUDO Plugin} a takto bude oznaèována v následujícím textu.
+Polo¾ku pole \texttt{bet\_info} pro LDAP SUDO providera zobrazuje obrázek
+\ref{fig:bet_info_sudo}.
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=150mm]{fig/sssd/bet_info_sudo.png}
+\caption{Polo¾ka pole \texttt{bet\_info} pro SUDO}
+\label{fig:bet_info_sudo}
+\end{figure}
+
+
+\subsection{Sysdb}\label{sysdb}
+Ka¾dý backend pou¾ívá svou cache pamìt, která je tvoøena LDB databází. Do této
+pamìti zapisuje pouze daný backend a data z ní ètou respondeøi. V následujícím
+textu bude pro tuto pamìt obecnì pou¾íván název \textbf{sysdb}.
 
 \section {Tok dat}
 \begin{itemize}
@@ -417,28 +527,31 @@ inicializaci ipa provideru....
 
 %-------------------------------------------------------------------------------
 \section {LDAP SUDO Provider}
-\begin{itemize}
-	\item	vypustit ty IPA èervené vìci
-	\item jednotlivé moduly neoznaèovat
-	\item vyznaèit LDAP SUDO Provider a pøidat ldap server
-\end{itemize}
+Tento plugin provádí ve¹kerou práci pøi komunikaci s IPA serverem na kterém jsou
+ulo¾ena sudo pravidla. Sta¾ení, zpracování a ulo¾ení tìchto pravidel do sysdb.
+Plugin se skládá z nìkolika modulù jejich¾ celkovou funkcionalitu
+popisuje schéma \ref{ldap_provider_high_level}.
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=120mm]{fig/scan/ldap_provider_basic_concept.jpg}
+\includegraphics[width=220mm,angle=270]{fig/scan/ldap_provider_basic_concept.jpg}
 \caption{High level overview of LDAP SUDO Provider}
-\label{crate_map}
+\label{ldap_provider_high_level}
 \end{figure}
 
-\begin{itemize}
-	\item	Nejprve popsat LDAP provider (a nezmiòovat ipa sudo providera) a a¾ v
-		sekci o ipa sudo providerovi øíct, ¾e v podstatnì není a souèasná
-		implementace je jen wrapper pro LDAP SUDO Proivder pou¾ívající compat plugin, ou=SUDOers kontejnér)
-	\item	popsat nejprve high level schéma a pak se jednotlivými bloky (inicializace, full refresh, refresh, zabývat podrobnìji
-	\item	nastavení search base a search bases array
-\end{itemize}
-
 \subsection {Inicializace}\label{ldap_sudo_provider_initialization}
+Inicializaci zaji¹tuje modul \texttt{providers/ldap/sdap\_sudo.c} a probíhají
+pøi ní následující ulohy:
+\begin{itemize}
+	\item alokace \texttt{sudo\_ctx}, který je zároveò privátnimi daty LDAP SUDO
+			Providera
+	\item nastavení handleru pro SUDO respodera
+	\item vytvoøení mapy z výchozí \texttt{native\_sudorule\_map} mapy
+	\item získání v¹ech jmen a IP adres daného poèítaèe
+\end{itemize}
+	
+Pøi inicializaci se také inicializuje struktura bet\_ops, kde se nachází SUDO
+handler. 
 Inicializace zaèíná ve funkci \texttt{sdap\_sudo\_init}, které je pøedán
 \texttt{id\_ctx}. Zde je mo¾né nalézt napø.
 \texttt{sudo\_search\_base}\footnote{\texttt{id\_ctx->basic[SDAP\_SUDO\_SEARCH\_BASE]}},
@@ -482,7 +595,8 @@ Context of Identity Provider}. Vytvoøení a pou¾ití map je blí¾e popsáno v sekci 
 	\item	jak se dají èasy ovlivnit v sssd.conf
 \end{itemize}
 
-\subsection{Aktualizace pravidel}
+\subsection{Aktualizace sudo pravidel}
+Pøi ka¾dém zavolání sudo se SSSD SUDO responder nejprve podíva do cache pamìti. 
 
 \begin{itemize}
 	\item	V¹echny tøi typy aktualizací vyu¾ívají modul
@@ -490,6 +604,12 @@ Context of Identity Provider}. Vytvoøení a pou¾ití map je blí¾e popsáno v sekci 
 		\ref{async_engine_of_ldap_provider}
 	\item v¾dycky se akorát pøedpøipraví paramaetry jako je jsou LDAP filter,
 		sysdb filter
+	\item pøi ka¾dém zavolání sudo se provede RULES refresh, pokud jsou v sysdb
+		nìjaká expirovaná pravidla.
+	\item pokud mám v cache pravidlo cn=test1 (povolující spustit cat /etc/shadow)
+		a cn=test2 (povolující spustit /sbin/blkid). cn=test1 je v dobì spu¹tìní
+		sudo expirováno. Pokud spustím sudo /sbin/blkid, tak se mnì provede RULES
+		refresh pravidla cn=test1!!!
 \end{itemize}
 
 \subsection{Full refresh (pro ka¾dý typ vlastní sub
@@ -500,54 +620,113 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 	\item	jaké LDAP filtry pou¾ívají
 	\item	zmínit ¾e v¹echny vyu¾ívají to asynchronní provádìní od
 		sdap\_sudo\_refresh (v providers/ldap/sdap\_async\_sudo.c)
+	\item filter, který LDAP SUDO Provider pou¾ívá pro FULL refresh:
+		\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/full_refresh_filter}
 \end{itemize}
-\subsection {Smart refresh}\label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
-\subsection {Rules refresh}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
 
-\subsection {Asychnronní sta¾ení a ulo¾ení pravidel}
+
+
+
+\subsection {Prùbì¾ná aktualizace}\label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
+\begin{itemize}
+	\item	smyslem tohoto typu aktualizace je prùbì¾nì stahovat z IPA pravidla,
+		která tam pøibyla od poslední aktualizace
+	\item	pou¾ívá se k tomu EntryUSN attr, který zachytí i novì enabled pravidla
+	\item nezachytí to smazání pravidla, pouze modifikaci stávajícího nebo pøidání
+		nového
+	\item pou¾ívá se tento filtr
+\end{itemize}
+\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/smart_refresh_filter}
+
+
+\subsection {Rules refresh}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
+		\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/rules_refresh_filter}
+
+\subsection {Asychnronní sta¾ení pravidel}
 \label{async_engine_of_ldap_provider}
 \begin{itemize}
 	\item	hlavní motor LDAP SUDO Provideru, který vyu¾ívají v¹echny typy refresh
 	\item	detailní popis se schématy
 \end{itemize}
 
+\subsection {Ulo¾ení sudo pravidel do sysdb}
+Pøed samotným ulo¾ením pravidel jsou z cache pamìti nejprve vyhledány a následnì
+odstranìny v¹echny záznamy, které spadají pod tøídu \texttt{sudoRule}.  Pøi
+ukládání pravidel se ka¾dému pravidlu pøidá atribut
+\mbox{\textbf{dataExpireTimestamp}}\footnote{aktuální èas (v dobì ukládání) +
+hodnota volby \texttt{entry\_cache\_sudo\_timeout}, viz. man
+\texttt{sssd.conf}}. Jeho hodnota reprezentuje èas, kdy daný záznam expiruje,
+tj.  stane se neplatným. Zároveò je získána nejvy¹¹í hodnota USN, která ov¹em
+není ulo¾ena v cache pamìti spoleènì s pravidly, ale v kontextu
+\texttt{id\_ctx->srv\_opts} v promìnné \texttt{max\_sudo\_value}\footnote{?ta se
+potom vyu¾ívá u SMART refresh?}.
+
 \subsection {LDAP SUDO Handler}
-\begin{itemize}
-	\item	co to je
-	\item	jak pøes nìj SUDO RESPONDER komunikuje s IPA
-	\item	co po nìm mù¾e sudo responder v¹echno chtít
-\end{itemize}
-%-------------------------------------------------------------------------------
-\section {IPA SUDO Provider}\label{ch:sssd:sec:ipa_provider}
+Jestli¾e SUDO responder nenajde daná pravidla v sysdb, pak za¹le
+SBUS\footnote{DBUS wrapper integrující knihovnu tevent} po¾adavek pøes SUDO
+handler danému providerovi.  Jestli¾e SUDO pou¾ívá LDAP jako provider plugin
+\footnote{\texttt{sudo\_provider=ldap}}, pak se zavolá handler
+\texttt{sdap\_sudo\_handler}. Handler se nachází v kontextu backendu, viz. sekce
+\ref{sssd:bet_info}. Samotnou definici handleru je mo¾né najít v modulu
+\texttt{sdap\_sudo.c}.
+
+LDAP SUDO provideru je pøes handler pøedán typ aktualizace, který po nìm SUDO
+respoder ¾ádá a pole pravidel\footnote{pole jmen pravidel, tj. pole hodnot
+\texttt{cn} atributù}. SUDO responder mù¾e po¾ádat o kompletní aktualizaci
+pravidel nebo o aktualizaci pravidel, která ji¾ v sysdb nejsou nadále platná.
+
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=90mm]{fig/sssd/ipa_sudo_provider_wrapper.jpg}
-\caption{A simple caption}
-\label{overflow}
+\includegraphics[width=150mm]{fig/sssd/ldap_sudo_provider/ldap_sudo_handler.png}
+\caption{LDAP SUDO Handler}
+\label{ldap_sudo_handler}
 \end{figure}
 
 \begin{itemize}
-	\item popsat, ¾e souèasná implementace je jen wrapper LDAP SUDO Providera bez
-		¾ádné funkcionality navíc
-	\item	kdy¾ stahuju pravidla normálnì z LDAP adresáøe tak se pou¾ije tento
-		provider, ale kdy¾ je chci stahovat z IPA, tak se na IPA serveru musí ty
-		pravidla pøekládáat pøes kompat plugin do SUDOers kontejnéru a to pøiná¹í
-		re¾ii, proto¾e musíme pøekládávat v¹echny pravidla
-	\item	SSSD neumí zpracovat pravidla IPA formátu
-	\item	momentálnì ¾ádný nativní IPA SUDO Provider neexistuje a IPA SUDO
-		Provider vyu¾ívá LDAP SUDO Provider
+	{\color{blue}{
+	\item	doplnit do obrázku sdap\_sudo\_handler, a mo¾ná tu funkci u sudo respondera?
+	}}
+\end{itemize}
+%-------------------------------------------------------------------------------
+\section {IPA SUDO Provider}\label{ch:sssd:sec:ipa_provider}
+Pro SUDO provider je mo¾né pou¾ít také ipa plugin\footnote{\texttt{sudo\_provider=ipa}},
+jestli¾e jsou sudo pravidla ulo¾ena na IPA serveru.  Problém ov¹em je, ¾e SSSD
+nedisponuje ¾ádným nativním IPA SUDO pluginem a souèasná implementace je pouze
+wrapper okolo LDAP SUDO pluginu. 
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{fig/sssd/ipa_sudo_provider_wrapper.png}
+\caption{Souèasná implementace IPA SUDO pluginu}
+\label{ipa_sudo_provider_wrapper}
+\end{figure}
+\begin{itemize}
+	{\color{blue}{
+	\item	tu ¹ipku od IPA protáhnout a¾ na LDAP SUDO Providera
+	\item ten ipa wrapper èárkovanì
+	}}
 \end{itemize}
 
-\subsection{Compat plugin}
+LDAP SUDO plugin ov¹em neumí zpracovat SUDO
+pravidla ve formátu, ve kterém jsou na IPA serveru ulo¾eny. Proto na IPA serveru
+bì¾í \textbf{compat plugin}, který provádí pøeklad sudo pravidel z IPA SUDO
+schématu\footnote{Popis toho schématu se nachází v sekci \ref{ipa_sudo_scheme}}
+do nativního LDAP SUDO schématu. Pøelo¾ená pravidla je poté mo¾né najít
+na IPA serveru v konteineru \texttt{ou=SUDOers,\$DC}. 
+
+Souèasná implementace SSSD tedy nepodporuje schéma, které IPA pro SUDO pou¾ívá.
+Nevýhodou pou¾ití compat pluginu je nadbyteèná re¾ie, jeliko¾ se pøekládají
+v¹echna pravidla. Tato re¾ie by mohla být odstranìna, jestli¾e by SSSD mìlo
+plugin, který by dané IPA schéma pro sudo podporoval.
+
 \begin{itemize}
-	\item co to je a jak to na IPA pracuje (compat plugin ty pravidla pøekládá pøi
-		ka¾dé zmìnì)
-	\item a¾ tady odkrýt jak to funguje se SUDOers kontejnerem na IPA jinak poøád
-		mluvit o sudo pravidlech v cn=sudo,\$DC
-	\item schéma
-	\item	pokud se export pravidel pøesune do SSSD, tak se nemusí exportovat
-		v¹echny pravidla, ale pouze ty aplikovatelná na konkrétního hosta
-	\item	neumo¾òuje to vyu¾ít v¹ech vlastností nového IPA SUDO schemata (ipaSudoOpt)
+	{\color{blue}{
+	\item	schéma zobrazující nativní LDAP sudo záznam a IPA SUDO záznam jednoho
+		pravidla, aby si demonotroval jak to vypadá (nìco jako ze semestrálního
+		projektu)
+	\item hned na zaèatku dal¹í kapitoly, podobné schéma, kterým by si ukázal jak
+		by to mìlo ve finále vypadat ...
+	}}
 \end{itemize}
 
 
@@ -567,19 +746,31 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \begin{itemize}
 	\item	stejné schéma jako u high level overview of LDAP SUDO provider a
 		èervenì v nìm zaznaèit nový koncept a lehce popsat
+	\item k návrhu patøí i zmìna manuálových stránek 
+	\item utilita sudo umí zpracovat pouze pravidla, která jsou v LDAP SUDO
+		schématu, proto je nutné provést pøeklad tìchto pravidel na stanì klienta,
+		tedy v daemonu SSSD
+	\item kdy pøeklad pravidel provádìt 1. pøístup-IPA SUDO pravidla ulo¾it do
+		sysdb a pøeklad provést a¾ pøi vy¾ádání pravidla sudo utilitou (sysdb má být
+		rychlá a poskytovat to nejrychlej¹í odezvu responderovi, tak¾e takto ne)
+	\item stáhnout pravidla aplikovatelná na hosta, ty pøelo¾it a v
+		sudo-compatible formátu je ulo¾it do sysdb.
 \end{itemize}
-
 
 \subsection{Inicializace}
 \begin{itemize}
+	\item na zaèátku inicializace musím nejprve získat hostgroupy v kterých jsem
+		...
 	\item	vlastní inicializace nebo vyu¾iju tu od LDAPu?
-	\item vytvarim vlastni mapu
+	\item udìlal jsem novou mapu, kterou rovnì¾ vyu¾ívám k mapování tìch
+		attributù, jejich¾ hodnoty nemusí být exportovány \dots
 \end{itemize}
 
-\subsection {Pánování refreshes}
+\subsection {Plánování refreshes}
 
 \subsection {Full, Smart and Rules refresh (pro ka¾dý typ vlastní sub sekci?)}
 \begin{itemize}
+	\item vysvìtlit proè pro RULES a SMART pou¾ívám cn namísto tøeba ipaUniqueID
 	\item u filteru je tøeba vzít v úváhu délku filteru, která je omezená (viz.
 		konvezrace z IRC)
 	\item nové LDAP search filtry a proè jsem je vybral
@@ -593,6 +784,9 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \subsubsection{Úplná aktualizace}
 \begin{itemize}
 	\item obecnì mno¾ina pøíkazù a skupin pøíkazù je pomìrnì malá, tak¾e myslím, ¾e 3 je akceptovatelné.
+	\item vytvoøený LDAP filter\footnote{je schávlnì takto naformátovaný pro lep¹í
+		èitelnost}
+		\lstinputlisting{DVD/ldap_filters/ipa_sudo_provider/full_refresh_filter}
 \end{itemize}
 
 \subsubsection{Aktualizace pravidel a smart}
@@ -604,36 +798,71 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 \subsection{Export pravidel}
 \begin{itemize}
 	\item z dn mohu odhadnout jmeno, protoze IPA mnì garantuje format
+	\item popsat tabulku, kterou pou¾ívám pro export (zkonzultoval jsem ji i s
+		vývojáøi FreeIPA a SSSD
 \end{itemize}
 
 \subsection {Asychnronní sta¾ení a ulo¾ení pravidel}
 
 \subsection {Nativní mapa sudo pravidel}
+\begin{itemize}
+	\item od ?id\_ctx? jsem pøidal dvì nové mapy, jednak pro IPA SUDO pravidla je
+		jednu pro IPA SUDO COMMANDS
+\end{itemize}
 
 \subsection {LDAP SUDO Handler}
+
+\subsection{Úprava manuálových stránek}
+\begin{itemize}
+	\item	sssd.conf, DOMAIN SECTION, úprava sudo\_provider, teï bude podporovat i
+		ipa (co¾ u¾ se v podstatì dìje, ale není to tam zmínìno)
+	\item sssd-sudo.5.xml, Edit section CONFIGURING SSSD TO FETCH SUDO RULES in
+		sssd-sudo man page. Especialy notes about compat plugin a the fact that
+		search base ou=sudoers,dc=example,dc=cz
+
+		Maybe add section CONFIGURING SSSD TO FETCH SUDO RULES FROM IPA server or at
+		least some note about that.
+\end{itemize}
+
+\subsection{Mo¾né optimalizace}
+ \begin{itemize}
+	\item	filter pro sta¾ení pøíkazù by mohl být vytvoøen pøi prvním cyklu, kdy
+		jsou exportovány attributy bez pøíkazù
+	\item pro export pøíkazù vyu¾ít hash table?
+\end{itemize}
 
 \section{Testování}
 \begin{itemize}
 	\item bench marky jestli je to rychlej¹í ne¾ LDAP SUDO Provider?
 	\item performance testy, od lidí, kteøí pou¾ívají IPA s velkou databází
+	\item reálná sudo pravidla si firmy støe¾í jako oko v hlavì, tak¾e je
+		nedostanu a proto jsem musel vytvoøit pouze umìlá ...
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 5. Závìr
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Zhodnocení}
+\chapter{Závìr}
 \begin{itemize}
 	\item 1. ostavec
 	\begin{itemize}
 		\item	co se mi podaøilo naimplementovat a otestovat
 		\item	co na to komunita sssd
 		\item	vìci nad rámec zadání jako patche nebo dokumentace, která neexistovala
+		\item nauèil jsem se pou¾ívat nové knihovny (talloc, tevent, cmock
+			framework)
+		\item nauèil jsem se nové paradigma programování
 	\end{itemize}
 	\item 2. odstavec
 	\begin{itemize}
 		\item dal¹í vìci na kterých bych se dalo zapracovat
 	\end{itemize}
 \end{itemize}
+{\color{red}
+5. Posledni kapitolu bych nenazval zhodnoceni ale zaver. Mel by tam byt souhrn
+toho, co se udelalo. Vice mene vezmete cile a upravite je tak, ze byly byly
+splneny, sem tam muzete doplnit neco malo konkretnejsiho. Krome toho byste mel
+dodat jakysi vyhled do budoucna, tj. jak by se mohla vase prace dale rozvijet.}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Zkontroloval pøed odevzdáním}
@@ -643,11 +872,14 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 	\item \uv{èeské úvozovky}
 	\item pøetáhnout to pøes nìjaký czech grammar checker ala word...
 	\item korektura pou¾íté literatury - odkazy na obsah DVD
+	\item od zmínìní \textbf{sysdb} v subsekci\ref{sysdb}, zamìò v¹echnu cache
+		pamìt za sysdb
 \end{itemize}
 
 \chapter{Málo textu?}
 \begin{itemize}
 	\item popi¹ jak se vytváøejí defaults v sudoers, v LDAPu a na IPA
+	\item derefrence?
 \end{itemize}
 %
 
@@ -659,99 +891,10 @@ sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Úvod}
-Abychom mohli napsat odborný text jasnì a~srozumitelnì, musíme splnit nìkolik základních pøedpokladù:
-\begin{itemize}
-\item Musíme mít co øíci,
-\item musíme vìdìt, komu to chceme øíci,
-\item musíme si dokonale promyslet obsah,
-\item musíme psát strukturovanì. 
-\end{itemize}
-
-Tyto a dal¹í pokyny jsou dostupné té¾ na ¹kolních internetových stránkách \cite{fitWeb}.
-
-Pøehled základù typografie a tvorby dokumentù s vyu¾itím systému \LaTeX je 
-uveden v~\cite{Rybicka}.
-
-\section{Musíme mít co øíci}
-Dal¹ím dùle¾itým pøedpokladem dobrého psaní je {\it psát pro nìkoho}. Pí¹eme-li si poznámky sami pro sebe, pí¹eme je jinak ne¾ výzkumnou zprávu, èlánek, diplomovou práci, knihu nebo dopis. Podle pøedpokládaného ètenáøe se rozhodneme pro zpùsob psaní, rozsah informace a~míru detailù.
-
-\section{Musíme vìdìt, komu to chceme øíci}
-Dal¹ím dùle¾itým pøedpokladem dobrého psaní je psát pro nìkoho. Pí¹eme-li si poznámky sami pro sebe, pí¹eme je jinak ne¾ výzkumnou zprávu, èlánek, diplomovou práci, knihu nebo dopis. Podle pøedpokládaného ètenáøe se rozhodneme pro zpùsob psaní, rozsah informace a~míru detailù.
-
-\section{Musíme si dokonale promyslet obsah}
-Musíme si dokonale promyslet a~sestavit obsah sdìlení a~vytvoøit poøadí, v~jakém chceme ètenáøi své my¹lenky prezentovat. 
-Jakmile víme, co chceme øíci a~komu, musíme si rozvrhnout látku. Ideální je takové rozvr¾ení, které tvoøí logicky pøesný a~psychologicky stravitelný celek, ve kterém je pro v¹echno místo a~jeho¾ jednotlivé èásti do sebe pøesnì zapadají. Jsou jasné v¹echny souvislosti a~je zøejmé, co kam patøí.
-
-Abychom tohoto cíle dosáhli, musíme peèlivì organizovat látku. Rozhodneme, co budou hlavní kapitoly, co podkapitoly a~jaké jsou mezi nimi vztahy. Diagramem takové organizace je graf, který je velmi podobný stromu, ale ne øetìzci. Pøi organizaci látky je stejnì dùle¾itá otázka, co do osnovy zahrnout, jako otázka, co z~ní vypustit. Pøíli¹ mnoho podrobností mù¾e ètenáøe právì tak odradit jako ¾ádné detaily.
-
-Výsledkem této etapy je osnova textu, kterou tvoøí sled hlavních my¹lenek a~mezi nì zaøazené detaily.
-
-\section{Musíme psát strukturovanì} 
-Musíme zaèít psát strukturovanì a~souèasnì pracujeme na co nejsrozumitelnìj¹í formì, vèetnì dobrého slohu a~dokonalého znaèení. 
-Máme-li tedy my¹lenku, pøedstavu o~budoucím ètenáøi, cíl a~osnovu textu, mù¾eme zaèít psát. Pøi psaní prvního konceptu se sna¾íme zaznamenat v¹echny své my¹lenky a~názory vztahující se k~jednotlivým kapitolám a~podkapitolám. Ka¾dou my¹lenku musíme vysvìtlit, popsat a~prokázat. Hlavní my¹lenku má v¾dy vyjadøovat hlavní vìta a~nikoliv vìta vedlej¹í.
-
-I k~procesu psaní textu pøistupujeme strukturovanì. Souèasnì s~tím, jak si ujasòujeme strukturu písemné práce, vytváøíme kostru textu, kterou postupnì doplòujeme. Vyu¾íváme ty prostøedky DTP programu, které podporují strukturovanou stavbu textu (pøeddefinované typy pro nadpisy a~bloky textu). 
-
-
-\chapter{Nìkolik formálních pravidel}
-Na¹ím cílem je vytvoøit jasný a~srozumitelný text. Vyjadøujeme se proto pøesnì, pí¹eme dobrou èe¹tinou (nebo zpravidla angliètinou) a~dobrým slohem podle obecnì pøijatých zvyklostí. Text má upravit ètenáøi cestu k~rychlému pochopení problému, pøedvídat jeho obtí¾e a~pøedcházet jim. Dobrý sloh pøedpokládá bezvadnou gramatiku, správnou interpunkci a~vhodnou volbu slov. Sna¾íme se, aby ná¹ text nepùsobil pøíli¹ jednotvárnì pou¾íváním malého výbìru slov a~tím, ¾e nìkterá zvlá¹» oblíbená slova pou¾íváme pøíli¹ èasto. Pokud pou¾íváme cizích slov, je samozøejmým pøedpokladem, ¾e známe jejich pøesný význam. Ale i~èeských slov musíme pou¾ívat ve správném smyslu. Napø. platí jistá pravidla pøi pou¾ívání slova {\it zøejmì}. Je {\it zøejmé} opravdu zøejmé? A~pøesvìdèili jsme se, zda to, co je {\it zøejmé} opravdu platí? Pozor bychom si mìli dát i~na pøíli¹ èasté pou¾ívání zvratného se. Napøíklad obratu {\it dokázalo se}, ¾e... zásadnì nepou¾íváme. Není ¹patné pou¾ívat autorského {\it my}, tím pøedpokládáme, ¾e nìco øe¹íme, nebo napøíklad zobecòujeme spolu se ètenáøem. V~kvalifikaèních pracích pou¾ijeme autorského {\it já} (napøíklad kdy¾ vymezujeme podíl vlastní práce vùèi pøevzatému textu), ale v~bì¾ném textu se nadmìrné pou¾ívání první osoby jednotného èísla nedoporuèuje.
-
-Za peèlivý výbìr stojí i~symbolika, kterou pou¾íváme ke {\it znaèení}. Máme tím na mysli volbu zkratek a~symbolù pou¾ívaných napøíklad pro vyjádøení typù souèástek, pro oznaèení hlavních èinností programu, pro pojmenování ovládacích kláves na klávesnici, pro pojmenování promìnných v~matematických formulích a~podobnì. Výsti¾né a~dùsledné znaèení mù¾e ètenáøi pøi èetbì textu velmi pomoci. Je vhodné uvést seznam znaèení na zaèátku textu. Nejen ve znaèení, ale i~v~odkazech a~v~celkové tiskové úpravì je dùle¾itá dùslednost.
-
-S tím souvisí i~pojem z~typografie nazývaný {\it vyznaèování}. Zde máme na mysli zpùsob sazby textu pro jeho zvýraznìní. Pro zvolené znaèení by mìl být zvolen i~zpùsob vyznaèování v~textu. Tak napøíklad klávesy mohou být umístìny do obdélníèku, identifikátory ze zdrojového textu mohou být vypisovány {\tt písmem typu psací stroj} a~podobnì.
-
-Uvádíme-li nìkterá fakta, neskrýváme jejich pùvod a~ná¹ vztah k~nim. Kdy¾ nìco tvrdíme, v¾dycky výslovnì uvedeme, co z~toho bylo dokázáno, co teprve bude dokázáno v~na¹em textu a~co pøebíráme z~literatury s~uvedením odkazu na pøíslu¹ný zdroj. V~tomto smìru nenecháváme ètenáøe nikdy na pochybách, zda jde o~my¹lenku na¹i nebo pøevzatou z~literatury.
-
-Nikdy neplýtváme ètenáøovým èasem výkladem triviálních a~nepodstatných informací. Neuvádíme rovnì¾ nìkolikrát toté¾ jen jinými slovy. Pøi pozdìj¹ích úpravách textu se nám mù¾e nìkterá døíve napsaná pasá¾ jevit jako zbyteènì podrobná nebo dokonce zcela zbyteèná. Vypu¹tìní takové pasá¾e nebo alespoò její zestruènìní pøispìje k~lep¹í èitelnosti práce! Tento krok ale vy¾aduje odvahu zahodit èas, který jsme jejímu vytvoøení vìnovali. 
-
-
-\chapter{Nikdy to nebude naprosto dokonalé}
-Kdy¾ jsme u¾ napsali v¹e, o~èem jsme pøemý¹leli, udìláme si den nebo dva dny volna a~pak si pøeèteme sami rukopis znovu. Udìláme je¹tì poslední úpravy a~skonèíme. Jsme si vìdomi toho, ¾e v¾dy zùstane nìco nedokonèeno, v¾dy existuje lep¹í zpùsob, jak nìco vysvìtlit, ale ka¾dá etapa úprav musí být koneèná.
-
-
 \chapter{Typografické a~jazykové zásady}
-Pøi tisku odborného textu typu {\it technická zpráva} (anglicky {\it technical report}), ke kterému patøí napøíklad i~text kvalifikaèních prací, se èasto volí formát A4 a~èasto se tiskne pouze po jedné stranì papíru. V~takovém pøípadì volte levý okraj v¹ech stránek o~nìco vìt¹í ne¾ pravý -- v~tomto místì budou papíry svázány a~technologie vazby si tento po¾adavek vynucuje. Pøi vazbì s~pevným høbetem by se levý okraj mìl dìlat o~nìco ¹ir¹í pro tlusté svazky, proto¾e se stránky budou hùøe rozevírat a~levý okraj se tak bude oku ménì odhalovat.
-
-Horní a~spodní okraj volte stejnì veliký, pøípadnì poti¹tìnou èást posuòte mírnì nahoru (horní okraj men¹í ne¾ dolní). Poèítejte s~tím, ¾e pøi vazbì budou okraje mírnì oøíznuty.
-
-Pro sazbu na stránku formátu A4 je vhodné pou¾ívat pro základní text písmo stupnì (velikosti) 11 bodù. Volte ¹íøku sazby 15 a¾ 16 centimetrù a~vý¹ku 22 a¾ 23 centimetrù (vèetnì pøípadných hlavièek a~patièek). Proklad mezi øádky se volí 120 procent stupnì pou¾itého základního písma, co¾ je optimální hodnota pro rychlost ètení souvislého textu. V~pøípadì pou¾ití systému LaTeX ponecháme implicitní nastavení. Pøi psaní kvalifikaèní práce se øiïte pøíslu¹nými závaznými po¾adavky.
-
-Stupeò písma u~nadpisù rùzné úrovnì volíme podle standardních typografických pravidel. 
-Pro v¹echny uvedené druhy nadpisù se obvykle pou¾ívá polotuèné nebo tuèné písmo (jednotnì buï v¹ude polotuèné nebo v¹ude tuèné). Proklad se volí tak, aby se následující text bì¾ných odstavcù sázel pokud mo¾no na {\it pevný rejstøík}, to znamená jakoby na linky s~pøedem definovanou a~pevnou rozteèí.
-
-Uspoøádání jednotlivých èástí textu musí být pøehledné a~logické. Je tøeba odli¹it názvy kapitol a~podkapitol -- pí¹eme je malými písmeny kromì velkých zaèáteèních písmen. U~jednotlivých odstavcù textu odsazujeme první øádek odstavce asi o~jeden a¾ dva ètverèíky (v¾dy o~stejnou, pøedem zvolenou hodnotu), tedy pøibli¾nì o~dvì ¹íøky velkého písmene M základního textu. Poslední øádek pøedchozího odstavce a~první øádek následujícího odstavce se v~takovém pøípadì neoddìlují svislou mezerou. Proklad mezi tìmito øádky je stejný jako proklad mezi øádky uvnitø odstavce.
-
-Pøi vkládání obrázkù volte jejich rozmìry tak, aby nepøesáhly oblast, do které se tiskne text (tj. okraje textu ze v¹ech stran). Pro velké obrázky vyèleòte samostatnou stránku. Obrázky nebo tabulky o~rozmìrech vìt¹ích ne¾ A4 umístìte do písemné zprávy formou skládanky v¹ité do pøílohy nebo vlo¾ené do zálo¾ek na zadní desce.
-
-Obrázky i~tabulky musí být poøadovì oèíslovány. Èíslování se volí buï prùbì¾né v~rámci celého textu, nebo -- co¾ bývá praktiètìj¹í -- prùbì¾né v~rámci kapitoly. V~druhém pøípadì se èíslo tabulky nebo obrázku skládá z~èísla kapitoly a~èísla obrázku/tabulky v~rámci kapitoly -- èísla jsou oddìlena teèkou. Èísla podkapitol nemají na èíslování obrázkù a~tabulek ¾ádný vliv.
-
-Tabulky a~obrázky pou¾ívají své vlastní, nezávislé èíselné øady. Z toho vyplývá, ¾e v~odkazech uvnitø textu musíme kromì èísla udat i~informaci o~tom, zda se jedná o~obrázek èi tabulku (napøíklad ``... {\it viz tabulka 2.7} ...''). Dodr¾ování této zásady je ostatnì velmi pøirozené.
-
-Pro odkazy na stránky, na èísla kapitol a~podkapitol, na èísla obrázkù a~tabulek a~v~dal¹ích podobných pøíkladech vyu¾íváme speciálních prostøedkù DTP programu, které zajistí vygenerování správného èísla i~v~pøípadì, ¾e se text posune díky zmìnám samotného textu nebo díky úpravì parametrù sazby. Pøíkladem takového prostøedku v~systému LaTeX je odkaz na èíslo odpovídající umístìní znaèky v~textu, napøíklad návì¹tí ($\backslash${\tt ref\{navesti\}} -- podle umístìní návì¹tí se bude jednat o~èíslo kapitoly, podkapitoly, obrázku, tabulky nebo podobného èíslovaného prvku), na stránku, která obsahuje danou znaèku ($\backslash${\tt pageref\{navesti\}}), nebo na literární odkaz ($\backslash${\tt cite\{identifikator\}}).
-
-Rovnice, na které se budeme v~textu odvolávat, opatøíme poøadovými èísly pøi pravém okraji pøíslu¹ného øádku. Tato poøadová èísla se pí¹í v~kulatých závorkách. Èíslování rovnic mù¾e být prùbì¾né v~textu nebo v~jednotlivých kapitolách.
-
-Jste-li na pochybách pøi sazbì matematického textu, sna¾te se dodr¾et zpùsob sazby definovaný systémem LaTeX. Obsahuje-li va¹e práce velké mno¾ství matematických formulí, doporuèujeme dát pøednost pou¾ití systému LaTeX.
-
-Mezeru nedìláme tam, kde se spojují èíslice s~písmeny v~jedno slovo nebo v~jeden znak -- napøíklad {\it 25krát}.
-
-Èlenicí (interpunkèní) znaménka teèka, èárka, støedník, dvojteèka, otazník a~vykøièník, jako¾ i~uzavírací závorky a~uvozovky se pøimykají k~pøedcházejícímu slovu bez mezery. Mezera se dìlá a¾ za nimi. To se ov¹em netýká desetinné èárky (nebo desetinné teèky). Otevírací závorka a~pøední uvozovky se pøimykají k~následujícímu slovu a~mezera se vynechává pøed nimi -- (takto) a~``takto''.
-
 Pro spojovací a~rozdìlovací èárku a~pomlèku nepou¾íváme stejný znak. Pro pomlèku je vyhrazen jiný znak (del¹í). V~systému TeX (LaTeX) se spojovací èárka zapisuje jako jeden znak ``pomlèka'' (napøíklad ``Brno-mìsto''), pro sázení textu ve smyslu intervalu nebo dvojic, soupeøù a~podobnì se ve zdrojovém textu pou¾ívá dvojice znakù ``pomlèka'' (napøíklad ``zápas Sparta -- Slavie''; ``cena 23--25 korun''), pro výrazné oddìlení èásti vìty, pro výrazné oddìlení vlo¾ené vìty, pro vyjádøení nevyslovené my¹lenky a~v~dal¹ích situacích (viz Pravidla èeského pravopisu) se pou¾ívá nejdel¹í typ pomlèky, která se ve zdrojovém textu zapisuje jako trojice znakù ``pomlèka'' (napøíklad ``Dal¹í pojem --- jakkoliv se mù¾e zdát nevýznamný --- bude neformálnì definován v~následujícím odstavci.''). Pøi sazbì matematického mínus se pøi sazbì pou¾ívá rovnì¾ odli¹ný znak. V~systému TeX je ve zdrojovém textu zapsán jako normální mínus (tj. znak ``pomlèka''). Sazba v~matematickém prostøedí, kdy se vzoreèek uzavírá mezi dolary, zajistí vygenerování správného výstupu.
 
 Lomítko se pí¹e bez mezer. Napøíklad ¹kolní rok 2008/2009.
 
 Pravidla pro psaní zkratek jsou uvedena v~Pravidlech èeského pravopisu \cite{Pravidla}. I~z~jiných dùvodù je vhodné, abyste tuto knihu mìli po ruce. 
-
-
-\section{Co to je normovaná stránka?}
-Pojem {\it normovaná stránka} se vztahuje k~posuzování objemu práce, nikoliv k~poètu vyti¹tìných listù. Z historického hlediska jde o~poèet stránek rukopisu, který se psal psacím strojem na speciální pøedti¹tìné formuláøe pøi dodr¾ení prùmìrné délky øádku 60 znakù a~pøi 30 øádcích na stránku rukopisu. Vzhledem k~zápisu korekturních znaèek se pou¾ívalo øádkování 2 (ob jeden øádek). Tyto údaje (poèet znakù na øádek, poèet øádkù a~proklad mezi nimi) se nijak nevztahují ke koneènému vyti¹tìnému výsledku. Pou¾ívají se pouze pro posouzení rozsahu. Jednou normovanou stránkou se tedy rozumí 60*30 = 1800 znakù. Obrázky zaøazené do textu se zapoèítávají do rozsahu písemné práce odhadem jako mno¾ství textu, které by ve výsledném dokumentu potisklo stejnì velkou plochu.
-
-Orientaèní rozsah práce v~normostranách lze v~programu Microsoft Word zjistit pomocí funkce {\it Poèet slov} v~menu {\it Nástroje}, kdy¾ hodnotu {\it Znaky (vèetnì mezer)} vydìlíte konstantou 1800. Do rozsahu práce se zapoèítává pouze text uvedený v~jádru práce. Èásti jako abstrakt, klíèová slova, prohlá¹ení, obsah, literatura nebo pøílohy se do rozsahu práce nepoèítají. Je proto nutné nejdøíve oznaèit jádro práce a~teprve pak si nechat spoèítat poèet znakù. Pøibli¾ný rozsah obrázkù odhadnete ruènì. Podobnì lze postupovat i~pøi pou¾ití OpenOffice. Pøi pou¾ití systému LaTeX pro sazbu je situace trochu slo¾itìj¹í. Pro hrubý odhad poètu normostran lze vyu¾ít souèet velikostí zdrojových souborù práce podìlený konstantou cca 2000 (normálnì bychom dìlili konstantou 1800, jen¾e ve zdrojových souborech jsou i~vyznaèovací pøíkazy, které se do rozsahu nepoèítají). Pro pøesnìj¹í odhad lze pak vyextrahovat holý text z~PDF (napø. metodou cut-and-paste nebo {\it Save as Text...}) a~jeho velikost podìlit konstantou 1800. 
-
-
-\chapter{Závìr}
-Závìreèná kapitola obsahuje zhodnocení dosa¾ených výsledkù se zvlá¹» vyznaèeným vlastním pøínosem studenta. Povinnì se zde objeví i zhodnocení z pohledu dal¹ího vývoje projektu, student uvede námìty vycházející ze zku¹eností s øe¹eným projektem a uvede rovnì¾ návaznosti na právì dokonèené projekty.
-
 %=========================================================================
