@@ -4,3 +4,8 @@
 *.swp
 *.out
 *.toc
+*.log
+*.blg
+*.bbl
+client.vdi
+ipa.vdi
