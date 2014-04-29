@@ -227,19 +227,20 @@ more flexible and simpler configuration. This schema adds two key features:
 		into native sudo configuration when the sudo rules are created.\cite{Identity_Management_Guide}
 \end{itemize}
 
-\subsubsection{USN plugin}
+\subsubsection{USN plugin}\label{theory:usn_plugin}
 Tento plugin poskytuje zpùsob, který umo¾òuje informovat IPA klienty o
 \textbf{modifikaci} jakéhokoliv záznamu
 \cite[s.~130, Sekce: Tracking Modifications to Directory Entries]{Redhat_Directory_Server_Administration_Guide}.  Ka¾dý záznam na IPA
 serveru má operaèní atribut entryUSN\footnote{Entry Update Sequence Number}.
 Hodnotu tohoto atributu aktualizuje USN plugin pøi ka¾dé zmìnì daného záznamu.
-Tento atribut je pou¾íván pøi provádìní prùbì¾ných aktualizací\footnote{Smart
-Refreshes} sudo pravidel. Implementaèní detaily je mo¾né nalézt v sekci
-\ref{ch:sssd:sec:ldap_provider:smart_refresh_implementation}.
 
 %-------------------------------------------------------------------------------
 \section{SSSD z u¾ivatelského hlediska}
 \begin{itemize}
+	\item vysvìtlit, ¾e s SSSD mù¾e¹ být pøipojen do více domén zároveò, tak¾e
+		mù¾e¹ tahat sudo pravidla z více serverù? A jak se potom ten jiny server
+		nastavuje?? to je asi nìjaká kravina ne? a nebo mohou byt pravidla pouze ve
+		dvou konteinerech?\label{multiple_domains}
 	\item udìlej takový lehký uvod jako tady,
 		$http://docs.fedoraproject.org/en-US/Fedora/16/pdf/System_Administrators_Guide/Fedora-16-System_Administrators_Guide-en-US.pdf$
 	\item koukni do README sssd je tam dobry kratky popis co to je ...
@@ -262,13 +263,16 @@ SSSD provádí následující tøi typy aktualizací sudo pravidel:
 
 \subsubsection{Prùbì¾né aktualizace}
 Periodicky stahují pravidla, která jsou na serveru novì pøidány nebo byly od
-posldní aktualizace modifikovány.
+posldní aktualizace modifikovány. V manuálnových stránkách a v kódu SSSD je
+mo¾né tento typ aktualice najít jako "\textit{smart refresh}".
 
 \subsubsection{Úplná aktualizace}
 Provede smazání v¹ech pravidel z cache pamìti a sta¾ení v¹ech pravidel ze serveru.
-Tento typ aktualizace se provádí pouze v nìkterých pøípadech, proto¾e pøi velkém mno¾ství
+Tento typ aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství
 pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD nebo
-pøi detekci zmìny pravidel na serveru.
+pøi detekci zmìny pravidel na serveru. Je také s velkým èasovým odstupem
+plánován. V manuálnových stránkách a v kódu SSSD je
+mo¾né tento typ aktualice najít jako "\textit{full refresh}".
 
 \subsubsection{Aktualizace pravidel}
 Je provedena pøi ka¾dém spu¹tìní sudo. Zajistí aby u¾ivatel nedostal vìt¹í
@@ -277,16 +281,19 @@ pravidla, která expirovala\footnote{Èas po kterém pravidla v cache pamìti exspir
 nastavit v \texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout}, viz.
 \emph{man sssd.conf}}. Jestli¾e se nìkteré pravidlo na serveru
 nenachází, indikuje to zmìnu na serveru a je provedena úplna aktualizace
-pravidel.
-\newline
-\\
-Implementaèní detaily jsou popsány v sekcích 
-\ref{ch:sssd:sec:ldap_provider:smart_refresh_implementation},
-\ref{ch:sssd:sec:ldap_provider:rules_refresh_implementation} a
-\ref{ch:sssd:sec:ldap_provider:full_refresh_implementation}.
-  
-\subsection{Konfiguraèní volby}\label{ch:theory:sec:sssd:sssd_sudo_options}
+pravidel. V manuálnových stránkách a v kódu SSSD je mo¾né tento typ aktualice
+najít jako "\textit{rules refresh}". 
 
+\subsection{Konfiguraèní volby}\label{ch:theory:sec:sssd:sssd_sudo_options}
+\subsubsection{Plánování aktualizací}
+\label{ch:theory:sec:sssd:sssd_ldap_options:refreshes}
+Jak èasto budou provádìny prùbì¾né a úplné aktualizace je mo¾né ovlivnit
+pomocí následující voleb:
+\begin{itemize}
+	\item \texttt{ldap\_sudo\_smart\_refresh\_interval}
+	\item \texttt{ldap\_sudo\_full\_refresh\_interval}
+\end{itemize}
+	
 \subsubsection{Modifikace LDAP schématu}\label{ch:theory:sec:sssd:sssd_ldap_options}
 \begin{itemize}
 	\item pokud chci mít sudo v LDAPu v sudo schématu, pak atributy v LDAPu musí
@@ -319,6 +326,7 @@ Implementaèní detaily jsou popsány v sekcích
 		respondera a providera (spí¹e jen providera ne?)
 	\item popsat ten základ co to je monitor, backendy, provideri, responderi
 	\item popisuje základní koncepty knihoven talloc a tevent na kterých SSSD staví
+
 \end{itemize}
 %-------------------------------------------------------------------------------
 \section{Talloc}
@@ -520,6 +528,7 @@ inicializaci ipa provideru....
 \end{itemize}
 
 \section {SUDO Responder}
+Pøi ka¾dém zavolání sudo se SSSD SUDO responder nejprve podíva do cache pamìti. 
 \begin{itemize}
 	\item	zamìøit se na vìci, které se budou mìnit?
 	\item dát to a¾ po ldap provideru?
@@ -543,35 +552,20 @@ popisuje schéma \ref{ldap_provider_high_level}.
 Inicializaci zaji¹tuje modul \texttt{providers/ldap/sdap\_sudo.c} a probíhají
 pøi ní následující ulohy:
 \begin{itemize}
-	\item alokace \texttt{sudo\_ctx}, který je zároveò privátnimi daty LDAP SUDO
+	\item alokace \texttt{sudo\_ctx} kontextu, který je zároveò privátnimi daty LDAP SUDO
 			Providera
-	\item nastavení handleru pro SUDO respodera
+		\item nastavení handleru pro SUDO respodera, tj. vytvoøení struktury
+			\texttt{bet\_ops}
 	\item vytvoøení mapy z výchozí \texttt{native\_sudorule\_map} mapy
 	\item získání v¹ech jmen a IP adres daného poèítaèe
+	\item nastavení plánování aktualizací sudo pravidel
 \end{itemize}
 	
-Pøi inicializaci se také inicializuje struktura bet\_ops, kde se nachází SUDO
-handler. 
 Inicializace zaèíná ve funkci \texttt{sdap\_sudo\_init}, které je pøedán
 \texttt{id\_ctx}. Zde je mo¾né nalézt napø.
 \texttt{sudo\_search\_base}\footnote{\texttt{id\_ctx->basic[SDAP\_SUDO\_SEARCH\_BASE]}},
 	ukazatel na nativní SUDO mapu\footnote{\texttt{id\_ctx->sudorule\_map}} nebo ukzatal na doménu, kde je mo¾né nalézt pole
 	v¹ech search\_sudo\_base\footnote{\texttt{id\_ctx->sdom->sudo\_search\_bases}}, které SSSD aktuálnì pou¾ívá.
-
-\begin{itemize}
-	\item jak to jde po sobì
-	\begin{itemize}
-		\item vytváøí se hlavní sudo\_ctx, který je zároveò privátnimi daty LDAP SUDO
-			Providera
-		\item	nastavuje se sudo\_handler pro SUDO Respondera
-		\item	kontroluje se zda je nastavena sudo\_search\_base (pokud neni
-			nastavena v sssd.conf, tak se nastavi na \emph{SUDOers} pøi inicializaci
-			\emph{id\_provideru} v \emph{ipa\_common.c}
-		\item vytvoøí se sdap\_search\_base struktura pro danou sudo\_search\_filter
-			(je tam specifikovana ta scope a filter)
-	\end{itemize}
-\end{itemize}
-
 
 Vytváøí se zde sudorule mapa. Jako výchozí mapa je pou¾ita
 \texttt{native\_sudorule\_map} a pøi vytváøení se také zohledòují volby (viz.
@@ -583,76 +577,115 @@ Context of Identity Provider}. Vytvoøení a pou¾ití map je blí¾e popsáno v sekci 
 \begin{itemize}
 	\item	detailní popis se schématy
 	\item	vytvoøení mapy (detailní popis pozdìji)
-	\item	nastavení plánování refresh
-	\item	zmínit, ¾e se pøi ka¾dém spu¹tìní provádí FULL REFRESH
 \end{itemize}
 
 
 \subsection {Pánování refreshes}
-\begin{itemize}
-	\item	jakým zpùsobem jsou jednotlivé resfresh plánovany
-	\item podrobnìji se popsat v sekci ní¾e
-	\item	jak se dají èasy ovlivnit v sssd.conf
-\end{itemize}
+Souèástí inicializace je také nastavení plánování prùbì¾ných a úplných
+aktualizací. Jak èasto budou tyto aktualizace provádìny je mo¾né ovlivnit 
+v \texttt{sssd.conf}, viz sekce 
+\ref{ch:theory:sec:sssd:sssd_ldap_options:refreshes}.
+
+Pøi spou¹tìní SSSD by mohla nastat situace, kdy stihne u¾ivatel zavolat sudo
+je¹tì pøed provedením aktualizace. V takovém pøípadì by sudo nefungovalo
+správnì,
+jeliko¾ by se v sysdb nenacházela ¾ádná pravidla.\footnote{za pøedpokladu, ¾e se 
+na serveru nìjaká pravidla nacházejí} Proto je pøi ka¾dém spu¹tìní SSSD
+provedena kompletní aktualizace sudo pravidel.
+
+Plánování aktualizací je realizováno pomocí èasových událostí knihovny tevent a
+implementaèní detail je mo¾né nalézt ve funkci
+\texttt{sdap\_sudo\_setup\_periodical\_refresh}
 
 \subsection{Aktualizace sudo pravidel}
-Pøi ka¾dém zavolání sudo se SSSD SUDO responder nejprve podíva do cache pamìti. 
-
-\begin{itemize}
-	\item	V¹echny tøi typy aktualizací vyu¾ívají modul
-		\texttt{providers/ldap/sdap\_async\_sudo.c}, který provádí
-		\ref{async_engine_of_ldap_provider}
-	\item v¾dycky se akorát pøedpøipraví paramaetry jako je jsou LDAP filter,
-		sysdb filter
-	\item pøi ka¾dém zavolání sudo se provede RULES refresh, pokud jsou v sysdb
-		nìjaká expirovaná pravidla.
-	\item pokud mám v cache pravidlo cn=test1 (povolující spustit cat /etc/shadow)
-		a cn=test2 (povolující spustit /sbin/blkid). cn=test1 je v dobì spu¹tìní
-		sudo expirováno. Pokud spustím sudo /sbin/blkid, tak se mnì provede RULES
-		refresh pravidla cn=test1!!!
+V¹echny tøi typy aktualizací vyu¾ívají modul
+\texttt{providers/ldap/sdap\_async\_sudo.c}, který provádí samotné sta¾ení a
+ulo¾ení sudo pravidel do sysdb. Funkcionalitu tohoto modulu je mo¾né ovlivnit
+pomocí parametrù, které jsou mu pøedány. Parametry mohou být napøíklad filtry,
+které se mají pou¾ít. Pøedpøipravení parametrù pro konktrétní aktualizace
+provádìjí následující funkce: 
+\begin{itemize} 
+	\item \texttt{sdap\_sudo\_full\_refresh\_send} pro kompletní aktualizaci 
+	\item \texttt{sdap\_sudo\_smart\_refresh\_send} pro prùbì¾né aktualizace 
+	\item \texttt{sdap\_sudo\_rules\_refresh\_send} pro aktualizaci pravidel 
 \end{itemize}
 
-\subsection{Full refresh (pro ka¾dý typ vlastní sub
-sekci?)}\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
-\begin{itemize}
-	\item	obecné informace v user sekci u SSSD v kapitole 2
-	\item	jak se vyvolávají
-	\item	jaké LDAP filtry pou¾ívají
-	\item	zmínit ¾e v¹echny vyu¾ívají to asynchronní provádìní od
-		sdap\_sudo\_refresh (v providers/ldap/sdap\_async\_sudo.c)
-	\item filter, který LDAP SUDO Provider pou¾ívá pro FULL refresh:
-		\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/full_refresh_filter}
-\end{itemize}
+\subsubsection{Úplná aktualizace}
+\label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
+Pro úplnou aktualizaci sudo pravidlel je pou¾it následující LDAP
+filter\footnote{tento i dal¹í filtry jsou speciálnì naformátovany pro lep¹í
+èitelnost}:
 
+\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/full_refresh_filter}
+(objectClass=sudoRule)
+Tento filter vyhledá v¹echna sudo pravidla, která jsou aplikovatelná na
+klientský poèítaè. Jméno poèítaèe (\texttt{hostname} a \texttt{hostname.domain})
+a IP adresy jsou získány pøi inicializaci. Filtr také zachytí v¹echna pravidla
+aplikovatelná na jakoukoliv skupinu poèítaèù (\texttt{(sudoHost=+*)}. 
 
+Pøed ulo¾ením sta¾ených pravidel jsou nejprve z sysdb odstranìny \textbf{v¹echny} sudo
+pravidla pomocí filtru \texttt{(objectClass=sudoRule)}. A¾ poté je zahájena
+transakce pro ulo¾ení novì sta¾ených pravidel.
 
+\subsubsection {Prùbì¾ná aktualizace}
+\label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
+Pro detekci modifikovaných pravidel se pøi prùbì¾ných aktualizacích vyu¾ívá USN
+plugin a jeho \texttt{EntryUSN} atribut, viz. sekce \ref{theory:usn_plugin}.
 
-\subsection {Prùbì¾ná aktualizace}\label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
-\begin{itemize}
-	\item	smyslem tohoto typu aktualizace je prùbì¾nì stahovat z IPA pravidla,
-		která tam pøibyla od poslední aktualizace
-	\item	pou¾ívá se k tomu EntryUSN attr, který zachytí i novì enabled pravidla
-	\item nezachytí to smazání pravidla, pouze modifikaci stávajícího nebo pøidání
-		nového
-	\item pou¾ívá se tento filtr
-\end{itemize}
+Pøedpokládejme, následující pøíklad: Klientský poèítaè na které bì¾í SSSD má
+doménové jméno \texttt{client1.example.cz}. Jeho IPv4 a IPv6 jsou
+\textbf{192.168.0.2} a \textbf{fe80::a00:27ff:fe71:1191}. V sysdb ji¾ máme
+sta¾ená nìjaká pravidla a nejvy¹¹í hodnota \texttt{EntryUSN}, která se mezi
+pravidly nachází je \textbf{9270}. Filtr, který by se pou¾il pøi prùbì¾né
+aktualizaci by vypadal následovnì:
+
 \lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/smart_refresh_filter}
 
+Pøi prùbì¾ných aktualizacích z sysdb nejsou mazána ¾ádná pravidla. Dochází pouze
+k pøidávání pravidel, jestli¾e se na serveru vyskytují novìj¹í pravidla.
 
-\subsection {Rules refresh}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
-		\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/rules_refresh_filter}
+\subsubsection {Aktualizace pravidel}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
+Jestli¾e se v sysdb pøi spu¹tìní sudo nachází nìjaká pravidla, která ji¾ nejsou
+platná, pak se provede jejich aktualizace. Pøedpokládejme pøíklad, kdy v sysdb
+expirovala pravidla \textbf{rule1} a \textbf{rule2}. Poté by LDAP a sysdb filtr pro jejich
+aktualizaci vypadal následovnì:
 
-\subsection {Asychnronní sta¾ení pravidel}
-\label{async_engine_of_ldap_provider}
-\begin{itemize}
-	\item	hlavní motor LDAP SUDO Provideru, který vyu¾ívají v¹echny typy refresh
-	\item	detailní popis se schématy
-\end{itemize}
+\lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/rules_refresh_filter}
+
+Aktualizace pravidlel, která jsou stále platná se neprovede. Neprovede se ani
+aktualizace právì vyvolaného pravidla, za pøedpokladu, je stále platné.
+
+
+\subsection {Asychnronní modul}\label{async_engine_of_ldap_provider}
+{\color{red}{TODO: popsat souvislost mezi tìmi dvìmi schématy!}}
+
+Modul \texttt{providers/ldap/sdap\_async\_sudo.c} je nejdùle¾itìj¹í èástí LDAP
+SUDO pluginu, který provádí asynchronní sta¾ení a ulo¾ení sudo pravidel do
+sysdb. Jeho èinnost popisuje schéma \ref{fig:ldap_sudo_provider_tevent_flow}. 
+
+Ve funkci \texttt{sdap\_sudo\_refresh\_retry} probìhne kontrola zda je backend
+stále online. Tedy kontrola zda je klient stále pøipojen k síti.
+Jestli¾e ano, pak probìhne inicializace LDAP spojení. Ve funkci
+\texttt{sdap\_sudo\_load\_sudoers\_send} se vytváøí pole atributù pro LDAP
+dotaz. Funkce \texttt{sdap\_sudo\_load\_sudoers\_next\_base} nastavuje aktuální
+search base, a posílá LDAP dotaz pomocí rozhraní
+\texttt{sdap\_get\_generic\_send}. Pøijmutí a zpracování pravidel, tj. pøidání
+pravidel k ji¾ sta¾eným, provádí funkce
+\texttt{sdap\_sudo\_load\_sudoers\_process}. Jakmile jsou v¹echna pravidla
+sta¾ena, probìhne modifikace sysdb a poté je zahájena transakce pøi které se
+novì sta¾ená pravidla ulo¾í do sysdb.
+
+\begin{figure}[ht!]
+	\centering
+	\includegraphics[scale=0.90,angle=90]{fig/sssd/ldap_sudo_provider/ldap_sudo_provider_tevent_flow.pdf}
+	\caption{Schéma asychnronního modulu \texttt{providers/ldap/sdap\_async\_sudo.c}}
+	\label{fig:ldap_sudo_provider_tevent_flow}
+\end{figure}
 
 \subsection {Ulo¾ení sudo pravidel do sysdb}
-Pøed samotným ulo¾ením pravidel jsou z cache pamìti nejprve vyhledány a následnì
-odstranìny v¹echny záznamy, které spadají pod tøídu \texttt{sudoRule}.  Pøi
-ukládání pravidel se ka¾dému pravidlu pøidá atribut
+Pøed samotným ulo¾ením pravidel jsou v sysdb nejprve vyhledány a následnì
+odstranìny v¹echny záznamy, které odpovídají danému filtru.  Pøi
+ukládání sudo pravidel se ka¾dému pravidlu pøidá atribut
 \mbox{\textbf{dataExpireTimestamp}}\footnote{aktuální èas (v dobì ukládání) +
 hodnota volby \texttt{entry\_cache\_sudo\_timeout}, viz. man
 \texttt{sssd.conf}}. Jeho hodnota reprezentuje èas, kdy daný záznam expiruje,
@@ -672,7 +705,7 @@ handler danému providerovi.  Jestli¾e SUDO pou¾ívá LDAP jako provider plugin
 
 LDAP SUDO provideru je pøes handler pøedán typ aktualizace, který po nìm SUDO
 respoder ¾ádá a pole pravidel\footnote{pole jmen pravidel, tj. pole hodnot
-\texttt{cn} atributù}. SUDO responder mù¾e po¾ádat o kompletní aktualizaci
+\texttt{cn} atributù}. SUDO responder mù¾e po¾ádat o úplnou aktualizaci
 pravidel nebo o aktualizaci pravidel, která ji¾ v sysdb nejsou nadále platná.
 
 \begin{figure}[ht!]
