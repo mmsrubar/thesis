@@ -118,11 +118,8 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
           ("Building filter out of IPA SUDO rules to get IPA SUDO commands "
            "for those rules.\n"));
 
-    if (rules == NULL && count <= 0) {
-        /* no ipa sudo rules -> nothing to build new filter from */
-        return ret;
-    } else if (rules == NULL && count > 0) {
-        /* pointer to rules lost */
+    /* no ipa sudo rules -> nothing to build new filter from */
+    if (rules == NULL && count == 0) {
         return ENOENT;
     }
 
@@ -240,7 +237,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
     errno_t ret = EOK;
     int j;
 
-    print_rules(ipa_cmds, ipa_cmds_count);
+    //print_rules(ipa_cmds, ipa_cmds_count);
     
     if (cmds == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("No ipa command index\n"));
@@ -289,7 +286,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         }
     }
 
-    print_rules(ipa_cmds, ipa_cmds_count);
+    //print_rules(ipa_cmds, ipa_cmds_count);
 fail:
     talloc_free(tmp);
     return ret;

@@ -31,6 +31,7 @@
 #include "db/sysdb_sudo.h"
 
 /* FIXME: just for testing purposes */
+#include "providers/ipa/ipa_async_sudo.h"
 #include "providers/ipa/ipa_common.h"   // for ipa sudorule map attributes
 //#include "providers/ldap/ldap_opts.h"   // for ipa sudorule map attributes
 
@@ -38,29 +39,9 @@
 
 #define SUDO_MAX_FIRST_REFRESH_DELAY 16
 
-/* just for now since ipa provider doesn't have its handler nor initialization
- * yet
- */
-bool ipa_provider = true;
-
-struct sdap_sudo_full_refresh_state {
-    struct sdap_sudo_ctx *sudo_ctx;
-    struct sdap_id_ctx *id_ctx;
-    struct sysdb_ctx *sysdb;
-    struct sss_domain_info *domain;
-    int dp_error;
-    int error;
-};
-
-
-
-/* =========================================================================*/
-
-
 static struct tevent_req *sdap_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
                                                       struct sdap_sudo_ctx *sudo_ctx);
 
-static void sdap_sudo_full_refresh_done(struct tevent_req *subreq);
 
 static int sdap_sudo_full_refresh_recv(struct tevent_req *req,
                                        int *dp_error,
@@ -131,7 +112,7 @@ struct bet_ops sdap_sudo_ops = {
 };
 
 static void sdap_sudo_get_hostinfo_done(struct tevent_req *req);
-static int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx);
+int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx);
 
 int sdap_sudo_init(struct be_ctx *be_ctx,
                    struct sdap_id_ctx *id_ctx,
@@ -151,6 +132,7 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
     }
 
     sudo_ctx->id_ctx = id_ctx;
+    sudo_ctx->ipa_provider = false;
     *ops = &sdap_sudo_ops;
     *pvt_data = sudo_ctx;
 
@@ -228,7 +210,7 @@ static void sdap_sudo_get_hostinfo_done(struct tevent_req *req)
     }
 }
 
-static int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx)
+int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx)
 {
     struct sdap_id_ctx *id_ctx = sudo_ctx->id_ctx;
     time_t smart_default;
@@ -522,7 +504,7 @@ void sdap_sudo_handler(struct be_req *be_req)
     switch (sudo_req->type) {
     case BE_REQ_SUDO_FULL:
         DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a full refresh of sudo rules\n"));
-        if (ipa_provider) {
+        if (sudo_ctx->ipa_provider) {
             req = sdap_sudo_full_refresh_send(be_req, sudo_ctx);
         } else {
             req = sdap_sudo_full_refresh_send(be_req, sudo_ctx);
@@ -531,7 +513,7 @@ void sdap_sudo_handler(struct be_req *be_req)
         break;
     case BE_REQ_SUDO_RULES:
         DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a refresh of specific sudo rules\n"));
-        if (ipa_provider) {
+        if (sudo_ctx->ipa_provider) {
             req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
                                                id_ctx->opts, id_ctx->conn->conn_cache,
                                                sudo_req->rules);
@@ -642,7 +624,7 @@ immediately:
     return req;
 }
 
-static void sdap_sudo_full_refresh_done(struct tevent_req *subreq)
+void sdap_sudo_full_refresh_done(struct tevent_req *subreq)
 {
     struct tevent_req *req = NULL;
     struct sdap_sudo_full_refresh_state *state = NULL;
@@ -1260,11 +1242,13 @@ static int sdap_sudo_schedule_refresh(TALLOC_CTX *mem_ctx,
 
     switch (refresh) {
     case SDAP_SUDO_REFRESH_FULL:
-        send_fn = ipa_provider ? ipa_sudo_full_refresh_send : sdap_sudo_full_refresh_send;
+        send_fn = sudo_ctx->ipa_provider ?  ipa_sudo_full_refresh_send : 
+                                            sdap_sudo_full_refresh_send;
         name = "Full refresh";
         break;
     case SDAP_SUDO_REFRESH_SMART:
-        send_fn = ipa_provider ? ipa_sudo_smart_refresh_send : sdap_sudo_smart_refresh_send;
+        send_fn = sudo_ctx->ipa_provider ?  ipa_sudo_smart_refresh_send : 
+                                            sdap_sudo_smart_refresh_send;
         name = "Smart refresh";
         break;
     case SDAP_SUDO_REFRESH_RULES:
@@ -1339,6 +1323,7 @@ static int sdap_sudo_schedule_smart_refresh(struct sdap_sudo_ctx *sudo_ctx,
 /* returns IPA LDAP host filter in following format:
  * (hostCategory=ALL)(externalHost=...)(...)
  */
+
 static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
                                          struct sdap_attr_map *map,
                                          char *basedn,
@@ -1461,8 +1446,6 @@ done:
     return filter;
 }
 
-
-
 /* issue full refresh of sudo rules */
 struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
                                                       struct sdap_sudo_ctx *sudo_ctx)
@@ -1521,7 +1504,7 @@ struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
 
     DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a full refresh of sudo rules\n"));
 
-    subreq = sdap_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
+    subreq = ipa_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
                                     id_ctx->conn->conn_cache,
                                     ldap_full_filter, sysdb_filter);
     if (subreq == NULL) {
@@ -1548,7 +1531,6 @@ immediately:
 
     return req;
 }
-
 
 /* issue a refresh of specific sudo rules */
 struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
@@ -1649,8 +1631,9 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
         goto immediately;
     }
 
-    subreq = sdap_sudo_refresh_send(req, be_ctx, opts, conn_cache,
+    subreq = ipa_sudo_refresh_send(req, be_ctx, opts, conn_cache,
                                     ldap_rules_filter, sysdb_filter);
+
     if (subreq == NULL) {
         ret = ENOMEM;
         goto immediately;
@@ -1738,7 +1721,7 @@ static struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     DEBUG(SSSDBG_TRACE_FUNC, ("Issuing a smart refresh of sudo rules "
                               "(USN > %s)\n", (usn == NULL ? "0" : usn)));
 
-    subreq = sdap_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
+    subreq = ipa_sudo_refresh_send(state, id_ctx->be, id_ctx->opts,
                                     id_ctx->conn->conn_cache,
                                     ldap_smart_filter, NULL);
     if (subreq == NULL) {

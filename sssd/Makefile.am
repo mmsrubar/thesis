@@ -1390,18 +1390,14 @@ dyndns_tests_LDADD = \
     $(SSSD_INTERNAL_LTLIBS) \
     libsss_test_common.la
 
-EXTRA_ipa_sudo_export_tests_DEPENDENCIES = \
-    $(ldblib_LTLIBRARIES)
 ipa_sudo_export_tests_SOURCES = \
-     $(SSSD_RESOLV_OBJ) \
-    src/providers/data_provider_opts.c \
-		src/providers/data_provider_be.c \
-     	src/tests/cmocka/test_ipa_sudo_export.c
-    	#src/providers/ipa/ipa_sudo_export.c
-     #providers/ipa_sudo_export.c \
-     #src/providers/ipa_sudo_cmd.c \
-     #src/providers/ipa_sudo_export.c \
-     #src/providers/ipa_async_sudo.c \
+     src/tests/cmocka/test_ipa_sudo_export.c \
+     src/providers/ipa/ipa_async_sudo.c \
+     src/providers/ipa/ipa_async_sudo_cmds.c \
+     src/providers/ipa/ipa_sudo_cmd.c \
+     src/providers/ipa/ipa_sudo_export.c \
+     src/providers/ldap/sdap_async_sudo.c \
+     src/providers/ldap/sdap_sudo_cache.c
 ipa_sudo_export_tests_CFLAGS = \
     $(AM_CFLAGS)
 ipa_sudo_export_tests_LDFLAGS = \
@@ -1411,16 +1407,15 @@ ipa_sudo_export_tests_LDFLAGS = \
 		-Wl,-wrap,sdap_id_op_connect_recv \
 		-Wl,-wrap,sdap_id_op_handle \
 		-Wl,-wrap,sdap_get_generic_send \
-		-Wl,-wrap,sdap_get_generic_recv
+		-Wl,-wrap,sdap_get_generic_recv \
+		-Wl,-wrap,dp_opt_get_int \
+		-Wl,-wrap,_dp_opt_get_int \
+		-Wl,-wrap,build_attrs_from_map \
+		-Wl,-wrap,sdap_get_id_specific_filter
 ipa_sudo_export_tests_LDADD = \
-    $(CARES_LIBS) \
-    $(CMOCKA_LIBS) \
-    $(SSSD_LIBS) \
     $(SSSD_INTERNAL_LTLIBS) \
-    $(KRB5_LIBS) \
-    libsss_test_common.la \
-		libsss_ldap_common.la \
-    libsss_krb5_common.la
+    $(CMOCKA_LIBS) \
+    libsss_test_common.la
 
 fqnames_tests_SOURCES = \
     src/tests/cmocka/test_fqnames.c
@@ -1683,7 +1678,11 @@ libsss_ldap_common_la_SOURCES += \
     src/providers/ldap/sdap_async_sudo.c \
     src/providers/ldap/sdap_async_sudo_timer.c \
     src/providers/ldap/sdap_async_sudo_hostinfo.c \
-    src/providers/ldap/sdap_sudo.c
+    src/providers/ldap/sdap_sudo.c \
+    src/providers/ipa/ipa_async_sudo.c \
+    src/providers/ipa/ipa_async_sudo_cmds.c \
+    src/providers/ipa/ipa_sudo_cmd.c \
+    src/providers/ipa/ipa_sudo_export.c
 endif
 
 if BUILD_AUTOFS
@@ -1841,10 +1840,7 @@ endif
 
 if BUILD_SUDO
 libsss_ipa_la_SOURCES += \
-    src/providers/ipa/ipa_sudo.c \
-    src/providers/ipa/ipa_async_sudo.c \
-    src/providers/ipa/ipa_sudo_export.c \
-    src/providers/ipa/ipa_sudo_cmd.c
+    src/providers/ipa/ipa_sudo.c
 endif
 
 if BUILD_SSH

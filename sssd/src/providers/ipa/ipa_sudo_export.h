@@ -33,7 +33,7 @@ struct sudo_rules {
 };
 
 
-void print_rules(struct sysdb_attrs **rules, int count);
+void print_rules(const char *title, struct sysdb_attrs **rules, int count);
 
 errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
                                 struct sysdb_ctx *sysdb,

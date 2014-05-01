@@ -52,10 +52,12 @@ struct ipa_sudo_export {
 
 
 /* tmp func ... */
-void print_rules(struct sysdb_attrs **rules, int count)
+void print_rules(const char *title, struct sysdb_attrs **rules, int count)
 {
     int i, j, k;
 
+    printf("===========================================================================\n");
+    printf("%s\n", title);
     printf("===========================================================================\n");
     /* for each rule */
     for (i = 0; i < count; i++) {
@@ -429,7 +431,8 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
         }
 
         /* For commands we build cmd_index but do not copy it's values into
-         * final sudoers yet.
+         * final sudoers yet. Because we need to export the value first but we
+         * don't have downloaded the IPA SUDO commands yet.
          */
         if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
             strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
@@ -450,7 +453,7 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
             goto fail;
         }
 
-        /* add exported value to the values of the attribute */
+        /* copy exported value to the values of the new attribute */
         ret = sysdb_attrs_add_string(*sudoer, new_name, new_value);
         if (ret != EOK) {
             // FIXME: can't get new attribute
@@ -502,14 +505,13 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
     /* for each rule aplicable to this host */
     for (i = 0; i < rules_count; i++) {
 
-        DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO rule cn=%s "
-                                  "into native LDAP SUDO scheme.\n", 
+        DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO rule cn=%s\n",
                                   (char *)ipa_rules[i]->a[1].values[0].data));
 
         /* new sudo rule */
-        sudoers[i] = sysdb_new_attrs(mem);
+        sudoers[i] = sysdb_new_attrs(sudoers);
         /* new index of allowed and denied commands for this rules */
-        cmds_index[i] = talloc_zero(mem, struct ipa_sudoer_cmds);
+        cmds_index[i] = talloc_zero(cmds_index, struct ipa_sudoer_cmds);
 
         /* for each attribute of the rule */
         for (j = 0; j < ipa_rules[i]->num; j++) {

@@ -23,12 +23,18 @@
 */
 
 #include "providers/ipa/ipa_common.h"
-//#include "providers/ipa/ipa_opts.h"
+#include "providers/ipa/ipa_hosts.h"
+#include "providers/ipa/ipa_access.h"
+#include "providers/ipa/ipa_sudo_export.h"  // for debug prit_rules 
+#include "providers/ipa/ipa_async_sudo.h"
 #include "providers/ldap/sdap_sudo.h"
+#include "providers/ipa/ipa_sudo.h"
 #include "db/sysdb_sudo.h"
+//#include "providers/ipa/ipa_opts.h"
 
 static void ipa_sudo_shutdown(struct be_req *req);
 void ipa_sudo_handler(struct be_req *be_req);
+static void sdap_sudo_get_hostinfo_done(struct tevent_req *req);
 
 struct bet_ops ipa_sudo_ops = {
     .handler = ipa_sudo_handler,
@@ -129,12 +135,143 @@ fail:
 }
 
 
+static errno_t ipa_sudo_get_hostgroups_connect(struct tevent_req *req);
+static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq);
+static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq);
+
 
 int ipa_sudo_init(struct be_ctx *be_ctx,
-                  struct ipa_id_ctx *id_ctx,
+                  struct ipa_id_ctx *ipa_id_ctx,
                   struct bet_ops **ops,
                   void **pvt_data)
 {
+    struct sdap_id_ctx *id_ctx = ipa_id_ctx->sdap_id_ctx;
+    struct sdap_sudo_ctx *sudo_ctx = NULL;
+    struct tevent_req *req = NULL;
+    int ret;
+
+    DEBUG(SSSDBG_TRACE_INTERNAL, ("Initializing sudo IPA back end\n"));
+
+    sudo_ctx = talloc_zero(be_ctx, struct sdap_sudo_ctx);
+    if (sudo_ctx == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc() failed\n"));
+        return ENOMEM;
+    }
+
+    sudo_ctx->id_ctx = id_ctx;
+    sudo_ctx->ipa_provider = true;
+    *ops = &ipa_sudo_ops;
+    *pvt_data = sudo_ctx;
+
+    /* we didn't do any full refresh now,
+     * so we don't have current usn values available */
+    sudo_ctx->full_refresh_done = false;
+
+    ret = ldap_get_sudo_options(id_ctx, be_ctx->cdb,
+                                be_ctx->conf_path, id_ctx->opts,
+                                &sudo_ctx->use_host_filter,
+                                &sudo_ctx->include_regexp,
+                                &sudo_ctx->include_netgroups);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_OP_FAILURE, ("Cannot get SUDO options [%d]: %s\n",
+                                  ret, strerror(ret)));
+        return ret;
+    }
+
+    /* get hostnames and IP addresses but we will only use IPs because we will
+     * get fqdns from req for hostgroups */
+    //FIXME: we don't actualy need hostnames so you can directly use 
+    //sdap_sudo_get_ip_addresses()
+    req = sdap_sudo_get_hostinfo_send(sudo_ctx, id_ctx->opts, be_ctx);
+    if (req == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host information - "
+              "(host filter will be disabled)\n"));
+
+        sudo_ctx->use_host_filter = false;
+
+        // FIXME: don't set up periodical refresh here, get the hostgroups first
+        ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
+        if (ret != EOK) {
+             DEBUG(SSSDBG_OP_FAILURE,
+                   ("Unable to setup periodical refresh"
+                    "of sudo rules [%d]: %s\n", ret, strerror(ret)));
+             /* periodical updates will not work, but specific-rule update
+              * is no affected by this, therefore we don't have to fail here */
+        }
+    } else {
+        tevent_req_set_callback(req, sdap_sudo_get_hostinfo_done, sudo_ctx);
+    }
+
+    return EOK;
+}
+
+static void sdap_sudo_get_hostinfo_done(struct tevent_req *req)
+{
+    struct sdap_sudo_ctx *sudo_ctx = NULL;
+    struct ipa_access_ctx *ipa_access_ctx;
+    struct tevent_req *subreq;
+    char **hostnames = NULL;
+    char **ip_addr = NULL;
+    int ret;
+
+    sudo_ctx = tevent_req_callback_data(req, struct sdap_sudo_ctx);
+
+    ret = sdap_sudo_get_hostinfo_recv(sudo_ctx, req, &hostnames, &ip_addr);
+    talloc_zfree(req);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host information - "
+              "(host filter will be disabled) [%d]: %s\n", ret, strerror(ret)));
+        sudo_ctx->use_host_filter = false;
+    }
+
+    talloc_zfree(sudo_ctx->hostnames);
+    talloc_zfree(sudo_ctx->ip_addr);
+
+    sudo_ctx->hostnames = talloc_move(sudo_ctx, &hostnames);
+    sudo_ctx->ip_addr = talloc_move(sudo_ctx, &ip_addr);
+
+    //ipa_sudo_full_refresh_send(sudo_ctx, sudo_ctx);
+
+    ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_OP_FAILURE,
+        ("Unable to setup periodical refresh"
+        "of sudo rules [%d]: %s\n", ret, strerror(ret)));
+    }
+
+    /*
+    ipa_access_ctx = talloc_get_type(sudo_ctx->id_ctx->be->bet_info[BET_ACCESS].pvt_bet_data,
+                                     struct ipa_access_ctx);
+ 
+    subreq = ipa_sudo_get_hostgroups_send(sudo_ctx, ipa_access_ctx);
+    if (req == NULL) {
+       DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host groups information - "
+              "(sudo rules aplicable to host groups will not work)\n"));
+
+        DEBUG(SSSDBG_TRACE_INTERNAL, ("Setting up periodical refresh of sudo "
+                                      "rules using LDAP SUDO scheduler\n"));
+
+        ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
+        if (ret != EOK) {
+            DEBUG(SSSDBG_OP_FAILURE,
+            ("Unable to setup periodical refresh"
+            "of sudo rules [%d]: %s\n", ret, strerror(ret)));
+            * periodical updates will not work, but specific-rule update
+            * is no affected by this, therefore we don't have to fail here *
+        }
+    } else {
+        tevent_req_set_callback(req, sdap_sudo_get_hostinfo_done, sudo_ctx);
+    }
+    */
+
+    return EOK;
+}
+
+
+
+
+#ifdef A
+    /* ============================================= */
     int ret;
     struct ipa_options *ipa_options;
     struct sdap_options *ldap_options;
@@ -156,8 +293,8 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     ldap_options = id_ctx->sdap_id_ctx->opts;
 
     /* corrent the handler */
-    *ops = &ipa_sudo_ops;
 
     ipa_options->id->sudorule_map = ldap_options->sudorule_map;
     return EOK;
 }
+#endif
