@@ -43,16 +43,12 @@ static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
-                                                       const char *ldap_filter);
+                                                       const char *ldap_filter,
+                                                       struct tevent_req *sdap_req);
 
 static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req);
 
 static void sdap_sudo_load_sudoers_process(struct tevent_req *subreq);
-
-static int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
-                                       TALLOC_CTX *mem_ctx,
-                                       size_t *rules_count,
-                                       struct sysdb_attrs ***rules);
 
 
 struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
@@ -88,6 +84,7 @@ struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     state->dp_error = DP_ERR_OK;
     state->error = EOK;
     state->highest_usn = NULL;
+    state->req = req;
 
     if (state->ldap_filter == NULL) {
         ret = ENOMEM;
@@ -121,6 +118,8 @@ int sdap_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
                            int *dp_error,
                            int *error,
                            char **usn,
+                           size_t *rules_count,
+                           struct sysdb_attrs ***rules,
                            size_t *num_rules)
 {
     struct sdap_sudo_refresh_state *state;
@@ -138,6 +137,11 @@ int sdap_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
 
     if (num_rules != NULL) {
         *num_rules = state->num_rules;
+    }
+
+    if (rules != NULL && rules_count != NULL) {
+        *rules_count = state->ldap_rules_count;
+        *rules = talloc_steal(mem_ctx, state->ldap_rules);
     }
 
     return EOK;
@@ -184,11 +188,12 @@ static int sdap_sudo_refresh_retry(struct tevent_req *req)
 
 static void sdap_sudo_refresh_connect_done(struct tevent_req *subreq)
 {
-    struct tevent_req *req; /* req from sdap_sudo_refresh_send() */
+    struct tevent_req *req;
     struct sdap_sudo_refresh_state *state;
     int dp_error;
     int ret;
-
+    
+    /* req from sdap_sudo_refresh_send() */
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
 
@@ -212,7 +217,8 @@ static void sdap_sudo_refresh_connect_done(struct tevent_req *subreq)
     subreq = sdap_sudo_load_sudoers_send(state, state->be_ctx->ev,
                                          state->opts,
                                          sdap_id_op_handle(state->sdap_op),
-                                         state->ldap_filter);
+                                         state->ldap_filter,
+                                         req);
     if (subreq == NULL) {
         ret = EFAULT;
         goto fail;
@@ -228,18 +234,19 @@ fail:
     tevent_req_error(req, ret);
 }
 
-static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
+static struct tevent_req *sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
-                                                       const char *ldap_filter)
-
-
-
+                                                       const char *ldap_filter,
+                                                       struct tevent_req *sdap_req)
 {
     struct tevent_req *req;
     struct sdap_sudo_load_sudoers_state *state;
+    struct sdap_sudo_refresh_state *refresh_state;
     int ret;
+
+    refresh_state = tevent_req_data(sdap_req, struct sdap_sudo_refresh_state);
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_load_sudoers_state);
     if (!req) {
@@ -251,10 +258,13 @@ static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
     state->sh = sh;
     state->base_iter = 0;
     state->search_bases = opts->sdom->sudo_search_bases;
+    state->req = sdap_req;
     state->filter = ldap_filter;
     state->timeout = dp_opt_get_int(opts->basic, SDAP_SEARCH_TIMEOUT);
     state->ldap_rules = NULL;
     state->ldap_rules_count = 0;
+    state->refresh_state = refresh_state;
+    state->refresh_state->load_req = req;
 
     if (!state->search_bases) {
         DEBUG(SSSDBG_CRIT_FAILURE,
@@ -263,9 +273,14 @@ static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
         goto done;
     }
 
-    /* create attrs from map */
+    //FIXME: if IPA:...
+    /* create attrs from map 
     ret = build_attrs_from_map(state, opts->sudorule_map, SDAP_OPTS_SUDO,
                                NULL, &state->attrs, NULL);
+    */
+    ret = build_attrs_from_map(state, opts->ipa_sudorule_map, SDAP_OPTS_IPA_SUDO,
+                               NULL, &state->attrs, NULL);
+    
     if (ret != EOK) {
         goto fail;
     }
@@ -313,6 +328,9 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
           ("Searching for sudo rules with base [%s]\n",
            search_base->basedn));
 
+    //FIXME: if IPA
+                                   //state->opts->sudorule_map,
+                                   //SDAP_OPTS_SUDO,
     subreq = sdap_get_generic_send(state,
                                    state->ev,
                                    state->opts,
@@ -321,14 +339,16 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
                                    search_base->scope,
                                    filter,
                                    state->attrs,
-                                   state->opts->sudorule_map,
-                                   SDAP_OPTS_SUDO,
+                                   state->opts->ipa_sudorule_map,
+                                   SDAP_OPTS_IPA_SUDO,
                                    state->timeout,
                                    true);
     if (subreq == NULL) {
         return ENOMEM;
     }
 
+    //FIXME: if IPA
+    //tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
     tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
 
     return EOK;
@@ -344,6 +364,7 @@ static void sdap_sudo_load_sudoers_process(struct tevent_req *subreq)
     int ret;
     int i;
 
+    /* req from sdap_sudo_load_sudoers_send */
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_load_sudoers_state);
     search_base = state->search_bases[state->base_iter];
@@ -392,7 +413,7 @@ static void sdap_sudo_load_sudoers_process(struct tevent_req *subreq)
     tevent_req_done(req);
 }
 
-static int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
+int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
                                        TALLOC_CTX *mem_ctx,
                                        size_t *rules_count,
                                        struct sysdb_attrs ***rules)
@@ -423,7 +444,7 @@ void sdap_sudo_refresh_load_done(struct tevent_req *subreq)
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
 
-    ret = sdap_sudo_load_sudoers_recv(subreq, state, &rules_count, &rules);
+    ret = sdap_sudo_load_sudoers_recv(subreq, state, &state->ldap_rules_count, &state->ldap_rules);
     talloc_zfree(subreq);
     if (ret != EOK) {
         goto done;
@@ -467,6 +488,7 @@ void sdap_sudo_refresh_load_done(struct tevent_req *subreq)
     DEBUG(SSSDBG_TRACE_FUNC, ("Sudoers is successfuly stored in cache\n"));
 
     ret = EOK;
+
     state->num_rules = rules_count;
 
 done:

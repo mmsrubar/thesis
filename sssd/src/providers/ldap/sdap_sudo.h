@@ -93,10 +93,11 @@ int sdap_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
                            int *dp_error,
                            int *error,
                            char **usn,
+                           size_t *rules_count,
+                           struct sysdb_attrs ***rules,
                            size_t *num_rules);
 
 /* timer */
-
 typedef struct tevent_req * (*sdap_sudo_timer_fn_t)(TALLOC_CTX *mem_ctx,
                                                     struct sdap_sudo_ctx *sudo_ctx);
 

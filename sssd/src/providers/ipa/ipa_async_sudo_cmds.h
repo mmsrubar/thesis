@@ -2,13 +2,13 @@
 #define _IPA_ASYNC_SUDO_CMDS_H_
 
 struct tevent_req *
-//ipa_sudo_export_rules_send(TALLOC_CTX *mem,
-ipa_sudo_get_cmds_send(
-                           struct sysdb_attrs **ipa_rules, 
-                           int ipa_rules_count, 
-                           struct sdap_sudo_load_sudoers_state *sudo_state,
-                           struct tevent_req *req_sdap);
-    
+ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
+                       struct sysdb_attrs **ipa_rules,
+                       int ipa_rules_count,
+                       struct be_ctx *be_ctx,
+                       struct sdap_id_conn_cache *conn_cache,
+                       struct sdap_options *opts);
+
 int ipa_sudo_get_cmds_recv(struct tevent_req *req,
                                TALLOC_CTX *mem_ctx,
                                size_t *reply_count,
