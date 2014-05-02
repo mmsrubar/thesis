@@ -407,8 +407,10 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
                                     struct sysdb_ctx *sysdb, 
                                     struct ldb_message_element *e,
                                     struct ipa_sudoer_cmds **cmd_index,
-                                    struct sysdb_attrs **sudoer,
-                                    const char *new_name)
+                                    struct sysdb_attrs **sudoers,
+                                    const char *new_name,
+                                    struct tevent_req *req)
+        //                            const char *new_name)
 {
     struct ldb_message_element *new_el = NULL;
     struct ipa_sudo_export *prop = NULL;
@@ -434,10 +436,17 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
          * final sudoers yet. Because we need to export the value first but we
          * don't have downloaded the IPA SUDO commands yet.
          */
+        /* There is a bug in this func. Probably you work wrong with talloc. If I
+         * comment this func then there is no problem to free the req. But when the
+         * func is called then I get SIGABRT when I try to free the req.
+         */
         if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
             strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
 
-            ret = ipa_sudo_index_commands(mem, *cmd_index, e->name, new_value);
+            // FIXME: I should put cmds_index[i] as mem context here istead of
+            // ipa_sudo_get_state
+            //ret = ipa_sudo_index_commands(mem, *cmd_index, e->name, new_value);
+            ret = ipa_sudo_index_commands((TALLOC_CTX *)*cmd_index, *cmd_index, e->name, new_value);
             if (ret != EOK) {
                 goto fail;
             }
@@ -447,14 +456,14 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
 
         /* create new attribute or get the existing one based on the
          * new name of the attribute */
-        ret = sysdb_attrs_get_el_ext(*sudoer, new_name, true, &new_el);
+        ret = sysdb_attrs_get_el_ext(*sudoers, new_name, true, &new_el);
         if (ret != EOK) {
             // FIXME: can't get new attribute
             goto fail;
         }
 
         /* copy exported value to the values of the new attribute */
-        ret = sysdb_attrs_add_string(*sudoer, new_name, new_value);
+        ret = sysdb_attrs_add_string(*sudoers, new_name, new_value);
         if (ret != EOK) {
             // FIXME: can't get new attribute
             goto fail;
@@ -479,7 +488,8 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
                                 int rules_count, 
                                 struct sysdb_attrs ***exported_rules,
                                 int *sudoers_count,
-                                struct ipa_sudoer_cmds ***index)
+                                struct ipa_sudoer_cmds ***index,
+                                struct tevent_req *req)
 {
     struct ldb_message_element *e = NULL;
     struct sysdb_attrs **sudoers;
@@ -526,19 +536,87 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
                 goto fail;
             }
 
+            // ipa_sudo_export_attr_values
+            // =================================================================
+            struct ldb_message_element *new_el = NULL;
+            struct ipa_sudo_export *prop = NULL;
+            char *new_value = NULL;
+            errno_t ret = EOK;
+            int k;
+
+            /* EXPORT all values of the attribute */
+            for (k = 0; k < e->num_values; k++) {
+
+                ret = ipa_sudo_export_set_properties(sudoers[i], e->name, 
+                                                (const char *)e->values[k].data, &prop);
+                if (ret != EOK) {
+                    goto fail;
+                }
+
+               
+                ret = ipa_sudo_export_attr_value(sudoers[i], prop, sysdb, &new_value);
+                if (ret != EOK) {
+                    goto fail;
+                }
+
+                /* For commands we build cmd_index but do not copy it's values into
+                 * final sudoers yet. Because we need to export the value first but we
+                 * don't have downloaded the IPA SUDO commands yet.
+                 */
+                if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
+                    strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
+
+                    // FIXME: I should put cmds_index[i] as mem context here istead of
+                    ret = ipa_sudo_index_commands(cmds_index, cmds_index[i], e->name, new_value);
+                    if (ret != EOK) {
+                        goto fail;
+                    }
+
+                    continue;
+                }
+
+                /* create new attribute or get the existing one based on the
+                 * new name of the attribute */
+                ret = sysdb_attrs_get_el_ext(sudoers[i], new_name, true, &new_el);
+                if (ret != EOK) {
+                    // FIXME: can't get new attribute
+                    goto fail;
+                }
+
+                /* copy exported value to the values of the new attribute */
+                ret = sysdb_attrs_add_string(sudoers[i], new_name, new_value);
+                if (ret != EOK) {
+                    // FIXME: can't get new attribute
+                    goto fail;
+                }
+
+                talloc_zfree(prop);
+                talloc_zfree(new_value);
+
+              
+            } /* EXPORT all values of the attribute */
+
+#ifdef old
             /* EXPORT all values of the attribute */
             // FIXME: new atttrs has to be stored under sudoers context attrs!
             ret = ipa_sudo_export_attr_values(mem, sysdb, e, &(cmds_index[i]), 
-                                              &(sudoers[i]), new_name);
+                                              &(sudoers[i]), new_name, req);
+                                              
             if (ret != EOK) {
                 goto fail;
             }
+#endif
 
             talloc_zfree(new_name);
-        }
+
+        } /* for each attribute of the rule */
 
         (*sudoers_count)++;
-    }
+
+    } /* for each rule aplicable to this host */
+
+    talloc_report_full(mem, stdout);
+    printf("fdsa");
 
     if (rules_count != *sudoers_count || ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unsuccessful export of IPA SUDO rules\n"));

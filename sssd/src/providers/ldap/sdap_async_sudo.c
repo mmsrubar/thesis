@@ -45,6 +45,8 @@ static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct sdap_handle *sh,
                                                        const char *ldap_filter,
                                                        struct tevent_req *sdap_req);
+static void sdap_sudo_refresh_load_done_ldap(struct tevent_req *subreq);
+static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq);
 
 static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req);
 
@@ -224,7 +226,7 @@ static void sdap_sudo_refresh_connect_done(struct tevent_req *subreq)
         goto fail;
     }
 
-    tevent_req_set_callback(subreq, sdap_sudo_refresh_load_done, req);
+    tevent_req_set_callback(subreq, sdap_sudo_refresh_load_done_ex, req);
 
     return;
 
@@ -348,7 +350,7 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
     }
 
     //FIXME: if IPA
-    //tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
+    //for LAP tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
     tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
 
     return EOK;
@@ -430,7 +432,59 @@ int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
     return EOK;
 }
 
-void sdap_sudo_refresh_load_done(struct tevent_req *subreq)
+void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq)
+{
+    struct tevent_req *req; 
+    struct sdap_sudo_refresh_state *state;
+ 
+    req = tevent_req_callback_data(subreq, struct tevent_req);
+    state = tevent_req_data(req, struct sdap_sudo_refresh_state);
+
+    if (state->opts->schema_type == SDAP_SCHEMA_IPA_V1) {
+        /* req from ipa_sudo_refresh_send() */
+        sdap_sudo_refresh_load_done_ipa(subreq);
+    }
+    else {
+        /* req from sdap_sudo_refresh_send() */
+        sdap_sudo_refresh_load_done_ldap(subreq);
+    }
+}
+
+static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq)
+{
+    struct sdap_sudo_refresh_state *state;
+    struct tevent_req *req; 
+    int ret;
+
+    req = tevent_req_callback_data(subreq, struct tevent_req);
+    state = tevent_req_data(req, struct sdap_sudo_refresh_state);
+
+    ret = sdap_sudo_load_sudoers_recv(subreq, state, &state->ldap_rules_count, 
+                                      &state->ldap_rules);
+    talloc_zfree(subreq);
+    if (ret != EOK) {
+        goto done;
+    }
+
+    DEBUG(SSSDBG_TRACE_FUNC, ("Received %zu rules and giving control back to "
+                "IPA SUDO provider\n", state->ldap_rules_count));
+
+    state->num_rules = state->ldap_rules_count;
+done:
+    /* req from ipa_sudo_refresh_send() */
+
+    state->error = ret;
+    if (ret == EOK) {
+        state->dp_error = DP_ERR_OK;
+        tevent_req_done(req);
+    } else {
+        state->dp_error = DP_ERR_FATAL;
+        tevent_req_error(req, ret);
+    }
+}
+
+
+static void sdap_sudo_refresh_load_done_ldap(struct tevent_req *subreq)
 {
     struct tevent_req *req; /* req from sdap_sudo_refresh_send() */
     struct sdap_sudo_refresh_state *state;
@@ -444,7 +498,7 @@ void sdap_sudo_refresh_load_done(struct tevent_req *subreq)
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
 
-    ret = sdap_sudo_load_sudoers_recv(subreq, state, &state->ldap_rules_count, &state->ldap_rules);
+    ret = sdap_sudo_load_sudoers_recv(subreq, state, &rules_count, &rules);
     talloc_zfree(subreq);
     if (ret != EOK) {
         goto done;
@@ -488,7 +542,6 @@ void sdap_sudo_refresh_load_done(struct tevent_req *subreq)
     DEBUG(SSSDBG_TRACE_FUNC, ("Sudoers is successfuly stored in cache\n"));
 
     ret = EOK;
-
     state->num_rules = rules_count;
 
 done:
@@ -499,6 +552,8 @@ done:
         }
     }
 
+
+    /* finish sdap_sudo_refresh_send() */
     state->error = ret;
     if (ret == EOK) {
         state->dp_error = DP_ERR_OK;

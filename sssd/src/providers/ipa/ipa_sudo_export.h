@@ -41,7 +41,9 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
                                 int rules_count, 
                                 struct sysdb_attrs ***exported_rules,
                                 int *sudoers_count,
-                                struct ipa_sudoer_cmds ***index);
+                                struct ipa_sudoer_cmds ***index,
+                                struct tevent_req *req);
+                                //struct ipa_sudoer_cmds ***index);
 
 errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx, 
                             struct sysdb_ctx *sysdb,

@@ -306,7 +306,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
     if (strcasecmp(name, IPA_SUDO_ATTR_ALLOW_CMD) == 0) {
 
         /* make a space for one more command */
-        cmds->allowed = talloc_realloc(mem, cmds->allowed, const char *, 1);
+        cmds->allowed = talloc_realloc(mem, cmds->allowed, const char *, cmds->allowed_num+1);
         if (cmds->allowed == NULL) {
             DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             ret = ENOMEM;
@@ -326,7 +326,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
     else if (strcasecmp(name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
 
         /* make a space for one more command */
-        cmds->denied = talloc_realloc(mem, cmds->denied, const char *, 1);
+        cmds->denied = talloc_realloc(mem, cmds->denied, const char *, cmds->denied_num+1);
         if (cmds->denied == NULL) {
             DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             ret = ENOMEM;

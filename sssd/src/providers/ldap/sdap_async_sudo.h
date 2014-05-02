@@ -1,7 +1,8 @@
 #ifndef _SDAP_ASYNC_SUDO_H_
 #define _SDAP_ASYNC_SUDO_H_
 
-void sdap_sudo_refresh_load_done(struct tevent_req *subreq);
+//void sdap_sudo_refresh_load_done(struct tevent_req *subreq);
+void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq);
 
 int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
                                        TALLOC_CTX *mem_ctx,
