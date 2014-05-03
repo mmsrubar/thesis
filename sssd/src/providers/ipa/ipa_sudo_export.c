@@ -388,6 +388,7 @@ errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
              strcasecmp(attr_name, "externalHost") == 0 ||
              strcasecmp(attr_name, "sudoCommand") == 0 ||
              strcasecmp(attr_name, "ipaSudoOpt") == 0 ||
+             strcasecmp(attr_name, "sudoOption") == 0 ||
              strcasecmp(attr_name, "sudoRunAsUser") == 0 ||
              strcasecmp(attr_name, "ipaSudoRunAsExtUser") == 0 ||
              strcasecmp(attr_name, "sudoRunAsGroup") == 0 ||

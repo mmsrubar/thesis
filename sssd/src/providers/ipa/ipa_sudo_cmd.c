@@ -107,21 +107,20 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
                                    const char **cmd_filter)
 {
     TALLOC_CTX *tmp = NULL;
-    char *filter;
     const char **attr_vals;
     char *cmds_filter = NULL;
-
+    char *filter;
     errno_t ret = EOK;
     int i;
-
-    DEBUG(SSSDBG_TRACE_FUNC,
-          ("Building filter out of IPA SUDO rules to get IPA SUDO commands "
-           "for those rules.\n"));
 
     /* no ipa sudo rules -> nothing to build new filter from */
     if (rules == NULL && count == 0) {
         return ENOENT;
     }
+
+    DEBUG(SSSDBG_TRACE_FUNC,
+          ("Building filter out of IPA SUDO rules to get IPA SUDO commands "
+           "for those rules.\n"));
 
     filter = talloc_asprintf(tmp, IPA_SUDO_CMD_FILTER, "ipasudocmd");
     if (filter == NULL) {
