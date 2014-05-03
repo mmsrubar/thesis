@@ -1,0 +1,67 @@
+<jhrozek> mmsrubar: I pushed some review comments into my branch called 'review', including a proposal on the unit test
+<jhrozek> mmsrubar: one request needs to be moved from IPA to LDAP tree in order for the provider co compile
+<mmsrubar> jhrozek: allright, I'll finish some stuff about getting hostgroups and I'll take a look at it
+<jhrozek> ok
+<mmsrubar> jhrozek: what exatly did you mean by moving that req from IPA to LDAP just copy the file from ipa dir to ldap dir or move the content?
+<jhrozek> mmsrubar: you can do either
+<mmsrubar> and if I do that there is still sync func call to IPA
+<jhrozek> mmsrubar: you'll want to rename the file, though
+<jhrozek> yeah, to parse the reply, right?
+<mmsrubar> exactly
+<jhrozek> I think the reply should be just returned to the caller and he can parse on will
+<jhrozek> that would be in IPA tree already
+<jhrozek> so you can use IPA specific code there
+<jhrozek> but the plain LDAP provider, even if working with IPA can't call functions from the IPA provider
+<mmsrubar> so calling sync IPA func from LDAP isn't a problem? 
+<jhrozek> it is :)
+<jhrozek> the generic search should be in LDAP provider and should just return the sdap_attrs to the caller
+<jhrozek> or sysdb_attrs
+<jhrozek> the caller in IPA provider can do IPA-specific parsing magic
+* palikpl (~pali@afit237.neoplus.adsl.tpnet.pl) has joined #sssd
+<mmsrubar> I'm still kind of confused what should be where :-(
+<jhrozek> ipa_async_sudo.c should be in LDAP
+* palikpl_ has quit (Ping timeout: 252 seconds)
+<jhrozek> it mostly calls LDAP functions anyway
+<jhrozek> with the exception of ipa_sudo_export_cmds()
+<mmsrubar> there are three calls to IPA in ipa_async_sudo
+<jhrozek> so instead of processing state->rules->sudoers with ipa_sudo_export_cmds() I was proposing just returning state->rules->sudoers to the caller and let the caller invoke ipa_sudo_export_cmds()
+<jhrozek> umm actually we can do something else, hang on
+* palikpl_ (~pali@aazy133.neoplus.adsl.tpnet.pl) has joined #sssd
+<jhrozek> mmsrubar: why not do the exact opposite and call sdap_sudo_load_sudoers_send() from ipa_async_sudo ?
+<jhrozek> you can add parameters to sdap_sudo_load_sudoers_send() that would allow you to set the search base depending on who's calling it
+<jhrozek> maybe have something like sdap_sudo_load_sudoers_send_ex() and two wrappers sdap_sudo_load_sudoers_send_ldap() and sdap_sudo_load_sudoers_send_ipa() that would use the right values like objectclass and search base
+<mmsrubar> i gotta take a closer look at this option
+<jhrozek> I'm looking at the changes you did to sdap_sudo_load_sudoers_send
+<jhrozek> it's mostly branching based on what schema was selected
+<jhrozek> different sdap_map
+* palikpl (~pali@aeoh124.neoplus.adsl.tpnet.pl) has joined #sssd
+* jobewan (~jobewan@69.179.206.39) has joined #sssd
+* palikpl_ has quit (Ping timeout: 240 seconds)
+<mmsrubar> jhrozek: it probably could be done
+<mmsrubar> but with this approach it would be better to not modify sdap_async_sudo at all
+<mmsrubar> and just use sdap_sudo_{purge,store}_sudoers from it
+<mmsrubar> because you would have to add logic from sdap_sudo_refresh_send to sdap_sudo_load_sudoers_send into ipa_async_sudo 
+<mmsrubar> so the both modules would basically do the same thing
+<jhrozek> mmsrubar: ok, if you need to split purge and store, that's fine
+<jhrozek> mmsrubar: split and reuse
+<mmsrubar> split? I think it's just need to be make non-static, since you said calling ldap from ipa is alright
+<jhrozek> ok, that's fine, too
+* n0b0dyimp0rtant (Adium@nat/rackspace/x-rkpflberaqxwkuah) has joined #sssd
+* acidrainfall (~adavis@12.162.77.138) has joined #sssd
+<Michichael-Sune> Mornin
+<mmsrubar> btw, why is a problem to call IPA code from LDAP?
+<lslebodn> mmsrubar: because you can install only sssd-ldap and library libsss_ipa will not be installed
+<lslebodn> ther will be problem to load libss_ldap due to missing functions
+* Michichael-Sune yawns.
+
+<jhrozek> mmsrubar: pong
+<mmsrubar> hi, I was thinking about the linking problem yesterday
+<mmsrubar> and I just wanna make sure that you looked at the call flow corretly
+<jhrozek> ok
+<mmsrubar> as you said I can't call LDAP from IPA because there can be a case where libsss_ipa isn't loaded but what if I'm sure it is
+<mmsrubar> I'm asking because the exact flow of the current prototype is as following
+<mmsrubar> IPA SUDO INIT|HANDLER -> IPA(ipa_sudo_{full,rules,smart}_refresh_send) -> LDAP(sdap_sudo_refresh_send - I use this module to download the rules) -> IPA(ipa_sudo_export_rules_send - to export rules) -> LDAP(save exported sudoers into sysdb) -> IPA 
+<mmsrubar> so it starts in IPA and ends in IPA even though there is one LDAP->IPA call, is that still a problem?
+<jhrozek> yes, libsss_ldap is a self-contained (even though private) library, all symbols must be resolvable from that library
+<jhrozek> also, libsss_ldap is a building block other providers (like AD) build on, so there should be no extra dependency
+<mmsrubar> I thought that's the problem, I just wanned to be sure ...

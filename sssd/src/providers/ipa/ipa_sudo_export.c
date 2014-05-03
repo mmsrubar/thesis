@@ -192,9 +192,9 @@ errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx,
 }
 
 /*
- * These attr name should be handled automatically by ipa_sudorule_map:
- *  externalUser, externalHost, ipaSudoOpt, 
- *  ipaSudoRunAsExtUser, ipaSudoRunAsExtGroup
+ * These attr name could be handled automatically by ipa_sudorule_map:
+ *      externalUser, externalHost, ipaSudoOpt,
+ *      ipaSudoRunAsExtUser, ipaSudoRunAsExtGroup 
  */
 static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
                                          const char *ipa_name,
@@ -209,7 +209,13 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
     if (strcasecmp(ipa_name, "memberUser") == 0 ) {
         *sysdb_name = talloc_strdup(mem, "sudoUser");
     }
+    else if (strcasecmp(ipa_name, "externalUser") == 0 ) {
+        *sysdb_name = talloc_strdup(mem, "sudoUser");
+    }
     else if (strcasecmp(ipa_name, "memberHost") == 0 ) {
+        *sysdb_name = talloc_strdup(mem, "sudoHost");
+    }
+    else if (strcasecmp(ipa_name, "externalHost") == 0 ) {
         *sysdb_name = talloc_strdup(mem, "sudoHost");
     }
     else if (strcasecmp(ipa_name, "memberAllowCmd") == 0 ||
@@ -219,7 +225,13 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
     else if (strcasecmp(ipa_name, "ipaSudoRunAs") == 0) {
         *sysdb_name = talloc_strdup(mem, "sudoRunAsUser");
     }
+    else if (strcasecmp(ipa_name, "ipaSudoRunAsExtUser") == 0) {
+        *sysdb_name = talloc_strdup(mem, "sudoRunAsUser");
+    }
     else if (strcasecmp(ipa_name, "ipaSudoRunAsGroup") == 0) {
+        *sysdb_name = talloc_strdup(mem, "sudoRunAsGroup");
+    }
+    else if (strcasecmp(ipa_name, "ipaSudoRunAsExtGroup") == 0) {
         *sysdb_name = talloc_strdup(mem, "sudoRunAsGroup");
     }
     else if (strcasecmp(ipa_name, "userCategory") == 0) {
@@ -236,6 +248,9 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
     }
     else if (strcasecmp(ipa_name, "ipaSudoRunAsGroupCategory") == 0) {
         *sysdb_name = talloc_strdup(mem, "sudoRunAsGroup");
+    }
+    else if (strcasecmp(ipa_name, "ipaSudoOpt") == 0) {
+        *sysdb_name = talloc_strdup(mem, "sudoOption");
     } /* these attrs are still legal */
     else if (strcasecmp(ipa_name, "originalDN") == 0 ||
              strcasecmp(ipa_name, "cn") == 0 ||
@@ -368,11 +383,15 @@ errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
     else if (strcasecmp(attr_name, "originalDN") == 0 ||
              strcasecmp(attr_name, "cn") == 0 ||
              strcasecmp(attr_name, "sudoUser") == 0 ||
+             strcasecmp(attr_name, "externalUser") == 0 ||
              strcasecmp(attr_name, "sudoHost") == 0 ||
+             strcasecmp(attr_name, "externalHost") == 0 ||
              strcasecmp(attr_name, "sudoCommand") == 0 ||
-             strcasecmp(attr_name, "sudoOption") == 0 ||
+             strcasecmp(attr_name, "ipaSudoOpt") == 0 ||
              strcasecmp(attr_name, "sudoRunAsUser") == 0 ||
+             strcasecmp(attr_name, "ipaSudoRunAsExtUser") == 0 ||
              strcasecmp(attr_name, "sudoRunAsGroup") == 0 ||
+             strcasecmp(attr_name, "ipaSudoRunAsExtGroup") == 0 ||
              strcasecmp(attr_name, "entryUSN") == 0) {
         prop->type = COPY;
     }
@@ -541,7 +560,6 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
             struct ldb_message_element *new_el = NULL;
             struct ipa_sudo_export *prop = NULL;
             char *new_value = NULL;
-            errno_t ret = EOK;
             int k;
 
             /* EXPORT all values of the attribute */
@@ -614,9 +632,6 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
         (*sudoers_count)++;
 
     } /* for each rule aplicable to this host */
-
-    talloc_report_full(mem, stdout);
-    printf("fdsa");
 
     if (rules_count != *sudoers_count || ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unsuccessful export of IPA SUDO rules\n"));

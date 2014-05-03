@@ -54,7 +54,7 @@
 #define TESTS_PATH "tests_ipa_sudo_export"
 #define TEST_CONF_FILE "tests_conf.ldb"
 
-static void test_ipa_sudoer_export_done(struct tevent_req *subreq);
+static void test_export_done(struct tevent_req *subreq);
 
 struct sudo_rule {
     const char *attr;
@@ -188,7 +188,7 @@ struct sudo_rule ldap_rule2[] = {
 };
 /* -------------------------------------------------------------------------- */
 
-/* 3rd IPA sudo rule -------------------------------------------------------- */
+/* IPA sudo rule - multiple commands and commands groups */
 struct sudo_rule ipa_rule3[] = {
     {"cn", "test4"},
     {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
@@ -218,7 +218,33 @@ struct sudo_rule ldap_rule3[] = {
     {"entryUSN", "8040"},
     {NULL, NULL}
 };
-/* -------------------------------------------------------------------------- */
+
+/* IPA sudo rule - multiple options */
+struct sudo_rule ipa_rule4[] = {
+    {"cn", "test4"},
+    {"ipaSudoOpt", "passprompt=\"Sudo invoked by [%u] on [%H] - Cmd run as %U - Password for user %p:\""},
+    {"ipaSudoOpt", "timestamp_timeout=0"},
+    {"ipaSudoOpt", "logfile=/var/log/sudo.logf"},
+    {"ipaSudoOpt", "visiblepw"},
+    {"memberHost", "fqdn=client1.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
+    {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
+    {"memberAllowCmd", "ipaUniqueID=c484ca28-c019-11e3-84b4-0800274dc10b,cn=sudocmds,cn=sudo,dc=example,dc=cz"},
+    {"entryUSN", "84040"},
+    {NULL, NULL}
+};
+
+struct sudo_rule ldap_rule4[] = {
+    {"sudoUser", "admin"},
+    {"sudoHost", "client1.example.cz"},
+    {"sudoCommand", "/sbin/fdisk"},
+    {"sudoOption", "passprompt=\"Sudo invoked by [%u] on [%H] - Cmd run as %U - Password for user %p:\""},
+    {"sudoOption", "timestamp_timeout=0"},
+    {"sudoOption", "logfile=/var/log/sudo.logf"},
+    {"sudoOption", "visiblepw"},
+    {"cn", "test4"},
+    {"entryUSN", "84040"},
+    {NULL, NULL}
+};
 
 
 /* WHAT TO TEST ? */
@@ -253,14 +279,14 @@ struct sdap_id_op {
     struct tevent_req *connect_req;
 };
 
-void __wrap__dp_opt_get_int(struct dp_option *opts,
+int __wrap__dp_opt_get_int(struct dp_option *opts,
                     int id, const char *location) {
-    return;
+    return mock_type(int);
 }
 
 
-void __wrap_dp_opt_get_int(struct dp_option *opts, int id) {
-    return;
+int __wrap_dp_opt_get_int(struct dp_option *opts, int id) {
+    return mock_type(int);
 }
 
 struct sdap_id_op *__wrap_sdap_id_op_create(TALLOC_CTX *memctx,
@@ -482,6 +508,7 @@ void compare_sudoers(struct sudo_rule **ldap, struct sysdb_attrs **exported, int
                 /* value found */
                 if (strcmp(val, values[i]) == 0) {
                     found = true;
+                    break;
                 }
             }
             assert_true(found); found = false;
@@ -531,31 +558,126 @@ void setup_sudo_env(void **state) {
     *state = sudo_test_ctx;
 }
 
-void test_ipa_sudoer_export_send(void **state)
+/* simple IPA sudo rule with one command */
+void test_simple_rule_send(void **state)
 {
     struct tevent_req *req;
     struct sysdb_attrs **sudoers;
     struct sudo_rule **rules;
     struct sysdb_attrs **cmds;
     struct sudo_test *test_ctx;
-    int count = 3;                  /* number of tested rules */
-    int cmds_count = 10;            /* number of cmds */
+    int count = 1;                  /* number of tested rules */
+    int cmds_count = 1;            /* number of cmds */
  
     test_ctx = *state;
 
-    /* create fake IPA sudoers */
+    /* create fake LDAP sudoers */
     test_ctx->ldap_rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
     assert_non_null(rules);
     test_ctx->ldap_rules[0] = ldap_rule1;
-    test_ctx->ldap_rules[1] = ldap_rule2;
-    test_ctx->ldap_rules[2] = ldap_rule3;
  
     /* create fake IPA sudoers */
     rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
     assert_non_null(rules);
     rules[0] = ipa_rule1;
-    rules[1] = ipa_rule2;
-    rules[2] = ipa_rule3;
+    get_sysdb_attrs(test_ctx, rules, count, &sudoers);
+    assert_non_null(sudoers);
+ 
+    /* create fake IPA sudo commands for the rule */
+    cmds = talloc_zero_array(test_ctx, struct sysdb_attrs *, cmds_count);
+    assert_non_null(cmds);
+    cmds[0] = create_entry(test_ctx, ipa_cmd1);
+    //print_rules("ipa commands: ", cmds, cmds_count);
+    //print_rules("ipa_sudoers: ", sudoers, count);
+
+    will_return(__wrap_sdap_get_generic_recv, cmds_count);
+    will_return(__wrap_sdap_get_generic_recv, cmds);
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
+
+    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
+    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
+    be_ctx->ev = test_ctx->test_ctx->ev;
+    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_get_cmds_send(test_ctx, sudoers, count, 
+                                 be_ctx, NULL, test_ctx->state->opts);
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_export_done, test_ctx);
+
+    test_ev_loop(test_ctx->test_ctx);
+}
+
+/* test IPA sudo rule with NO command */
+void test_no_commands_send(void **state)
+{
+    struct tevent_req *req;
+    struct sysdb_attrs **sudoers;
+    struct sudo_rule **rules;
+    struct sudo_test *test_ctx;
+    int count = 1;                  /* number of tested rules */
+    int cmds_count = 1;            /* number of cmds */
+ 
+    test_ctx = *state;
+
+    /* create fake LDAP sudoers */
+    test_ctx->ldap_rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    test_ctx->ldap_rules[0] = ldap_rule2;
+ 
+    /* create fake IPA sudoers */
+    rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    rules[0] = ipa_rule2;
+    get_sysdb_attrs(test_ctx, rules, count, &sudoers);
+    assert_non_null(sudoers);
+ 
+    //will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    //will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
+    //will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
+
+    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
+    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
+    be_ctx->ev = test_ctx->test_ctx->ev;
+    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_get_cmds_send(test_ctx, sudoers, count, 
+                                 be_ctx, NULL, test_ctx->state->opts);
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_export_done, test_ctx);
+
+    test_ev_loop(test_ctx->test_ctx);
+}
+
+/* IPA sudo rule multiple commands and commands groups */
+void test_multiple_commands_send(void **state)
+{
+    struct tevent_req *req;
+    struct sysdb_attrs **sudoers;
+    struct sudo_rule **rules;
+    struct sysdb_attrs **cmds;
+    struct sudo_test *test_ctx;
+    int count = 1;                  /* number of tested rules */
+    int cmds_count = 12;            /* number of cmds */
+ 
+    test_ctx = *state;
+
+    /* create fake LDAP sudoers */
+    test_ctx->ldap_rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    test_ctx->ldap_rules[0] = ldap_rule3;
+ 
+    /* create fake IPA sudoers */
+    rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    rules[0] = ipa_rule3;
     get_sysdb_attrs(test_ctx, rules, count, &sudoers);
     assert_non_null(sudoers);
  
@@ -564,49 +686,113 @@ void test_ipa_sudoer_export_send(void **state)
     assert_non_null(cmds);
     cmds[0] = create_entry(test_ctx, ipa_cmd1);
     cmds[1] = create_entry(test_ctx, ipa_cmd2);
-    cmds[2] = create_entry(test_ctx, ipa_cmd4);
-    cmds[3] = create_entry(test_ctx, ipa_cmd5);
-    cmds[4] = create_entry(test_ctx, ipa_cmd6);
-    cmds[5] = create_entry(test_ctx, ipa_cmd7);
-    cmds[6] = create_entry(test_ctx, ipa_cmd8);
-    cmds[7] = create_entry(test_ctx, ipa_cmd9);
-    cmds[8] = create_entry(test_ctx, ipa_cmd10);
-    cmds[9] = create_entry(test_ctx, ipa_cmd11);
-    print_rules("ipa commands: ", cmds, cmds_count);
+    cmds[2] = create_entry(test_ctx, ipa_cmd3);
+    cmds[3] = create_entry(test_ctx, ipa_cmd4);
+    cmds[4] = create_entry(test_ctx, ipa_cmd5);
+    cmds[5] = create_entry(test_ctx, ipa_cmd6);
+    cmds[6] = create_entry(test_ctx, ipa_cmd7);
+    cmds[7] = create_entry(test_ctx, ipa_cmd8);
+    cmds[8] = create_entry(test_ctx, ipa_cmd9);
+    cmds[9] = create_entry(test_ctx, ipa_cmd10);
+    cmds[10] = create_entry(test_ctx, ipa_cmd11);
+    cmds[11] = create_entry(test_ctx, ipa_cmd12);
+    //print_rules("ipa commands: ", cmds, cmds_count);
+    //print_rules("ipa_sudoers: ", sudoers, count);
 
     will_return(__wrap_sdap_get_generic_recv, cmds_count);
     will_return(__wrap_sdap_get_generic_recv, cmds);
     will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
     will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
     will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
 
-    print_rules("ipa_sudoers: ", sudoers, count);
+    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
+    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
+    be_ctx->ev = test_ctx->test_ctx->ev;
+    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
 
     /* we don't need search filters because we won't send any requests */
-    req = ipa_sudo_get_cmds_send(sudoers, count, test_ctx->state, NULL);
+    req = ipa_sudo_get_cmds_send(test_ctx, sudoers, count, 
+                                 be_ctx, NULL, test_ctx->state->opts);
     assert_non_null(req);
 
-    tevent_req_set_callback(req, test_ipa_sudoer_export_done, test_ctx);
+    tevent_req_set_callback(req, test_export_done, test_ctx);
 
     test_ev_loop(test_ctx->test_ctx);
 }
 
-static void test_ipa_sudoer_export_done(struct tevent_req *subreq)
+/* IPA sudo rule multiple commands and commands groups */
+void test_multiple_options_send(void **state)
+{
+    struct tevent_req *req;
+    struct sysdb_attrs **sudoers;
+    struct sudo_rule **rules;
+    struct sysdb_attrs **cmds;
+    struct sudo_test *test_ctx;
+    int count = 1;                  /* number of tested rules */
+    int cmds_count = 1;            /* number of cmds */
+ 
+    test_ctx = *state;
+
+    /* create fake LDAP sudoers */
+    test_ctx->ldap_rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    test_ctx->ldap_rules[0] = ldap_rule4;
+ 
+    /* create fake IPA sudoers */
+    rules = talloc_zero_array(test_ctx, struct sudo_rule *, count);
+    assert_non_null(rules);
+    rules[0] = ipa_rule4;
+    get_sysdb_attrs(test_ctx, rules, count, &sudoers);
+    assert_non_null(sudoers);
+ 
+    /* create fake IPA sudo commands for the rule */
+    cmds = talloc_zero_array(test_ctx, struct sysdb_attrs *, cmds_count);
+    assert_non_null(cmds);
+    cmds[0] = create_entry(test_ctx, ipa_cmd3);
+    //print_rules("ipa commands: ", cmds, cmds_count);
+    //print_rules("ipa_sudoers: ", sudoers, count);
+
+    will_return(__wrap_sdap_get_generic_recv, cmds_count);
+    will_return(__wrap_sdap_get_generic_recv, cmds);
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
+
+    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
+    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
+    be_ctx->ev = test_ctx->test_ctx->ev;
+    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_get_cmds_send(test_ctx, sudoers, count, 
+                                 be_ctx, NULL, test_ctx->state->opts);
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_export_done, test_ctx);
+
+    test_ev_loop(test_ctx->test_ctx);
+}
+
+
+
+static void test_export_done(struct tevent_req *subreq)
 {
 
     struct sudo_test *ctx; 
-    struct ipa_sudo_export_rules_state *state;
+    struct ipa_sudo_get_cmds_state *state;
     struct sysdb_attrs **attrs = NULL;
     size_t count;
     int ret;
 
     /* req from ipa_sudo_load_sudoers_send() */
     ctx = tevent_req_callback_data(subreq, struct sudo_test);
-    state = tevent_req_data(subreq, struct ipa_sudo_export_rules_state);
+    state = tevent_req_data(subreq, struct ipa_sudo_get_cmds_state);
 
     /* get EXPORTED sudoers */
     ret = ipa_sudo_get_cmds_recv(subreq, state, &count, &attrs);
-    print_rules("exported sudores:", attrs, count);
+    //print_rules("exported sudores:", attrs, count);
     assert_int_equal(ret, EOK);
 
     compare_sudoers(ctx->ldap_rules, attrs, count);
@@ -625,9 +811,20 @@ int main(int argc, const char *argv[])
 {
 
     const UnitTest tests[] = {
-        unit_test_setup_teardown(test_ipa_sudoer_export_send,
+        unit_test_setup_teardown(test_simple_rule_send,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_no_commands_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_multiple_commands_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+         unit_test_setup_teardown(test_multiple_options_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+ 
+ 
     };
 
     run_tests(tests);

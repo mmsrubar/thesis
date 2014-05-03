@@ -8,9 +8,9 @@ struct sudo_rules {
 
     /* sudo rules in IPA format */
     struct sysdb_attrs **ipa_rules;
-    int ipa_rules_count;
+    size_t ipa_rules_count;
 
-    /* IPA SUDO commands for these rules */
+    /* IPA SUDO commands for thoso rules */
     struct sysdb_attrs **ipa_cmds;
     int ipa_cmds_count;
 

@@ -275,14 +275,17 @@ static struct tevent_req *sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
         goto done;
     }
 
-    //FIXME: if IPA:...
-    /* create attrs from map 
-    ret = build_attrs_from_map(state, opts->sudorule_map, SDAP_OPTS_SUDO,
+    /* create attrs from map */
+    if (state->opts->schema_type == SDAP_SCHEMA_IPA_V1) {
+        /* req from ipa_sudo_refresh_send() */
+        ret = build_attrs_from_map(state, opts->ipa_sudorule_map, 
+                                   SDAP_OPTS_IPA_SUDO, NULL, &state->attrs, NULL);
+    } else {
+        /* req from sdap_sudo_refresh_send() */
+        ret = build_attrs_from_map(state, opts->sudorule_map, SDAP_OPTS_SUDO,
                                NULL, &state->attrs, NULL);
-    */
-    ret = build_attrs_from_map(state, opts->ipa_sudorule_map, SDAP_OPTS_IPA_SUDO,
-                               NULL, &state->attrs, NULL);
-    
+    }
+
     if (ret != EOK) {
         goto fail;
     }
@@ -308,6 +311,8 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
     struct sdap_sudo_load_sudoers_state *state;
     struct sdap_search_base *search_base;
     struct tevent_req *subreq;
+    struct sdap_attr_map *map;
+    int attr_count;
     char *filter;
 
     state = tevent_req_data(req, struct sdap_sudo_load_sudoers_state);
@@ -330,9 +335,17 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
           ("Searching for sudo rules with base [%s]\n",
            search_base->basedn));
 
-    //FIXME: if IPA
-                                   //state->opts->sudorule_map,
-                                   //SDAP_OPTS_SUDO,
+    if (state->opts->schema_type == SDAP_SCHEMA_IPA_V1) {
+        /* req from ipa_sudo_refresh_send() */
+        attr_count = SDAP_OPTS_IPA_SUDO;
+        map = state->opts->ipa_sudorule_map;
+    }
+    else {
+        /* req from sdap_sudo_refresh_send() */
+        attr_count = SDAP_OPTS_SUDO;
+        map = state->opts->sudorule_map;
+    }
+
     subreq = sdap_get_generic_send(state,
                                    state->ev,
                                    state->opts,
@@ -341,16 +354,14 @@ static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req)
                                    search_base->scope,
                                    filter,
                                    state->attrs,
-                                   state->opts->ipa_sudorule_map,
-                                   SDAP_OPTS_IPA_SUDO,
+                                   map,
+                                   attr_count,
                                    state->timeout,
                                    true);
     if (subreq == NULL) {
         return ENOMEM;
     }
 
-    //FIXME: if IPA
-    //for LAP tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
     tevent_req_set_callback(subreq, sdap_sudo_load_sudoers_process, req);
 
     return EOK;
@@ -466,8 +477,8 @@ static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq)
         goto done;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("Received %zu rules and giving control back to "
-                "IPA SUDO provider\n", state->ldap_rules_count));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Received %zu rules\n", state->ldap_rules_count));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Giving control back to IPA SUDO provider\n"));
 
     state->num_rules = state->ldap_rules_count;
 done:

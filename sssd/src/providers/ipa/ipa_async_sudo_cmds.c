@@ -1,8 +1,6 @@
 /*
     SSSD
 
-    The main logic of exporting IPA SUDO rules into native LDAP SUDO format.
-
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
@@ -36,7 +34,6 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req);
 static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq);
 static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq);
 
-// FIXME: rename state
 struct ipa_sudo_get_cmds_state {
 
     struct be_ctx *be_ctx;
@@ -45,10 +42,8 @@ struct ipa_sudo_get_cmds_state {
     struct tevent_context *ev;
     struct sdap_id_conn_cache *conn_cache;
     struct sdap_options *opts;
-    struct tevent_req *req;     /* req from sdap_sudo_load_sudoers_send */
 
-    const char *sysdb_filter;   /* sysdb delete filter */
-    const char *filter;
+    const char *filter;     /* filter to get ipa sudo commands */
     const char *basedn;
     const char **attrs;
     int scope;
@@ -58,7 +53,6 @@ struct ipa_sudo_get_cmds_state {
     int error;
 
     struct sudo_rules *rules;
-    struct sysdb_attrs **tmp;
 };
 
 struct tevent_req *
@@ -74,38 +68,30 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     errno_t ret = EOK;
     errno_t cmds_ret = EOK;
 
-    print_rules("IPA sudoers(ipa_sudo_get_cmds_send):", ipa_rules, ipa_rules_count);
-    // FIXME:
-    // REVIEW(FEEDBACK) - state by se mel jmenovat stejne jako _send, tj tady
-    // ipa_sudo_get_cmds_state a v kodu by mel byt v .c souboru hned
-    // pred _send()
-    //
-    // V pavlovem modulu jsem ty definice state struktur musel vynest do header
-    // souboru, abych je mohl pouzit (providers/ldap/sdap_async_sudo.h), je to 
-    // ok nebo to musim prepsat tak, abych vse co z tech struktur pouzivam
-    // predaval pres parametry?
-    //
-    //req = tevent_req_create(mem, &state, struct ipa_sudo_get_cmds_state);
     req = tevent_req_create(mem, &state, struct ipa_sudo_get_cmds_state);
     if (!req) {
         return NULL;
     }
 
     state->be_ctx = be_ctx;
+    state->sdap_op = NULL;
+    state->opts = opts;
     state->sysdb = be_ctx->domain->sysdb;
     state->ev = be_ctx->ev;
     state->conn_cache = conn_cache;
-    state->opts = opts;
-    state->sdap_op = NULL;
+
+    state->filter = NULL;
+    state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
+    state->attrs = NULL;
     state->scope = LDAP_SCOPE_SUBTREE;
-    /* req from sdap_sudo_load_sudoers_send, probably not needed anymore*/
-    //state->req = req_sdap;  
+    state->timeout = dp_opt_get_int(opts->basic, SDAP_SEARCH_TIMEOUT);
+
     state->dp_error = DP_ERR_OK;
     state->error = EOK;
-    state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
+
     state->rules = talloc_zero(state, struct sudo_rules);
-    state->timeout = dp_opt_get_int(opts->basic, SDAP_SEARCH_TIMEOUT);
-    state->filter = NULL;
+    state->rules->ipa_rules = talloc_steal(state->rules, ipa_rules);
+    state->rules->ipa_rules_count = ipa_rules_count;
 
     if (state->basedn == NULL) {
         ret = ENOMEM;
@@ -119,21 +105,25 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
 
     cmds_ret = ipa_sudo_build_cmds_filter(state, state->sysdb, ipa_rules, 
                                           ipa_rules_count, &(state->filter));
-    if (cmds_ret != EOK && cmds_ret != ENOENT) {
+    if (cmds_ret != ENOENT && cmds_ret != EOK) {
+        /* an error has occured */
+        ret = cmds_ret;
         goto immediately;
     }
 
+    /* EXPORT sudo rules but skip commands */
     ret = ipa_sudo_export_sudoers(state, state->sysdb,
-                                  ipa_rules, 
-                                  ipa_rules_count, 
+                                  state->rules->ipa_rules, 
+                                  state->rules->ipa_rules_count, 
                                   &(state->rules->sudoers),
                                   &(state->rules->sudoers_count),
                                   &(state->rules->cmds_index),
                                   req);
-    //print_rules(state->rules->sudoers, state->rules->sudoers_count);
-    if (ret != EOK || cmds_ret == ENOENT) {
-        /* if building cmds filter returned ENOENT then we don't need to
-         * download any ipa sudo commands */
+    if (ret != EOK) {
+        goto immediately;
+    } else if (ret == EOK && cmds_ret == ENOENT) {
+        /* ipa sudoers exported and if building cmds filter returned ENOENT 
+         * then we don't need to download any ipa sudo commands */
         goto immediately;
     }
 
@@ -217,11 +207,11 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
         return;
     } else if (ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE,
-              ("IPA SUDO LDAP connection failed - %s\n", strerror(ret)));
+              ("IPA SUDO connection failed - %s\n", strerror(ret)));
         goto fail;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO LDAP connection successful\n"));
+    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO connection successful\n"));
 
     struct sdap_attr_map *map = state->opts->ipa_sudocmds_map;
 
@@ -232,7 +222,6 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
     }
 
     DEBUG(SSSDBG_TRACE_FUNC, ("Searching for IPA SUDO commands\n"));
-    printf("timeout: %d\n", state->timeout);
 
     subreq = sdap_get_generic_send(state,
                                    state->ev,
@@ -254,15 +243,16 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
 
 fail:
     state->error = ret;
-    tevent_req_error(req, ret);
+
+    if (ret != EOK) {
+        tevent_req_error(req, ret);
+    }
 }
 
 static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
 {
     struct ipa_sudo_get_cmds_state *state;
-    struct sysdb_attrs **attrs;
     struct tevent_req *req;
-    size_t count;
     int ret;
 
     /* req from ipa_sudo_get_cmds_send */
@@ -274,34 +264,29 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
            state->basedn));
 
     /* get IPA sudo commands */
-    ret = sdap_get_generic_recv(subreq, state, &count, &attrs);
+    ret = sdap_get_generic_recv(subreq, state, &state->rules->ipa_cmds_count, &state->rules->ipa_cmds);
     talloc_zfree(subreq);
     if (ret) {
         goto fail;
     }
 
-    /* if we don't have any rules but downloaded some commands then something
-     * went wrong! */
-    if (state->rules->sudoers_count == 0 || state->rules->sudoers == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE,
-            ("We got some ipa sudo commands but we have no sudo rules\n"));
-        goto fail;
-    }
+    /*
+    print_rules("IPA sudoers:", state->rules->ipa_rules, state->rules->ipa_rules_count);
+    print_rules("IPA sudo commands:", state->rules->ipa_cmds, state->rules->ipa_cmds_count);
+    */
 
-    print_rules("IPA sudo commands:", attrs, count);
-    ret = ipa_sudo_export_cmds(state, 
+       ret = ipa_sudo_export_cmds(state, 
                                state->rules->sudoers, 
                                state->rules->sudoers_count,
                                state->rules->cmds_index, 
-                               attrs, count);
+                               state->rules->ipa_cmds, state->rules->ipa_cmds_count);
     if (ret != EOK) {
         goto fail;
     }
 
     DEBUG(SSSDBG_TRACE_FUNC, ("All IPA SUDO rules successfully exported into "
-                              "native LDAP SUDO scheme. Giving control back to "
-                              "the LDAP SUDO Provider.\n"));
-    print_rules("Exported IPA sudoers:", state->rules->sudoers, state->rules->sudoers_count);
+                              "native LDAP SUDO scheme.\n"));
+    //print_rules("Exported IPA sudoers:", state->rules->sudoers, state->rules->sudoers_count);
 
 fail:
     if (ret == EOK) {

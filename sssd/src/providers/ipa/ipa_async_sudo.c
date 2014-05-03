@@ -20,33 +20,32 @@
 #include "providers/ipa/ipa_sudo_export.h"   // for print_rules
 #include "db/sysdb_sudo.h"
 
+/*
+static void ipa_sudo_process_ipa_rules(struct tevent_req *subreq);
 static int ipa_sudo_refresh_retry(struct tevent_req *req);
-
 static void ipa_sudo_refresh_connect_done(struct tevent_req *subreq);
-
-static void ipa_sudo_load_sudoers_finish(struct tevent_req *req, 
-                                         struct sdap_sudo_refresh_state *state,
-                                         struct sysdb_attrs **rules,
-                                         size_t count);
- 
+static void ipa_sudo_load_sudoers_process(struct tevent_req *subreq);
 static struct tevent_req * ipa_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
                                                        const char *ldap_filter,
                                                        int attrs_count);
-
-static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req);
-
-static void ipa_sudo_load_sudoers_process(struct tevent_req *subreq);
-static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq);
-static void ipa_sudo_process_ipa_rules(struct tevent_req *subreq);
-static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
-
 static int ipa_sudo_load_sudoers_recv(struct tevent_req *req,
                                        TALLOC_CTX *mem_ctx,
                                        size_t *rules_count,
                                        struct sysdb_attrs ***rules);
+
+                                                       */
+
+static void ipa_sudo_load_sudoers_finish(struct tevent_req *req, 
+                                         struct sdap_sudo_refresh_state *state,
+                                         struct sysdb_attrs **rules,
+                                         size_t count);
+static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req);
+static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq);
+static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
+
 
 struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct be_ctx *be_ctx,
@@ -57,7 +56,7 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
 {
     struct tevent_req *req;
     struct sdap_sudo_refresh_state *state;
-    int ret;
+    //136Gint ret;
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_refresh_state);
     if (!req) {
@@ -131,9 +130,9 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
 static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req)
 {
     struct sdap_sudo_refresh_state *state;
-    struct sdap_search_base *search_base;
     struct tevent_req *subreq;
-    char *filter;
+    //188Gstruct sdap_search_base *search_base;
+    //char *filter;
 
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
     /*
@@ -185,7 +184,7 @@ static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **ipa_rules = NULL;
     size_t ipa_rules_count;
-    const char *filter;
+    //const char *filter;
     int ret = EOK;
 
     /* req from ipa_sudo_refresh_send */
