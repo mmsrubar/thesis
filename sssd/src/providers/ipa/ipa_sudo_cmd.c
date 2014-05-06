@@ -248,7 +248,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
     /* for each allowed or denied command */
     for (j = 0; j < count; j++) {
 
-        /* looking for a single command or a group? */
+        /* look up a single command or a group? */
         if (strstr(cmds[j], IPA_SUDO_CONTAINER_CMD_GRPS) == NULL) {
             attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_ID);
             cmd_group = false;

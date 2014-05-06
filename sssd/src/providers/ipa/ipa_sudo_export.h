@@ -4,7 +4,7 @@
 struct sudo_rules {
     /* sudo rules in native LDAP format ready to be saved into sysdb */
     struct sysdb_attrs **sudoers;
-    int sudoers_count;
+    size_t sudoers_count;
 
     /* sudo rules in IPA format */
     struct sysdb_attrs **ipa_rules;
@@ -12,7 +12,7 @@ struct sudo_rules {
 
     /* IPA SUDO commands for thoso rules */
     struct sysdb_attrs **ipa_cmds;
-    int ipa_cmds_count;
+    size_t ipa_cmds_count;
 
     /* commands index created from ipa sudo rules, the length is the same as 
      * number of ipa_rules 
@@ -38,9 +38,9 @@ void print_rules(const char *title, struct sysdb_attrs **rules, int count);
 errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
                                 struct sysdb_ctx *sysdb,
                                 struct sysdb_attrs **ipa_rules, 
-                                int rules_count, 
+                                size_t rules_count, 
                                 struct sysdb_attrs ***exported_rules,
-                                int *sudoers_count,
+                                size_t *sudoers_count,
                                 struct ipa_sudoer_cmds ***index,
                                 struct tevent_req *req);
                                 //struct ipa_sudoer_cmds ***index);

@@ -262,7 +262,6 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 
         state->ldap_rules_count += count;
     }
-    print_rules("ldap AFTER add:", state->ldap_rules, state->ldap_rules_count);
 
     /* FIXME: skip next bases for now */
 

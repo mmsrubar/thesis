@@ -28,6 +28,8 @@ struct sdap_sudo_ctx {
 
     char **hostnames;
     char **ip_addr;
+
+    char *hostname;             /* ipa hostname */
     char **hostgroups;          /* ipa host groups */
 
     bool include_netgroups;
@@ -68,6 +70,8 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
  * -----------------------------------------------------------------------------
  */
 void sdap_sudo_full_refresh_done(struct tevent_req *subreq);
+struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
+                                              struct sdap_sudo_ctx *sudo_ctx);
 struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                                struct sdap_sudo_ctx *sudo_ctx,
                                                struct be_ctx *be_ctx,

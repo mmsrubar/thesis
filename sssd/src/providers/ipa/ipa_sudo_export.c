@@ -505,9 +505,9 @@ fail:
 errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
                                 struct sysdb_ctx *sysdb,
                                 struct sysdb_attrs **ipa_rules, 
-                                int rules_count, 
+                                size_t rules_count, 
                                 struct sysdb_attrs ***exported_rules,
-                                int *sudoers_count,
+                                size_t *sudoers_count,
                                 struct ipa_sudoer_cmds ***index,
                                 struct tevent_req *req)
 {
@@ -614,6 +614,7 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
 
               
             } /* EXPORT all values of the attribute */
+            // =================================================================
 
 #ifdef old
             /* EXPORT all values of the attribute */

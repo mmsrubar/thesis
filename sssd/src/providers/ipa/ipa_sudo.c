@@ -27,14 +27,18 @@
 #include "providers/ipa/ipa_access.h"
 #include "providers/ipa/ipa_sudo_export.h"  // for debug prit_rules 
 #include "providers/ipa/ipa_async_sudo.h"
+#include "providers/ipa/ipa_async_sudo_hostgroups.h"
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ipa/ipa_sudo.h"
 #include "db/sysdb_sudo.h"
 //#include "providers/ipa/ipa_opts.h"
 
-static void ipa_sudo_shutdown(struct be_req *req);
+#define FQDN    0
+
 void ipa_sudo_handler(struct be_req *be_req);
-static void sdap_sudo_get_hostinfo_done(struct tevent_req *req);
+static void ipa_sudo_shutdown(struct be_req *req);
+//static void sdap_sudo_get_hostinfo_next(struct tevent_req *req);
+static void ipa_sudo_get_hostinfo_done(struct tevent_req *req);
 
 struct bet_ops ipa_sudo_ops = {
     .handler = ipa_sudo_handler,
@@ -125,7 +129,6 @@ void ipa_sudo_handler(struct be_req *be_req)
         goto fail;
     }
 
-    //tevent_req_set_callback(req, sdap_sudo_reply, be_req);
     tevent_req_set_callback(req, ipa_sudo_reply, be_req);
 
     return;
@@ -134,12 +137,6 @@ fail:
     sdap_handler_done(be_req, DP_ERR_FATAL, ret, NULL);
 }
 
-
-static errno_t ipa_sudo_get_hostgroups_connect(struct tevent_req *req);
-static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq);
-static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq);
-
-
 int ipa_sudo_init(struct be_ctx *be_ctx,
                   struct ipa_id_ctx *ipa_id_ctx,
                   struct bet_ops **ops,
@@ -147,7 +144,11 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
 {
     struct sdap_id_ctx *id_ctx = ipa_id_ctx->sdap_id_ctx;
     struct sdap_sudo_ctx *sudo_ctx = NULL;
+    struct ipa_access_ctx *ipa_access_ctx;
     struct tevent_req *req = NULL;
+    char hostname[HOST_NAME_MAX + 1];
+    const char *ipa_hostname = NULL;
+    char *dot = NULL;
     int ret;
 
     DEBUG(SSSDBG_TRACE_INTERNAL, ("Initializing sudo IPA back end\n"));
@@ -178,123 +179,120 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
         return ret;
     }
 
-    /* get hostnames and IP addresses but we will only use IPs because we will
-     * get fqdns from req for hostgroups */
-    //FIXME: we don't actualy need hostnames so you can directly use 
-    //sdap_sudo_get_ip_addresses()
-    req = sdap_sudo_get_hostinfo_send(sudo_ctx, id_ctx->opts, be_ctx);
-    if (req == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host information - "
-              "(host filter will be disabled)\n"));
+    // FIXME: put this getting fqdn into separea file?
+    /* hostname of the IPA client should be FQDN, if it isn't then try to resolv
+     * it with DNS? */
+    ipa_hostname = dp_opt_get_string(ipa_id_ctx->ipa_options->basic, IPA_HOSTNAME);
+    if (ipa_hostname == NULL) {
 
-        sudo_ctx->use_host_filter = false;
+        DEBUG(SSSDBG_TRACE_INTERNAL, ("No clinet's hostname specified in sssd.conf, "
+                                      "trying to get machine hostname\n"));
 
-        // FIXME: don't set up periodical refresh here, get the hostgroups first
-        ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
+        ret = gethostname(hostname, HOST_NAME_MAX);
         if (ret != EOK) {
-             DEBUG(SSSDBG_OP_FAILURE,
-                   ("Unable to setup periodical refresh"
-                    "of sudo rules [%d]: %s\n", ret, strerror(ret)));
-             /* periodical updates will not work, but specific-rule update
-              * is no affected by this, therefore we don't have to fail here */
+            ret = errno;
+            DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve machine hostname "
+                                        "[%d]: %s\n", ret, strerror(ret)));
+            //FIXME: what now? we can't receive any rules if we don't know the
+            //       hostname
+        }
+        hostname[HOST_NAME_MAX] = '\0';
+
+        dot = strchr(hostname, '.');
+        if (dot != NULL) {
+            DEBUG(SSSDBG_TRACE_INTERNAL, ("Found fqdn: %s\n", hostname));
+        } else {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("Machine hostname ins't FQDN"));
+            //FIXME: what now? we can't receive any rules if we don't know the
+            //       hostname
         }
     } else {
-        tevent_req_set_callback(req, sdap_sudo_get_hostinfo_done, sudo_ctx);
+        DEBUG(SSSDBG_TRACE_INTERNAL, ("Found fqdn: %s\n", ipa_hostname));
     }
+
+    sudo_ctx->hostname = talloc_strdup(sudo_ctx, 
+                                (ipa_hostname == NULL)? hostname:ipa_hostname);
+    if (sudo_ctx->hostname == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        return ENOMEM;  // FIXME:
+    }
+
+    ipa_access_ctx = talloc_get_type(be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
+                                     struct ipa_access_ctx);
+ 
+    /* we have FQDN of the client so we can perform hostgroups lookup */
+    req = ipa_sudo_get_hostgroups_send(sudo_ctx, 
+                                          sudo_ctx->hostname, 
+                                          ipa_access_ctx);
+    if (req == NULL) {
+        return ENOENT;
+    }
+ 
+    tevent_req_set_callback(req, ipa_sudo_get_hostinfo_done, sudo_ctx);
 
     return EOK;
 }
 
-static void sdap_sudo_get_hostinfo_done(struct tevent_req *req)
+
+static void ipa_sudo_get_hostinfo_done(struct tevent_req *subreq)
 {
-    struct sdap_sudo_ctx *sudo_ctx = NULL;
-    struct ipa_access_ctx *ipa_access_ctx;
-    struct tevent_req *subreq;
-    char **hostnames = NULL;
-    char **ip_addr = NULL;
-    int ret;
+    struct sdap_sudo_ctx *sudo_ctx;
+    //struct tevent_req *req;
+    size_t hostgroup_count;
+    struct sysdb_attrs **hostgroups;
+    const char *group_name;
+    int dp_error;
+    int error;
+    errno_t ret;
+    int i;
 
-    sudo_ctx = tevent_req_callback_data(req, struct sdap_sudo_ctx);
-
-    ret = sdap_sudo_get_hostinfo_recv(sudo_ctx, req, &hostnames, &ip_addr);
-    talloc_zfree(req);
+    sudo_ctx = tevent_req_callback_data(subreq, struct sdap_sudo_ctx);
+ 
+    ret = ipa_sudo_get_hostgroups_recv(subreq, sudo_ctx,
+                                       &dp_error, &error,
+                                       &hostgroups,
+                                       &hostgroup_count);
+    talloc_zfree(subreq);
     if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host information - "
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve hostgroups information - "
               "(host filter will be disabled) [%d]: %s\n", ret, strerror(ret)));
         sudo_ctx->use_host_filter = false;
     }
 
-    talloc_zfree(sudo_ctx->hostnames);
-    talloc_zfree(sudo_ctx->ip_addr);
+    sudo_ctx->hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
+    if (sudo_ctx->hostgroups == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_zero_array() failed\n"));
+        return;
+    }
 
-    sudo_ctx->hostnames = talloc_move(sudo_ctx, &hostnames);
-    sudo_ctx->ip_addr = talloc_move(sudo_ctx, &ip_addr);
+    for (i = 0; i < hostgroup_count; i++) {
 
-    //ipa_sudo_full_refresh_send(sudo_ctx, sudo_ctx);
+        ret = sysdb_attrs_get_string(hostgroups[i], "name", &group_name);
+        if (ret != EOK) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to get common name of a "
+                        "hostgroup. Trying another hostgroup record.\n"));
+            continue;
+        }
+
+        sudo_ctx->hostgroups[i] = talloc_strdup(sudo_ctx->hostgroups, 
+                                                group_name);
+        DEBUG(SSSDBG_TRACE_FUNC, ("IPA client is member of hostgroup: %s\n",
+                                   sudo_ctx->hostgroups[i]));
+
+        //FIXME: free(group_name);
+    }
+
+    sudo_ctx->hostgroups[hostgroup_count] = NULL;
+
+    DEBUG(SSSDBG_TRACE_INTERNAL, ("Setting up periodical refresh of sudo "
+                                  "rules using LDAP SUDO scheduler\n"));
 
     ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
     if (ret != EOK) {
         DEBUG(SSSDBG_OP_FAILURE,
         ("Unable to setup periodical refresh"
         "of sudo rules [%d]: %s\n", ret, strerror(ret)));
+        /* periodical updates will not work, but specific-rule update
+         * is no affected by this, therefore we don't have to fail here */
     }
-
-    /*
-    ipa_access_ctx = talloc_get_type(sudo_ctx->id_ctx->be->bet_info[BET_ACCESS].pvt_bet_data,
-                                     struct ipa_access_ctx);
- 
-    subreq = ipa_sudo_get_hostgroups_send(sudo_ctx, ipa_access_ctx);
-    if (req == NULL) {
-       DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve host groups information - "
-              "(sudo rules aplicable to host groups will not work)\n"));
-
-        DEBUG(SSSDBG_TRACE_INTERNAL, ("Setting up periodical refresh of sudo "
-                                      "rules using LDAP SUDO scheduler\n"));
-
-        ret = sdap_sudo_setup_periodical_refresh(sudo_ctx);
-        if (ret != EOK) {
-            DEBUG(SSSDBG_OP_FAILURE,
-            ("Unable to setup periodical refresh"
-            "of sudo rules [%d]: %s\n", ret, strerror(ret)));
-            * periodical updates will not work, but specific-rule update
-            * is no affected by this, therefore we don't have to fail here *
-        }
-    } else {
-        tevent_req_set_callback(req, sdap_sudo_get_hostinfo_done, sudo_ctx);
-    }
-    */
-
-    return EOK;
 }
-
-
-
-
-#ifdef A
-    /* ============================================= */
-    int ret;
-    struct ipa_options *ipa_options;
-    struct sdap_options *ldap_options;
-
-    DEBUG(SSSDBG_TRACE_INTERNAL, ("Initializing sudo IPA back end\n"));
-
-    /*
-     * SDAP_SUDO_SEARCH_BASE has already been initialized in
-     * function ipa_get_id_options
-     */
-    ret = sdap_sudo_init(be_ctx, id_ctx->sdap_id_ctx, ops, pvt_data);
-    if (ret != EOK) {
-        DEBUG(SSSDBG_OP_FAILURE, ("Cannot initialize LDAP SUDO [%d]: %s\n",
-                                  ret, strerror(ret)));
-        return ret;
-    }
-
-    ipa_options = id_ctx->ipa_options;
-    ldap_options = id_ctx->sdap_id_ctx->opts;
-
-    /* corrent the handler */
-
-    ipa_options->id->sudorule_map = ldap_options->sudorule_map;
-    return EOK;
-}
-#endif

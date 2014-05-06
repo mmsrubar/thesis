@@ -26,8 +26,6 @@
 #define IPA_SUDO_FULL_FILTER    "&(objectClass=%s)(ipaEnabledFlag=TRUE)(|(cn=defaults)"
 #define IPA_SUDO_CMD_FILTER     "(&(objectClass=%s)(|"
 
-// because we use ldap sudo timer to schedule refreshes
-struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
-                                              struct sdap_sudo_ctx *sudo_ctx);
+                                             
 
 #endif	// _IPA_SUDO_H_

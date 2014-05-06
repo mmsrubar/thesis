@@ -1,6 +1,8 @@
 /*
     SSSD
 
+    Async IPA module for getting sudo commands.
+
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
@@ -70,6 +72,7 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
 
     req = tevent_req_create(mem, &state, struct ipa_sudo_get_cmds_state);
     if (!req) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("tevent_req_create() failed\n"));
         return NULL;
     }
 
@@ -94,11 +97,13 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     state->rules->ipa_rules_count = ipa_rules_count;
 
     if (state->basedn == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
  
     if (state->rules == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_zero() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
@@ -128,9 +133,7 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     }
 
     ret = ipa_sudo_get_cmds_retry(req);
-    if (ret == EOK) {
-        /* connection req sent successfully, we can return without finishing
-         * this request */
+    if (ret == EAGAIN) {
         return req;
     }
 
@@ -160,8 +163,8 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
     }
 
     if (state->sdap_op == NULL) {
-        state->sdap_op = sdap_id_op_create(state, 
-                state->conn_cache);
+
+        state->sdap_op = sdap_id_op_create(state, state->conn_cache);
         if (state->sdap_op == NULL) {
             DEBUG(SSSDBG_CRIT_FAILURE, ("sdap_id_op_create() failed\n"));
             state->dp_error = DP_ERR_FATAL;
@@ -182,7 +185,7 @@ static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
 
     tevent_req_set_callback(subreq, ipa_sudo_get_cmds_connect_done, req);
 
-    return ret;
+    return EAGAIN;
 }
 
 static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
@@ -264,7 +267,9 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
            state->basedn));
 
     /* get IPA sudo commands */
-    ret = sdap_get_generic_recv(subreq, state, &state->rules->ipa_cmds_count, &state->rules->ipa_cmds);
+    ret = sdap_get_generic_recv(subreq, state, 
+                                &state->rules->ipa_cmds_count, 
+                                &state->rules->ipa_cmds);
     talloc_zfree(subreq);
     if (ret) {
         goto fail;
@@ -276,10 +281,11 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
     */
 
        ret = ipa_sudo_export_cmds(state, 
-                               state->rules->sudoers, 
-                               state->rules->sudoers_count,
-                               state->rules->cmds_index, 
-                               state->rules->ipa_cmds, state->rules->ipa_cmds_count);
+                                  state->rules->sudoers, 
+                                  state->rules->sudoers_count,
+                                  state->rules->cmds_index, 
+                                  state->rules->ipa_cmds, 
+                                  state->rules->ipa_cmds_count);
     if (ret != EOK) {
         goto fail;
     }

@@ -140,13 +140,6 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
      * so we don't have current usn values available */
     sudo_ctx->full_refresh_done = false;
 
-    /* FIXME: hostgroups should be downloaded at initializion time
-     * temporary for IPA SUDO Provider */
-    sudo_ctx->hostgroups = talloc_array(sudo_ctx, char *, 3);
-    sudo_ctx->hostgroups[0] = talloc_strdup(sudo_ctx, "clients");
-    sudo_ctx->hostgroups[1] = talloc_strdup(sudo_ctx, "admins");
-    sudo_ctx->hostgroups[2] = NULL;
-
     ret = ldap_get_sudo_options(id_ctx, be_ctx->cdb,
                                 be_ctx->conf_path, id_ctx->opts,
                                 &sudo_ctx->use_host_filter,
@@ -1327,7 +1320,7 @@ static int sdap_sudo_schedule_smart_refresh(struct sdap_sudo_ctx *sudo_ctx,
 static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
                                          struct sdap_attr_map *map,
                                          char *basedn,
-                                         char **hostnames,
+                                         char *hostnames,
                                          char **ip_addr,
                                          char **hostgroups)
 {
@@ -1348,25 +1341,20 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
         goto done;
     }
 
-    /* hostnames */
-    if (hostnames != NULL) {
-        for (i = 0; hostnames[i] != NULL; i++) {
+    /* we specify the host by FQDN */
+    /* ipa host */
+    filter = talloc_asprintf_append_buffer(filter, IPA_HOST_FILTER,
+                                           hostnames, basedn);
+    if (filter == NULL) {
+        goto done;
+    }
 
-            /* ipa host */
-            filter = talloc_asprintf_append_buffer(filter, IPA_HOST_FILTER,
-                                                   hostnames[i], basedn);
-            if (filter == NULL) {
-                goto done;
-            }
-
-            /* external host */
-            filter = talloc_asprintf_append_buffer(filter, "(%s=%s)",
-                                                   map[SDAP_AT_IPA_SUDO_EXT_HOST].name,
-                                                   hostnames[i]);
-            if (filter == NULL) {
-                goto done;
-            }
-        }
+    /* external host */
+    filter = talloc_asprintf_append_buffer(filter, "(%s=%s)",
+                                           map[SDAP_AT_IPA_SUDO_EXT_HOST].name,
+                                           hostnames);
+    if (filter == NULL) {
+        goto done;
     }
 
     /* host groups */
@@ -1424,7 +1412,7 @@ static char *ipa_sudo_get_filter(TALLOC_CTX *mem_ctx,
 
     host_filter = ipa_sudo_build_host_filter(tmp_ctx, map,
                                              sudo_ctx->id_ctx->opts->sdom->basedn,
-                                              sudo_ctx->hostnames,
+                                              sudo_ctx->hostname,
                                               sudo_ctx->ip_addr,
                                               sudo_ctx->hostgroups);
     if (host_filter == NULL) {
@@ -1666,7 +1654,7 @@ static struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     char *ldap_filter = NULL;
     char *ldap_smart_filter = NULL;
     const char *usn;
-    int ret;
+    int ret = EOK;
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_smart_refresh_state);
     if (req == NULL) {
