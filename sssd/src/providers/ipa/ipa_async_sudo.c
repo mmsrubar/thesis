@@ -20,33 +20,32 @@
 #include "providers/ipa/ipa_sudo_export.h"   // for print_rules
 #include "db/sysdb_sudo.h"
 
+/*
+static void ipa_sudo_process_ipa_rules(struct tevent_req *subreq);
 static int ipa_sudo_refresh_retry(struct tevent_req *req);
-
 static void ipa_sudo_refresh_connect_done(struct tevent_req *subreq);
-
-static void ipa_sudo_load_sudoers_finish(struct tevent_req *req, 
-                                         struct sdap_sudo_refresh_state *state,
-                                         struct sysdb_attrs **rules,
-                                         size_t count);
- 
+static void ipa_sudo_load_sudoers_process(struct tevent_req *subreq);
 static struct tevent_req * ipa_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
                                                        const char *ldap_filter,
                                                        int attrs_count);
-
-static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req);
-
-static void ipa_sudo_load_sudoers_process(struct tevent_req *subreq);
-static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq);
-static void ipa_sudo_process_ipa_rules(struct tevent_req *subreq);
-static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
-
 static int ipa_sudo_load_sudoers_recv(struct tevent_req *req,
                                        TALLOC_CTX *mem_ctx,
                                        size_t *rules_count,
                                        struct sysdb_attrs ***rules);
+
+                                                       */
+
+static void ipa_sudo_load_sudoers_finish(struct tevent_req *req, 
+                                         struct sdap_sudo_refresh_state *state,
+                                         struct sysdb_attrs **rules,
+                                         size_t count);
+static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req);
+static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq);
+static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
+
 
 struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct be_ctx *be_ctx,
@@ -57,7 +56,7 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
 {
     struct tevent_req *req;
     struct sdap_sudo_refresh_state *state;
-    int ret;
+    //136Gint ret;
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_refresh_state);
     if (!req) {
@@ -131,9 +130,9 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
 static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req)
 {
     struct sdap_sudo_refresh_state *state;
-    struct sdap_search_base *search_base;
     struct tevent_req *subreq;
-    char *filter;
+    //188Gstruct sdap_search_base *search_base;
+    //char *filter;
 
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
     /*
@@ -155,6 +154,8 @@ static errno_t ipa_sudo_load_sudoers_next_base(struct tevent_req *req)
           ("Searching for IPA sudo rules with base [%s]\n",
            search_base->basedn));
     */
+
+    DEBUG(SSSDBG_TRACE_FUNC, ("Giving control to LDAP SUDO provider to download IPA sudo rules\n"));
 
     /* we will use ldap sudo plugin to get the rules */
     subreq = sdap_sudo_refresh_send(state,
@@ -183,12 +184,13 @@ static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **ipa_rules = NULL;
     size_t ipa_rules_count;
-    const char *filter;
+    //const char *filter;
     int ret = EOK;
 
     /* req from ipa_sudo_refresh_send */
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
+
 
     // FIXME: where to free ipa rules? or put under in sdap_sudo_refresh_state?
     sdap_sudo_refresh_recv(state, subreq, &state->dp_error, &state->error, 
@@ -234,15 +236,15 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 
     /* steal EXPORTED sudoers and free IPA sudo commands req */
     ret = ipa_sudo_get_cmds_recv(subreq, state, &count, &attrs);
-    //FIXME: SIGABRT talloc_zfree(subreq);
+    talloc_zfree(subreq);
     if (ret) {
         //tevent_req_error(req, ret);
         return;
     }
 
     print_rules("Exported ipa sudoers:", attrs, count);
-    print_rules("ldap before add:", state->ldap_rules, state->ldap_rules_count);
 
+    // FIXME: multiple search bases not supported yet
     /* add exported rules to result (because of multiple search bases) */
     if (count > 0) {
         state->ldap_rules = talloc_realloc(state, state->ldap_rules,
@@ -264,14 +266,10 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 
     /* FIXME: skip next bases for now */
 
-    /* now I need to purge sysdb and store sudoers so I can finish
-     * ipa_sudo_refresh_send
-     */
+    /* now I need to purge sysdb and store sudoers */
     ipa_sudo_load_sudoers_finish(req, state, 
                                  state->ldap_rules, 
                                  state->ldap_rules_count);
-    /* we are done - ipa_sudo_load_sudoers_send */
-    //tevent_req_done(req);
 }
 
 /* req from ipa_sudo_refresh_send() */
@@ -360,85 +358,4 @@ static int ipa_sudo_load_sudoers_recv(struct tevent_req *req,
 
     return EOK;
 }
-
-static void ipa_sudo_load_sudoers_finish(struct tevent_req *subreq)
-{
-    struct tevent_req *req; /* req from sdap_sudo_refresh_send() */
-    struct sdap_sudo_refresh_state *state;
-    struct sysdb_attrs **rules = NULL;
-    size_t rules_count = 0;
-    int ret;
-    errno_t sret;
-    bool in_transaction = false;
-    time_t now;
-
-    req = tevent_req_callback_data(subreq, struct tevent_req);
-    state = tevent_req_data(req, struct sdap_sudo_refresh_state);
-
-    ret = ipa_sudo_load_sudoers_recv(subreq, state, &rules_count, &rules);
-    talloc_zfree(subreq);
-    if (ret != EOK) {
-        goto done;
-    }
-
-    DEBUG(SSSDBG_TRACE_FUNC, ("Received %zu rules\n", rules_count));
-
-    //print_rules(rules, rules_count);
-
-    /* start transaction */
-    ret = sysdb_transaction_start(state->sysdb);
-    if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Failed to start transaction\n"));
-        goto done;
-    }
-    in_transaction = true;
-
-    /* purge cache */
-    ret = sdap_sudo_purge_sudoers(state->domain, state->sysdb_filter,
-                                  state->opts->sudorule_map, rules_count, rules);
-    if (ret != EOK) {
-        goto done;
-    }
-
-    /* store rules */
-    now = time(NULL);
-    ret = sdap_sudo_store_sudoers(state, state->domain,
-                                  state->opts, rules_count, rules,
-                                  state->domain->sudo_timeout, now,
-                                  &state->highest_usn);
-    if (ret != EOK) {
-        goto done;
-    }
-
-    /* commit transaction */
-    ret = sysdb_transaction_commit(state->sysdb);
-    if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Failed to commit transaction\n"));
-        goto done;
-    }
-    in_transaction = false;
-
-    DEBUG(SSSDBG_TRACE_FUNC, ("Sudoers is successfully stored in cache\n"));
-
-    ret = EOK;
-    state->num_rules = rules_count;
-
-done:
-    if (in_transaction) {
-        sret = sysdb_transaction_cancel(state->sysdb);
-        if (sret != EOK) {
-            DEBUG(SSSDBG_OP_FAILURE, ("Could not cancel transaction\n"));
-        }
-    }
-
-    state->error = ret;
-    if (ret == EOK) {
-        state->dp_error = DP_ERR_OK;
-        tevent_req_done(req);
-    } else {
-        state->dp_error = DP_ERR_FATAL;
-        tevent_req_error(req, ret);
-    }
-}
-
 #endif

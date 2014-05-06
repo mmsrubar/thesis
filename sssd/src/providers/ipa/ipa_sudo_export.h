@@ -8,9 +8,9 @@ struct sudo_rules {
 
     /* sudo rules in IPA format */
     struct sysdb_attrs **ipa_rules;
-    int ipa_rules_count;
+    size_t ipa_rules_count;
 
-    /* IPA SUDO commands for these rules */
+    /* IPA SUDO commands for thoso rules */
     struct sysdb_attrs **ipa_cmds;
     int ipa_cmds_count;
 
@@ -41,7 +41,9 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
                                 int rules_count, 
                                 struct sysdb_attrs ***exported_rules,
                                 int *sudoers_count,
-                                struct ipa_sudoer_cmds ***index);
+                                struct ipa_sudoer_cmds ***index,
+                                struct tevent_req *req);
+                                //struct ipa_sudoer_cmds ***index);
 
 errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx, 
                             struct sysdb_ctx *sysdb,

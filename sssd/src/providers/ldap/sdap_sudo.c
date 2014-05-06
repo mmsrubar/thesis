@@ -636,7 +636,7 @@ void sdap_sudo_full_refresh_done(struct tevent_req *subreq)
 
     ret = sdap_sudo_refresh_recv(state, subreq, &state->dp_error,
                                  &state->error, &highest_usn, NULL, NULL, NULL);
-    //FIXME: SIGABRT talloc_zfree(subreq);
+    talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         goto done;
     }
