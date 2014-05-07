@@ -29,7 +29,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 2. Správa u¾ivatelských práv v doménì
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Správa u¾ivatelských práv v linuxových prostøedích}
+\chapter{Správa politik identit v linuxových prostøedích}
 Sepi¹ vice mo¾ností jakými je mo¾no delegovat práva a potom napi¹, ¾e v
 následujícím textu se bude¹ zabývat právì SUDO+SSSD+IPA proto¾e je to roz¹íøené
 mezi u¾ivateli RHELu.  Jestli¾e máme velký server a vice adminù starající se o
@@ -228,6 +228,9 @@ na stranì klienta démonem SSSD.
 \subsubsection{problem spojené s tím, kdy¾ mám sudoers v LDAPu}
 	\begin{itemize}
 		\item problem s pøekrýváním u¾ivatelù
+			Michichael-Sune> sudoers: ldap files
+<jhrozek> ok, first..it should be 'files sss', not the other way around
+<jhrozek> you don't want a 'root' user from LDAP shadow your local root
 		\item schema je dané a nedá se mìnit
 		\item nepropojenost u¾ivatelù s pravidly (pøíklad s tím mazáním pravidel)
 	\end{itemize}
@@ -845,13 +848,14 @@ sudo pluginu, který bude zaji¹tovat podporu nativního IPA SUDO schématu.
 % 4. Nativní IPA SUDO Provider
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Nativní IPA SUDO Provider}
-Tato kapitola se zabývá diskusí nad návrhem, implementací a testováním nativního
-IPA sudo pluginu. Návrh popisuje mo¾né pøístupy ke sta¾ení a zpracování sudo
-pravidel, jejich¾ výhody a nevýhody byly diskutovány s vývojáøi ldap sudo
-pluginu. Nìkteré specifické detaily také s vývojáøi projektu FreeIPA. Sekce
-implementace popisuje jak a které z tìchto pøístupù byly vybrány pro
-implementaci nového pluginu. V sekci testování je poté popsána metodika a
-nástroje vyu¾ité k otestování navr¾ených øe¹ení.
+Tato kapitola se zabývá diskusí nad øe¹ením hlavních problémù, které je nutno
+zvá¾it pøi návrhu, implementaci a testování nativního IPA sudo pluginu. Návrh
+popisuje mo¾né pøístupy ke sta¾ení a zpracování sudo pravidel, jejich¾ výhody a
+nevýhody byly diskutovány s vývojáøi ldap sudo pluginu. Nìkteré specifické
+detaily také s vývojáøi projektu FreeIPA. Sekce implementace popisuje jak a
+které z tìchto pøístupù byly vybrány pro implementaci nového pluginu. V sekci
+testování je poté popsána metodika a nástroje vyu¾ité k otestování navr¾ených
+øe¹ení.
 
 \section{Návrh}
 \subsection{Sudo pravidla aplikovatelná na klienta}
@@ -1134,13 +1138,49 @@ dùvodu musí být do sysdb ulo¾ena ji¾ pøelo¾ená sudo pravidla a jejich zpracování
 tedy musí provést sudo provider. V tomto pøípadì tedy pøevod pravidel musí
 realizovat navrhovaný ipa plugin pro sudo providera.
 
+\subsection{Vyu¾itelnost LDAP pluginu}
+IPA plugin bude provádìt velmi podobnou funkcionalitu jako LDAP plugin. Mohlo by
+se tedy zdát, ¾e jediná úprava, kterou je nutno provést je pøidání pøekladu
+pravidel pøed samotným ulo¾ením tìchto pravidel do sysdb. Pøevod pravidel je
+ov¹em  specifiký pro IPA providera. V kódu LDAP pluginu by se tedy muselo
+vyskytnou volání funkcí z IPA kódu. Tento pøístup je sice
+realizovatelný\footnote{První prototyp byl zalo¾en na této my¹lence}, ov¹em
+neodpovídá filozofii a pou¾itelnosti SSSD. Kód zaji¹tující pøeklad pravidel by
+byl souèástí dynamické knihovny \texttt{libsss\_ipa.so} zatímco kód LDAP pluginu
+se nachází v knihovnì \texttt{libsss\_ldap.so}. SSSD je ov¹em mo¾no nainstalovat
+a pou¾ívat bez podpory IPA. Napøíklad je mo¾no vyu¾ít SSSD pouze ke cachování
+sudo pravidel ulo¾ených na LDAP serveru, kde se samozøejmì nacházejí v nativním
+LDAP SUDO schématu. V takovém pøípadì není potøeba sudo pravidla pøekládat a
+sudo provider tedy vyu¾ije  LDAP plugin z knihovny \texttt{libsss\_ldap.so}. Knihovna
+\texttt{libsss\_ipa.so} tedy není potøeba. Pøi naèítání \texttt{libsss\_ldap.so} by poté nastal
+problém, jeliko¾ by se odkazovala na funkce, které se nacházejí v knihovnì,
+která není naètena v pamìti. Proto není mo¾né z LDAP pluginu volat kód z IPA
+pluginu. Je ov¹em mo¾né z IPA pluginu volat kód LDAP pluginu, LDAP plugin je
+mo¾né si pøedstavit jako stavební blok nad kterým mohou stavìt
+odstatní provideøi a toho je mo¾no vyu¾ít. Vet¹í zásah do LDAP pluginu by také
+mohl vnést mnoho chyb do ji¾ fungujícího a odladìného kódu. 
+
+Asynchronní modul \texttt{sdap\_async\_sudo.c} provádí sta¾ení a ulo¾ení sudo
+pravidel v nativním LDAP schématu do sysdb. Je tedy mo¾né vyu¾ít této
+asynchronní události pro sta¾ení pravidel v IPA SUDO schématu. Pro tyto pravidla
+je nutné dále stáhnout sudo pøíkazy a poté provést pøeklad tìchto pravidel.
+Jestli-¾e máme sudo pravidla pøelo¾ena z IPA SUDO schématu do nativního LDAP
+schématu, mù¾eme opìt vyu¾ít zmiòovaného modulu pro jejich odstranìní nebo
+ulo¾ení sudo pravidel do sysdb.
+
+Dal¹í vyu¾itelnou èástí mù¾e být plánování pravidelných aktualizací. V¹echny
+typy aktualizací musí zùstat zachovány a proto mù¾eme procedury pro toho
+plánování v IPA pluginu vyu¾ít.
+
 \section{Implementace}
 Pro specifikaci pravidel aplikovatelných na klientský poèítaè byl vybrán pøístup
 popsaný v podsekci \ref{design:rules_aplicable_to_host}. Výbìr tìchto pravidel
 je tedy proveden dotazem do kontejneru \texttt{cn=sudorules,cn=sudo,\$DC}. Filtr
-specifikuje klienta pomocí doménového jména  a také pomocí skupin poèítaèù ve
-kterých je èlenem. Pro získání mno¾iny tìchto skupin je vyu¾ito asynchronní
-volání \texttt{ipa\_host\_info\_send()}. Kompletní sudo pravidla jsou pak tedy
+specifikuje klienta pomocí doménového jména  a skupin poèítaèù ve
+kterých je èlenem. Pro získání skupin ve kterých je klient èlenem bylo pou¾ito asynchronní
+volání \texttt{ipa\_host\_info\_send()}. 
+
+Kompletní sudo pravidla jsou pak tedy
 sta¾eny nejvý¹e tøemi LDAP dotazy. SDAP pou¾ívá jedno LDAP spojení tak
 dlouho dokud neexipiruje nebo nedojde k odpojení od sítì. Tøi dotazy tedy nejsou
 nadmìrná zátì¾.
@@ -1151,72 +1191,21 @@ nadmìrná zátì¾.
 		èervenì v nìm zaznaèit nový koncept a lehce popsat
 \end{itemize}
 
-\subsection{Inicializace}
-\begin{itemize}
-	\item na zaèátku inicializace musím nejprve získat hostgroupy v kterých jsem
-		...
-	\item	vlastní inicializace nebo vyu¾iju tu od LDAPu?
-	\item udìlal jsem novou mapu, kterou rovnì¾ vyu¾ívám k mapování tìch
-		attributù, jejich¾ hodnoty nemusí být exportovány \dots
-\end{itemize}
-
-\subsection {Plánování refreshes}
-
 \subsection {Full, Smart and Rules refresh (pro ka¾dý typ vlastní sub sekci?)}
 \begin{itemize}
-	\item vysvìtlit proè pro RULES a SMART pou¾ívám cn namísto tøeba ipaUniqueID
 	\item u filteru je tøeba vzít v úváhu délku filteru, která je omezená (viz.
 		konvezrace z IRC)
-	\item nové LDAP search filtry a proè jsem je vybral
 	\item (refer to LDAP filters in RFC! https://tools.ietf.org/html/rfc2254\#ref-1)
-	\item Proè se musím dotazovat dvakrát abych stáhnul v¹echny potøebné informace
-	\item Jak bylo zmínìno v kapitole 2 sekce Freeipa, informace o sudo pravidlech
-		jsou ulo¾ena ve tøech adresáøových kontejnerech. 
-	\item popsat zpùsoby nad kterými si uva¾oval
 \end{itemize}
 
 \subsubsection{Úplná aktualizace}
-\begin{itemize}
-	\item obecnì mno¾ina pøíkazù a skupin pøíkazù je pomìrnì malá, tak¾e myslím, ¾e 3 je akceptovatelné.
-	\item vytvoøený LDAP filter\footnote{je schávlnì takto naformátovaný pro lep¹í
-		èitelnost}
 		\lstinputlisting{DVD/ldap_filters/ipa_sudo_provider/full_refresh_filter}
-\end{itemize}
-
-\subsubsection{Aktualizace pravidel a smart}
-\begin{itemize}
-	\item vybírám 2 proto¾e je tam dìlají dotazy jenom na malý poèet pravidel,
-		tak¾e stahovat v¹echny pøíkazy je hodvadina
-\end{itemize}
-
-\subsection {Asychnronní sta¾ení a ulo¾ení pravidel}
-
-\subsection {Nativní mapa sudo pravidel}
-\begin{itemize}
-	\item od ?id\_ctx? jsem pøidal dvì nové mapy, jednak pro IPA SUDO pravidla je
-		jednu pro IPA SUDO COMMANDS
-\end{itemize}
-
-\subsection {LDAP SUDO Handler}
-
-\subsection{Úprava manuálových stránek}
-\begin{itemize}
-	\item	sssd.conf, DOMAIN SECTION, úprava sudo\_provider, teï bude podporovat i
-		ipa (co¾ u¾ se v podstatì dìje, ale není to tam zmínìno)
-	\item sssd-sudo.5.xml, Edit section CONFIGURING SSSD TO FETCH SUDO RULES in
-		sssd-sudo man page. Especialy notes about compat plugin a the fact that
-		search base ou=sudoers,dc=example,dc=cz
-
-		Maybe add section CONFIGURING SSSD TO FETCH SUDO RULES FROM IPA server or at
-		least some note about that.
-\end{itemize}
 
 \section{Testování}
 \begin{itemize}
 	\item bench marky jestli je to rychlej¹í ne¾ LDAP SUDO Provider?
 	\item performance testy, od lidí, kteøí pou¾ívají IPA s velkou databází
-	\item reálná sudo pravidla si firmy støe¾í jako oko v hlavì, tak¾e je
-		nedostanu a proto jsem musel vytvoøit pouze umìlá ...
+	\item reálná sudo pravidla si firmy støe¾í jako oko v hlavì, tak¾e je 		nedostanu a proto jsem musel vytvoøit pouze umìlá ...
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1258,12 +1247,4 @@ dodat jakysi vyhled do budoucna, tj. jak by se mohla vase prace dale rozvijet.}
 	\item od zmínìní \textbf{sysdb} v subsekci\ref{sysdb}, zamìò v¹echnu cache
 		pamìt za sysdb
 \end{itemize}
-
-\chapter{Málo textu?}
-\begin{itemize}
-	\item popi¹ jak se vytváøejí defaults v sudoers, v LDAPu a na IPA
-	\item derefrence?
-		\cite{cstugWeb}
-\end{itemize}
-%
 %=========================================================================
