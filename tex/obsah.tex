@@ -224,41 +224,6 @@ na stranì klienta démonem SSSD.
 \cite{Redhat_Directory_Server_Administration_Guide}
 		\item zmínit, ¾e sudo pravidla jsou umístìna ve 3 kontejnérech
 	\end{itemize}
-
-\subsubsection{problem spojené s tím, kdy¾ mám sudoers v LDAPu}
-	\begin{itemize}
-		\item problem s pøekrýváním u¾ivatelù
-			Michichael-Sune> sudoers: ldap files
-<jhrozek> ok, first..it should be 'files sss', not the other way around
-<jhrozek> you don't want a 'root' user from LDAP shadow your local root
-		\item schema je dané a nedá se mìnit
-		\item nepropojenost u¾ivatelù s pravidly (pøíklad s tím mazáním pravidel)
-	\end{itemize}
-\end{itemize}
-
-\subsubsection{Schéma, které pou¾ívá IPA pro sudo pravidla}
-\label{ipa_sudo_scheme}
-	\begin{itemize}
-		\item popsat, ¾e jsou pravidla rozmistìna ve tøech kontejnerech
-		\item popsat k èemu jsou external atributy
-		\item *category atributy mají EQUALITY nastaven na caseIgnoreMatch, tak¾e je
-			pøi hledaní mo¾né pou¾ít jak all tak ALL, problem je, ¾e hodnoty tam jsou
-			ulo¾eny malýmG -> v¾dy all, sudo to ale nese¾ere, tak¾e to musím
-			vyexportovat jako ALL!
-		\item LDAP SUDO schéma má u EQUALITY caseExactIA5Match
-	\end{itemize}
-
-
-\subsubsection{výhody kdy¾ mám sudoers na IPA}
-\begin{itemize}
-	\item webgui pro správu pravidel (sudo+ldap => manuální správa pravidel pøes konfiguraèní soubory)
-	\item granularita
-	\item	pøiklad sudo pravidla v novém IPA formatu (stejný pøíklad jako v sekci sudo)
-	\item propojení pravidel s identitami (pokud sma¾u u¾ivatele tak u¾ jeho
-		pravidlo nepotøebuji, na IPA se sma¾e, ale v èistém LDAPu by zùstalo)
-	\item na IPA mù¾u zakazovat a povolovat pravidla (v LDAPu tam buï je a bude
-		pou¾ito nebo ho musím smazat)
-	\item ty dvì futury z dokumentace (hostgroups)
 \end{itemize}
 
 Identity Management uses its centralized LDAP database to contain the sudo
@@ -410,35 +375,30 @@ literatura: \cite{tevent}
 	\label{sssd_architecture}
 \end{figure}
 
-SSSD se skládá z nìkolika komponent, jejich¾ souhrnnou èinnost ukazuje schéma
-\ref{sssd_architecture} a jejich bli¾¹í popis je nachází v následujícím textu.
-
-\subsection{Monitor}
-Je to hlavní proces, který je otcem v¹ech ostatních procesù. Stará se o to, aby
+SSSD se skládá z nìkolika komponent, jejich¾ souhrnnou èinnost demonstruje schéma
+\ref{sssd_architecture}. Hlavním procesem je \textit{Monitor}, který je otcem v¹ech ostatních procesù. Stará se o to, aby
 ostatní procesy zùstaly aktivní. Detekuje sí»ové zmìny a informuje o nich
-ostatní procesy.
+ostatní procesy. 
 
-\subsection{Respondeøi}
-Jsou to procesy, které pøijímají po¾adavky od klientských
+Dal¹í komponentou jsou \textit{respondeøi}. Jsou to procesy, které pøijímají po¾adavky od klientských
 aplikací\footnote{napø.  sudo, id, getent, ls, \dots} a vracejí odpovìdi na tyto
 po¾adavky. Smyslem tìchto procesù je vrátit co nejrychleji odpovìd na dotaz,
 který jím klientská aplikace\footnote{napøíklad sudo, ls nebo getent} zaslala.
 Proto by mìly provádìt co nejménì algoritmicky nároèných operací a vpodstatì
-pouze èist a s pøedávát data z cache pamìti. Ve¹kerou práci spojenou s
+pouze èist a s pøedávát data z cache pamìti SSSD. Ve¹kerou práci spojenou s
 komunikací se zvdáleným serverem, zpracování výsledkù a jejich ulo¾ení do cache
-pamìti by mìl zajistit pou¾itý plugin.
-
-Komunikují pouze s cache pamìtí nebo poskytovali dat, ale nikdy
+pamìti by mìl zajistit pou¾itý plugin. Komunikují tedy pouze s cache pamìtí nebo poskytovali dat, ale nikdy
 nekomunikují se vzdáleným serverem. V následujícím textu bude pro ka¾dý
 takvovýto proces pou¾íván výraz \textbf{responder}.
 
-\subsection{Backend}
-V angliètinì také "Data Provider" nebo "Backend". Tento proces reprezentuje
+Dal¹í komponentou je poskytovatel dat\footnote{v angliètinì se pou¾ívájí výrazy
+"Data Provider" nebo "Backend"}. Tento proces reprezentuje
 jednu doménu. Jestli-¾e je klient pøipojen k více doménám zároveò, pak je tento
 proces vytvoøen pro ka¾dou doménu zvlá¹».  Jeho úlohou je mimo jiné zpracovávání
 po¾adavku od responderù, komunikace se vzdálenými servery a aktualizace sysdb.
 
-Ke komunikaci se vzdálenými servery pou¾ívá pluginy providerù\footnote{Providers
+Ke komunikaci se servery pou¾ívá ka¾dý typ providera\footnote{id\_provider,
+sudo\_provider}pluginy providerù\footnote{Providers
 Plugins}. Které pluginy pro dané providery má SSSD pou¾ít je mo¾no specifikovat
 v konfiguraèním souboru \texttt{sssd.conf}. Mezi providery patøí napø.
 \texttt{id\_provider} specifikující, který plugin se má pou¾ít pro pøístup k
@@ -490,20 +450,24 @@ textu bude pro tuto pamìt obecnì pou¾íván název \textbf{sysdb}.
 	\item big diagram - nerozkrývat detaily respondera a providera
 \end{itemize}
 
-\section{Mapování konfiguraèních voleb a atributù}
-\label{maps}
-Mapy se pou¾ívají k mapování hodnot
-voleb\footnote{viz. sekce \ref{ch:theory:sec:sssd:sssd_sudo_options}} z
-konfiguraèního souboru SSSD\footnote{Ve výchozím nastavení se nachází v
-	\texttt{/etc/sssd/sssd.conf}, ale je mo¾no jej také specifikovat pomocí
-	pøepínaèe \texttt{-c}, viz.  \texttt{man sssd}}, pro výbìr atributù pøi
-	sestavování LDAP dotazu a pro definování jmen atributù pod kterými budou
-	výsledky dotazù ulo¾eny v \texttt{sysdb}. 
+\subsection{SDAP dotaz a mapování atributù}\label{sdap}
+Jestli¾e se administrátor rozhodne ulo¾it sudo pravidla do LDAP adresáøe, musí
+dodr¾et sudem specifikované schéma. Tedy pøesná jména atributù a formát hodnot.
+Pravidla v jiném formátu sudo zpracovat neumí\footnote{Neumí zpracovat ani
+pravidla v IPA SUDO schématu, který pou¾ívá IPA server, viz. sekce
+\ref{ch:sssd:sec:ipa_provider}}. S pomocí SSSD je mo¾né ovlivnit alespoò názvy
+atributù pod kterými jsou sudo pravidla ulo¾ena. Toho je docíleno za pou¾ití
+map.
 
-Výchozí mapy jsou definovány v souboru \texttt{providers/ldap/ldap\_opts.h}. Zde
+Mapy se pou¾ívají k mapování hodnot voleb\footnote{viz. sekce
+\ref{ch:theory:sec:sssd:sssd_sudo_options}} z konfiguraèního souboru
+SSSD\footnote{Ve výchozím nastavení se nachází v \texttt{/etc/sssd/sssd.conf} },
+pro výbìr atributù pøi sestavování LDAP dotazu a pro definování jmen atributù
+pod kterými budou výsledky dotazù ulo¾eny v sysdb. 
+Výchozí mapy jsou definovány v hlavièkovém souboru \texttt{providers/ldap/ldap\_opts.h}. Zde
 je také definována výchozí mapa, kterou LDAP SUDO Provider pou¾ívá pøi stahování
-sudo pravidel z LDAP serveru.  nacházejí se zde i ostatní výchozí mapy pou¾ívané
-ve spojení s LDAP servery. Mapy pou¾ívané pøi komunikace s IPA serverem se
+sudo pravidel z LDAP serveru.  
+Mapy pou¾ívané pøi komunikace s IPA serverem se
 nacházejí v souboru \texttt{providers/ipa/ipa\_opts.h}.
 
 Vìt¹ina map je definována jako pole následujících struktur.
@@ -518,41 +482,71 @@ struct sdap_attr_map {
 };
 \end{lstlisting}
 
-\subsection{Vytvoøení mapy}
-Mapa se vytváøí pomocí funkce \texttt{sdap\_get\_map}. Jako jeden z parametrù je
-nutné specifikovat výchozí mapu, ze které bude mapa vytvoøena. V promìnných
-\texttt{opt\_name} jsou ulo¾eny hodnoty voleb z konfiguraèního
-souboru\footnote{Hodnoty tìchto voleb jsou ulo¾eny v kontextu monitoru.}, jejich¾
-hodnoty se ulo¾í do promìnných \texttt{name}.  Jestli¾e se daná volba v
-konfiguraèním souboru nenachází, pak je pro promìnnou \texttt{name} pou¾ita
-výchozí hodnota tj. hodnota prommìné \texttt{def\_name}, která bude
-specifikována ve výchozí mapì.  Vytvoøení mapy znázoròuje schéma
-\ref{crate_map}.
+Mapu je mo¾né vytvoøit pomocí funkce \texttt{sdap\_get\_map()}. Jako jeden z
+parametrù je nutné specifikovat výchozí mapu, ze které bude mapa vytvoøena. V
+promìnných \texttt{opt\_name} jsou ulo¾eny jména voleb z konfiguraèního
+souboru, jejich¾ hodnoty se ulo¾í do promìnných \texttt{name}, pokud byly v
+sssd.conf specifikovýny.  Jestli¾e se daná
+volba v konfiguraèním souboru nenachází, pak je pro promìnnou \texttt{name}
+pou¾ita výchozí hodnota tj. hodnota prommìné \texttt{def\_name}, která bude
+specifikována ve výchozí mapì.  Hodnoty promìnných \texttt{name} jsou pou¾ity
+pøi vytváøení atributù, které se mají vyhledat pøi LDAP dotazech. Promìnná
+\texttt{sys\_name} je pou¾ita pro jméno atributu, pod kterým bude ulo¾ena
+hodnota, která se nachází na serveru pod hledaným atributem, v \texttt{sysdb}.
+Ukázka z v výchozí mapy kterou pou¾ivá sudo vypadá následovnì:
+\\\\
+\texttt{\{"ldap\_sudorule\_user", "sudoUser", "sudoUser", NULL\},}
+\\\\
+Z této ukázky je mo¾no odvodit, ¾e jestli¾e není v \texttt{sssd.conf} zadaná
+volba \texttt{ldap\_sudorule\_user}. Pak bude pøi sestavování LDAP dotazu na
+sudo pravidelo po¾ádován atribut \texttt{sudoUser} a do sysdb bude jeho hodnota
+rovnì¾ ulo¾ena pod jménem atributu \texttt{sudoUser}.
 
-{\color{blue}{první musí být v mapì objectClass ... }}
+Uva¾ujme následující pøíklad, který demonstruje schéma \ref{map_usage_example}.
+V \texttt{sssd.conf} se nachází následující volba: 
 
+\lstset{language=bash}
+\begin{lstlisting}
+ldap_sudorule_user = my_sudo_user_attr
+\end{lstlisting}
 
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=120mm]{fig/sssd/create_map.png}
-\caption{Vytvoøení mapy}
-\label{crate_map}
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=1.00]{fig/sssd/map_usage_example.pdf}
+	\caption{Ukázka mapování atributù z sssd.conf do sysdb}
+	\label{map_usage_example}
 \end{figure}
 
-\subsection{Pou¾ití map}
-Hodnoty promìnných \texttt{name} jsou pou¾ity pøi vytváøení atributù, které se
-mají vyhledat pøi LDAP dotazech. Promìnná \texttt{sys\_name} je pou¾ita pro jméno
-atributu, pod kterým bude ulo¾ena hodnota, která se nachází na serveru pod
-hledaným atributem, v \texttt{sysdb}.  Vyu¾ití mapy ve spojení s LDAP dotazy znázoròuje
-schéma \ref{map_usage}.
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=150mm]{fig/sssd/map_usage.png}
-\caption{Pou¾ití map}
-\label{map_usage}
+Jméno u¾ivatele na kterého bude aplikováno sudo pravidlo bude hledán pod názvem
+atributu \texttt{my\_sudo\_user\_attr} a do sysdb budou ulo¾eny pod atribut
+\texttt{sudoUser}.
+
+Asynchronní volání \texttt{ldap\_search\_ext()} samozdøejmì neumo¾òuje ¾ádnou
+mapu specifikovat. SDAP\footnote{Tevent wrapper of OpenLDAP library} definuje
+vlastní asynchronní rozhraní \texttt{sdap\_get\_generic\_ext\_send}, které s
+tìmito mapami pracuje. Toto rozhraní také provádí zpracování výsledkù, které
+vrací funkce knihovny OpenLDAP, a vrací je jako elementy LDB knihovny. Zde je
+nezbytné zminit, ¾e jako první polo¾kou v mapì musí být \textbf{v¾dy}
+specifikována \textbf{objectClass}.  Pøijaté záznamy, které neodpovídají této
+tøídì nebudou pøedány jako výsledek!  Takté¾ v mapì není mo¾né specifikovat více
+ne¾ jednu mapu! Výsledky \texttt{ldap\_search\_ext} a
+\texttt{sdap\_get\_generic\_ext\_send}, který je postaven nad OpenLDAP, tedy
+nemusejí být v¾dy ekvivalentní.
+
+SDAP je¹tì nabízí druhé rozhraní a to \texttt{sdap\_deref\_search\_send}. Pomocí
+kterého je mo¾né získat záznam a také v¹echny záznamy na které je ze
+záznamu odkazováno pomocí DN.  U toho dotazu ov¹em není mo¾né specifikovat
+filtr, jeliko¾ mohu provést dereferenci atributù pouze \textbf{jednoho} záznamu!
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=1.00]{fig/sssd/deref_example.pdf}
+	\caption{Ukázka dereferenèního dotazu}
+	\label{sdap_deref}
 \end{figure}
 
 
+%================================================
 \section{Backend}
 \subsection{sudo\_search\_base}
 Jestli-¾e je pou¾it jako identifikaèní provider
@@ -682,8 +676,8 @@ provádìjí následující funkce:
 \subsubsection{Úplná aktualizace}
 \label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
 Pro úplnou aktualizaci sudo pravidlel je pou¾it následující LDAP
-filter. Tento i dal¹í filtry se øídí syntaxí specifikovaou v \cite[RFC2254]{rfc2254}.
-Jsou pouze doplnìny bílými znaky pro lep¹í èitelnost.
+filter. Tento i v¹echny následující filtry se øídí syntaxí specifikovaou v
+\cite[RFC2254]{rfc2254}.  Jsou pouze doplnìny bílými znaky pro lep¹í èitelnost.
 
 \lstinputlisting{DVD/ldap_filters/ldap_sudo_provider/full_refresh_filter}
 (objectClass=sudoRule)
@@ -1176,34 +1170,54 @@ plánování v IPA pluginu vyu¾ít.
 Pro specifikaci pravidel aplikovatelných na klientský poèítaè byl vybrán pøístup
 popsaný v podsekci \ref{design:rules_aplicable_to_host}. Výbìr tìchto pravidel
 je tedy proveden dotazem do kontejneru \texttt{cn=sudorules,cn=sudo,\$DC}. Filtr
-specifikuje klienta pomocí doménového jména  a skupin poèítaèù ve
-kterých je èlenem. Pro získání skupin ve kterých je klient èlenem bylo pou¾ito asynchronní
-volání \texttt{ipa\_host\_info\_send()}. 
+specifikuje klienta pomocí FQDN daného poèítaèe a skupin poèítaèù ve kterých je
+èlenem. Pro získání tìchto skupin je pou¾ito asynchronní
+volání \texttt{ipa\_host\_info\_send()}. Základní filtr, který je pou¾it pro
+úplnou aktualizaci vypadá následovnì:
 
-Kompletní sudo pravidla jsou pak tedy
-sta¾eny nejvý¹e tøemi LDAP dotazy. SDAP pou¾ívá jedno LDAP spojení tak
-dlouho dokud neexipiruje nebo nedojde k odpojení od sítì. Tøi dotazy tedy nejsou
-nadmìrná zátì¾.
+\lstinputlisting{DVD/ldap_filters/ipa_sudo_provider/full_refresh_filter}
 
-\section{Návrh a implementace}
-\begin{itemize}
-	\item	stejné schéma jako u high level overview of LDAP SUDO provider a
-		èervenì v nìm zaznaèit nový koncept a lehce popsat
-\end{itemize}
+Pøi aktualizaci pravidel jsou pouze pøidána jména pravidel, stejnì jako u LDAP
+pluginu. Zde by také bylo mo¾né vyu¾ít atributu \texttt{ipaUniqueID}, který jednoznaènì
+identifikuje sudo pravidlo. To by ov¹em vy¾adovalo úpravu sudo respondera, která by
+nepøinesla ¾ádnou výhodu. Jeliko¾ jsou \texttt{cn}, tj. jména sudo pravidel, 
+jedineèná i v IPA SUDO formátu, není potøeba tuto zmìnu provádìt. Pøi prùbì¾ných
+aktualizacích je opìt vyu¾ito atributu \texttt{EntryUSN}.
 
-\subsection {Full, Smart and Rules refresh (pro ka¾dý typ vlastní sub sekci?)}
-\begin{itemize}
-	\item u filteru je tøeba vzít v úváhu délku filteru, která je omezená (viz.
-		konvezrace z IRC)
-	\item (refer to LDAP filters in RFC! https://tools.ietf.org/html/rfc2254\#ref-1)
-\end{itemize}
+Sta¾ení kompletních sudo pravidel, tj. pravidla a pøíkazy, je provedeno pomocí
+dvou dotazù pro v¹echny typy aktualizací. Pro sta¾ení pravidel jsou tedy
+zapotøebí \textbf{nejvý¹e tøi} LDAP dotazy a nejménì dva v pøípadì, ¾e sta¾ená
+pravidla neobsahují odkazy na dal¹í záznamy, tj. záznamy pøíkazù. Zva¾ována byla také varianta kdy by
+se pro úplnou aktualizaci   postupovalo podle metody \ref{all_at_once}, tzn.
+sta¾ení sudo pravidel a v¹ech pøíkazù v jediném LDAP dotazu. Zde ov¹em vzniká
+problém s SDAP rozhraním, které neumo¾òuje specifikovat více ne¾ jednu mapu.
+Proto není mo¾né obdr¾et záznamy, které nemají alespoò jednu stejnou tøídu.
+Tento problém je blí¾e popsán v sekci \ref{sdap}. Sudo pravidla v IPA SUDO
+schématu mají tøídu \texttt{ipaSudoRule}, zatímco pøíkazy \texttt{ipaSudoCmd}. 
 
-\subsubsection{Úplná aktualizace}
-		\lstinputlisting{DVD/ldap_filters/ipa_sudo_provider/full_refresh_filter}
+Jako øe¹ení by se nabízelo vyu¾ít druhého mo¾ného rozhraní tedy
+\texttt{sdap\_deref\_search\_send}, které dovoluje specifikovat více map.
+Problémem ov¹em je, ¾e neumo¾òuje specifikovat filtr a tedy mno¾inu záznamù (sudo
+pravidel) ze kterých by bylo mo¾né pøes odkazy získat odkazované záznamy /(sudo pøíkazy). Z
+implementaèního hlediska by tyto rozhraní pro daný úèel bylo mo¾né upravit. Je
+otázkou zda by výhody této úpravy pøedèily èas stráveny nad touto zmìnou a
+mo¾nost zanesení chyby do velice èasto vyu¾ívané a odladìné èásti kódu.
+
+Pro pøeklad pravidel byl zvolen základní algoritmus s drobnými optimalizacemi,
+který se pøi testování osvìdèil jako dostateèný pro malou mno¾inu pravidel. V
+pøípadì výkonnostních problémù je mo¾no pøidat podporu hashovací tabulky, která
+by pøi velké databázi pravidel mohla zvý¹it rychlost pøekladu.
+
+Pro prvotní sta¾ení pravidel byl vyu¾it LDAP plugin. To vy¾adovalo úpravu, která
+je zobrazena na schématu \ref{sdap_async_sudo_ipa_change}. Výsledné schéma
+asynchronních událostí ipa pluginu poté zobrazuje schéma
+\ref{ipa_plugin_tevents_flow}. Z tohoto modulu jsou dále vyu¾ity funkce, které
+zaji¹»ují práci s cache pamìtí, tzn. odstraòování expirovaných a ukládání novì
+sta¾ených a pøelo¾ených pravidel. Plánování aktualizací je takté¾ èást, kterou
+mají oba pluginy spoleènou.
 
 \section{Testování}
 \begin{itemize}
-	\item bench marky jestli je to rychlej¹í ne¾ LDAP SUDO Provider?
 	\item performance testy, od lidí, kteøí pou¾ívají IPA s velkou databází
 	\item reálná sudo pravidla si firmy støe¾í jako oko v hlavì, tak¾e je 		nedostanu a proto jsem musel vytvoøit pouze umìlá ...
 \end{itemize}
