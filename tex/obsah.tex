@@ -1082,13 +1082,20 @@ Tento zpùsob pøeklad má ov¹em následující nevýhody:
 Optimalizací tohoto pøístupu by mohlo být uchování hodnot odkazù na pøíkazy a
 pravidla ve kterých se vyskytla. Stále je ov¹em nutné \texttt{N-krát} iterovat
 mno¾inou pøíkazu, kde \texttt{N} je poèet odkazù na pøíkazy v záznamech sudo
-pravidel. Tento problémy je mo¾né odstranit za pomoci pou¾ití hashovací tabulky.
+pravidel. Tento problémy je mo¾né odstranit za pomoci pou¾ití ha¹ovací tabulky,
+který znározòuje schéma \ref{hash_table}.
 Jako klíè mù¾e poslou¾it DN sudo pøíkazu nebo skupiny pøíkazù. Hodnotou polo¾ky
 této tabulky poté mù¾e být seznam v¹ech pravidel, ve kterých se daný pøíkaz nebo
 skupina pøíkazù vyskytuje.
 
-{\color{red}{TODO: udìlat to schéma, které to vysvìtlí ...}}
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.85]{fig/sssd/new_design/hash_table.pdf}
+	\caption{Pou¾ití ha¹ovací tabulky pro pøeklad atributu s pøíkazy}
+	\label{hash_table}
+\end{figure}
 
+Je nutno 
 Hlavní vyhodou tohoto pøístupu je sní¾ení poètu iterací na dvì. Tento pøístup je
 vhodný v pøípadech kdy pracujeme s velkým poètem záznamù o sudo pravidlech a
 pøíkazech.  Typicky tedy pøi provádìní úplných aktualizací. Pøi aktualizaci
@@ -1100,7 +1107,7 @@ tìchto údajù.
 
 Jestli¾e máme zvolený algoritmus pøekladu pravidel, pak je nutné rozhodnout, kdo
 tento pøedklad bude realizovat. Nabízí se øe¹ení ulo¾it sta¾ená sudo pravidla v
-IPA formátu pøímo doo sysdb a nechat sudo respondera tyto pravidla pøevádìt.
+IPA formátu pøímo do sysdb a nechat sudo respondera tyto pravidla pøevádìt.
 Tento pøístup sice je realizovatelný, ale není správný z pohledu architektury
 SSSD.  Jak bylo øeèeno v sekci \ref{sssd:architecture}. Respondeøi mají s pomocí
 sysdb pouze co nejrychleji odpovídat na dotazy klientských aplikací. Z tohoto
