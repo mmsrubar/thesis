@@ -6,6 +6,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Úvod}
 
+1. Uvod by mel obsahovat zejmena nasledujici: Vymezeni sirsi oblasti, ve ktere
+se prace pohybuje, a motivaci prace. Dale by tam mely byt stanoveny konkretni
+cile (ktere samozrejme musi byt v souladu se zadanim, ale muzete si je
+preformulovat do vet, ktere vam tam zapadnou). Pak by tam mela byt vysvetlena
+struktura zbytku prace. Na cile a strukturu je mozne pouzit pojmenovane
+odstavce. Muzete tam samozrejme mit i popis toho, co u ctenare ocekavate a co
+neni cilem prace, ale asi bych to nedaval jako cislovane sekce, ale nanejvyse
+jako pojmenovane odstavce.
+
 {\color{red}{TODO: pøi svazování je potøeba je¹tì pøidat originál zadání!}}
 
 \section{odstavec - co od ètenáøe oèekávám}
@@ -36,6 +45,10 @@ mezi u¾ivateli RHELu.  Jestli¾e máme velký server a vice adminù starající se o
 vice slu¾eb, tak nechceme ka¾dému dát heslo roota, ale radìji by jsme chtìli mít
 mo¾nost delegovat urèitá prává. Tak stejnì u¾ivatelù by se sem tam hodily vy¹¹í
 práva
+
+- ¾e spravovat sudo lokálnì je pracné
+- ¾e ve velké spoleènosti kde je linux prostøedí, chce mit admin vsechno
+centralne
 
 \begin{itemize}
 	\item tato kapitole bude takový popis toho jak je mo¾né spravovat u¾ivatelská
@@ -334,18 +347,15 @@ pomocí následující voleb:
 % 3. SSSD
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{SSSD a SUDO provider}\label{ch:sssd}
-{\color{blue}{Modøe jsou poznámky k návrhu}}
+Tato kapitola popisuje vnitøní architekturu démona SSSD se zamìøením na sudo
+providera a pluginy, které má k dispozici. Tento popis byl sestaven na základì
+experimentování a ètení zdrojových kódù. Popis byl nezbytný pro úplné
+pochopení zpùsobu, jakým SSSD zpracovává sudo pravidla.
+Vysvìtluje také základní koncepty knihoven talloc
+a tevent na kterých SSSD staví a jejich pochopení bylo nezbytné jak pro
+porozumìní ji¾ implementováného kódu, tak pro návrh a implementaci nového
+providera.
 
-\begin{itemize}
-	\item popisuje pluginy, které sudo provider má k dispozici
-	\item popisuje sssd ze sudo prespektivy (a postupnì jde do detailu 1. high
-		level overview -> a pak zamìøení na respondery a providery
-	\item tato kapitola popisuje vnitøní architekturu SSSD se zamìøením na sudo
-		respondera a providera (spí¹e jen providera ne?)
-	\item popsat ten základ co to je monitor, backendy, provideri, responderi
-	\item popisuje základní koncepty knihoven talloc a tevent na kterých SSSD staví
-
-\end{itemize}
 %-------------------------------------------------------------------------------
 \section{Talloc}
 literatura: \cite{talloc}
@@ -537,6 +547,10 @@ SDAP je¹tì nabízí druhé rozhraní a to \texttt{sdap\_deref\_search\_send}. Pomocí
 kterého je mo¾né získat záznam a také v¹echny záznamy na které je ze
 záznamu odkazováno pomocí DN.  U toho dotazu ov¹em není mo¾né specifikovat
 filtr, jeliko¾ mohu provést dereferenci atributù pouze \textbf{jednoho} záznamu!
+Obrázek \ref{sdap_deref} zobrazuje zánamy, které by byly vráceny po zaslání
+dereferenèního dotazu pro záznam jeho¾ DN je
+\texttt{fqdn=client1.example.cz,cn=comput}
+\texttt{ers,cn=accounts,\$DC}
 
 \begin{figure}[H]
 	\centering
@@ -547,48 +561,10 @@ filtr, jeliko¾ mohu provést dereferenci atributù pouze \textbf{jednoho} záznamu!
 
 
 %================================================
-\section{Backend}
-\subsection{sudo\_search\_base}
-Jestli-¾e je pou¾it jako identifikaèní provider
-\texttt{ipa}\footnote{id\_provider=ipa, tj. FreeIPA server}, pak je pøi inicializaci \texttt{ipa}
-modulu nastavena \texttt{sudo\_search\_base} na øetìzec
-\uv{\texttt{ou=SUDOers,basedn}}, kde \texttt{basedn} je jedineèné
-jméno\footnote{distinguished name nebo zkrácenì DN} domény. Ov¹em pouze v
-pøípadì, ¾e hodnota \texttt{sudo\_search\_base} nebyla definována v
-\texttt{sssd.conf}. Pokud tato volba není v \texttt{sssd.conf} specifikována pak
-je \texttt{sudo\_search\_base} nastavena na hodnotu RootDSE, kde se hledá
-\texttt{ou=SUDOers} kontejnér.
-
-Kde je ta search base ulo¾ena u backendu a kde u domény?
-\newline
-{\color{blue}{
-Pokud bych mìl tuto konfiguraci\\
-id\_provider=ipa\\
-sudo\_provider=ldap\\
-ldap\_sudo\_search\_base=nenstavena\\
-a v tom ipa\_common bych zmìnil ten ou=SUDOers øetìzec, tak by se v¾dy pou¾íl,
-co¾ je ¹patnì! Lep¹í bude nechat tam to ou=SUDOers a pro ipa to zmìnit a¾ pøi
-inicializaci ipa provideru....
-}}
-
-\begin{itemize}
-	\item sudo search base
-	\begin{itemize}
-		\item kde se nastavuje
-		\item pro ka¾dou doménu mù¾e být jiná -> proto je tam to search bases pole
-	\end{itemize}
-	\item kdy se nastavuje sudorule map, podrobnìji o mapì v
-		sekci\ref{ch:sssd:sec:ldap_provider:native_sudorule_map}
-	\item jak se zavadìjí provideøi
-	\item jak se spou¹tìjí respondeøi (alias services)
-	\item	monitor creates backend for every domain
-\end{itemize}
-
 \section {SUDO Responder}
 Pøi ka¾dém zavolání sudo se SSSD SUDO responder nejprve podíva do cache pamìti. 
 \begin{itemize}
-	\item	zamìøit se na vìci, které se budou mìnit?
-	\item dát to a¾ po ldap provideru?
+	\item	Pøidat podrobnìj¹í popis
 \end{itemize}
 
 %-------------------------------------------------------------------------------
@@ -1202,6 +1178,9 @@ pravidel) ze kterých by bylo mo¾né pøes odkazy získat odkazované záznamy /(sudo 
 implementaèního hlediska by tyto rozhraní pro daný úèel bylo mo¾né upravit. Je
 otázkou zda by výhody této úpravy pøedèily èas stráveny nad touto zmìnou a
 mo¾nost zanesení chyby do velice èasto vyu¾ívané a odladìné èásti kódu.
+{\color{red}{TODO ADD: i kdyby to si zaznamy a prikazy stahnul v jednom dotazu,
+porad tam mas skupiny prikazu, ve kterych jsou zase odkazy na prikazy => zase
+dva dotazy}}
 
 Pro pøeklad pravidel byl zvolen základní algoritmus s drobnými optimalizacemi,
 který se pøi testování osvìdèil jako dostateèný pro malou mno¾inu pravidel. V
