@@ -4,6 +4,7 @@
 #===========================================
 # asi budete chtit prejmenovat:
 CO=projekt
+NAME=xsruba03
 
 all: $(CO).pdf
 
@@ -28,7 +29,7 @@ desky:
 #	latex desky
 #	dvips desky
 #	dvipdf desky
-#	pdflatex desky
+	pdflatex desky
 
 clean:
 	rm -f *.dvi *.log $(CO).blg $(CO).bbl $(CO).toc *.aux $(CO).out $(CO).lof
@@ -36,4 +37,4 @@ clean:
 	rm -f *~
 
 pack:
-	tar czvf bp-xjmeno.tar.gz *.tex *.bib *.bst ./fig/* ./cls/* Makefile Changelog
+	tar czvf bp-$(NAME).tar.gz *.tex *.bib *.bst ./fig/* Makefile Changelog

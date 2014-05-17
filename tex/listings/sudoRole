@@ -3,8 +3,8 @@ objectclass (
   NAME 'sudoRole' SUP top STRUCTURAL
   DESC 'Sudoer Entries'
   MUST ( cn )
-  MAY ( sudoUser $ sudoHost $ sudoCommand $ sudoRunAs $ sudoRunAsUser $
-        sudoRunAsGroup $ sudoOption $ sudoNotBefore $ sudoNotAfter $
-        sudoOrder $ description
+  MAY ( sudoUser $ sudoHost $ sudoCommand $ sudoRunAs $ 
+        sudoRunAsUser $ sudoRunAsGroup $ sudoOption $ 
+        sudoNotBefore $ sudoNotAfter $ sudoOrder $ description
       )
 )
