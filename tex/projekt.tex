@@ -10,6 +10,7 @@
 % vim: set syntax=tex encoding=latin2:
 %============================================================================
 \documentclass[cover]{fitthesis} % odevzdani do wisu - odkazy, na ktere se da klikat
+%\documentclass[print]{fitthesis} % pro tisk - na odkazy se neda klikat, bez desek
 %\documentclass[cover,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %\documentclass[english,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %      \documentclass[english]{fitthesis}
@@ -82,7 +83,7 @@
   %bud pomoci nasledujicich parametru nebo pomoci vyhrazenych maker (viz dale)
   %===========================================================================
   %Klicova slova
-  keywords.cs={Klíèová slova v èeském jazyce.}, %klicova slova v ceskem jazyce
+  keywords.cs={sudo, SSSD, tevent, FreeIPA}, %klicova slova v ceskem jazyce
   keywords.en={Klíèová slova v anglickém jazyce.}, %klicova slova v anglickem jazyce
   %Abstract
   abstract.cs={
@@ -92,17 +93,21 @@
 	provideru. Navr¾ený provider eliminuje nadbyteènou re¾ii pøekládání SUDO
 	pravidel z IPA SUDO schématu do nativního LDAP SUDO schématu na stranì FreeIPA
 	serveru.}, % abstrakt v ceskem jazyce 
-	abstract.en={
-	The purpose of this thesis is to improve integration between SUDO and SSSD
-	with a focus at improved support of SUDO rules stored on a FreeIPA server in
-	native IPA SUDO scheme. It presents documentation of LDAP SUDO provider and also
-	design and implementation of native IPA SUDO provider. Designed provider
-	eliminates unnecessary overhead of exporting SUDO rules from IPA SUDO schema
-	info native LDAP SUDO scheme on a FreeIPA server.}, % abstrakt v anglickem jazyce
+	abstract.en={ The purpose of this thesis is to improve integration between
+		SUDO and SSSD with a focus on improved support of SUDO rules stored on an
+		FreeIPA server in the native IPA SUDO scheme. It presents documentation of
+		LDAP SUDO provider and also the design and implementation of the native IPA
+		SUDO provider. Designed provider eliminates unnecessary overhead of
+		exporting SUDO rules from IPA SUDO schema info native LDAP SUDO scheme on an
+		FreeIPA server.
+	}, % abstrakt v anglickem jazyce
   %Prohlaseni
   declaration={Prohla¹uji, ¾e jsem tuto bakaláøskou práci vypracoval samostatnì pod vedením pana ...},
   %Podekovani (nepovinne)
-  acknowledgment={Zde je mo¾né uvést podìkování vedoucímu práce a tìm, kteøí poskytli odbornou pomoc.} % nepovinne
+	acknowledgment={Rád bych podìkoval profesoru Vojnarovi za ve¹kerou
+		poskytnutou pomoc. Dále mému technickému vedoucímu Jakubu Hrozkovi za
+		trpìlivost a vedení. Podìkování patøí také komunitám projektù SSSD a FreeIPA
+		za trpìlivé zodpovídaní ve¹kerých dotazù a to zejména Pavlu Bøezinovi.} % nepovinne
 }
 
 %Abstrakt (cesky, anglicky)
@@ -141,7 +146,8 @@
   % Pouzita literatura
   % ----------------------------------------------
 \ifczech
-  \bibliographystyle{czechiso}
+  %\bibliographystyle{czechiso}
+  \bibliographystyle{unsrt}
 \else 
   \bibliographystyle{plain}
 %  \bibliographystyle{alpha}

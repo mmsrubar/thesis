@@ -28,7 +28,7 @@ desky:
 #	latex desky
 #	dvips desky
 #	dvipdf desky
-	pdflatex desky
+#	pdflatex desky
 
 clean:
 	rm -f *.dvi *.log $(CO).blg $(CO).bbl $(CO).toc *.aux $(CO).out $(CO).lof

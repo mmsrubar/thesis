@@ -1,3 +1,5 @@
+LDAP filter:
+---------------------------------------
 (&(&(objectclass=sudoRole)
     (entryUSN>=9270)
     (!(entryUSN=9270))

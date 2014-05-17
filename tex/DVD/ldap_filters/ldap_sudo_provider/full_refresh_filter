@@ -1,3 +1,5 @@
+LDAP filter:
+---------------------------------------
 (&(objectClass=sudoRole)
   (|(!(sudoHost=*))
     (sudoHost=ALL)
@@ -15,3 +17,7 @@
     )
   )
 )
+
+SYSDB filter:
+---------------------------------------
+(objectClass=sudoRule)

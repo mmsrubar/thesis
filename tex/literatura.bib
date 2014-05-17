@@ -1,4 +1,8 @@
-    
+   @BOOK{Èe¹ka1994,
+  publisher = {Akademické nakladatelství CERM Brno},
+  year = {1994},
+  owner = {David Martinek},
+} 
 
     @BOOK{Redhat_Directory_Server_Schema_Reference,
       author =       "Rüdiger Landmann",
@@ -9,35 +13,55 @@
     }
 
     @BOOK{Security_Guide,
-      author =       "Skupina autorù",
+			key = 				"z",
       title =        "RedHat Enterprise Linux 4 Security Guide",
       publisher =    "Red Hat, Inc.",
       year =         "2008",
 			edition =			 "Second Edition",
-			url =       	 "https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/4/pdf/Security_Guide/Red_Hat_Enterprise_Linux-4-Security_Guide-en-US.pdf",
+			howpublished = "\url{https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/4/pdf/Security_Guide/Red_Hat_Enterprise_Linux-4-Security_Guide-en-US.pdf}",
     }
-
+   	@BOOK{understanding_and_deploying_LDAP,
+		 	author =			 "Timothy A. Howes Ph.D., Mark C. Smith, Gordon S. Good",
+      title =        "Understanding and Deploying LDAP Directory Services",
+			edition =			 "2.",
+      publisher =    "Addison Wesley",
+      year =         "2003",
+  		isbn = {075-2063323168},
+    }
+		@MISC{sudoers_ldap_manual,
+      title =       "Sudoers LDAP manual [online]",
+			howpublished = "\url{http://www.sudo.ws/sudoers.ldap.man.html}",
+   	}
+		@misc{sudoers_manual,
+			title = "Sudoers Manual [online]",
+			howpublished = "\url{http://www.sudo.ws/sudoers.man.html}",
+		}
+		@misc{ldap_ordering,
+      author =       "H. Chu",  
+			title = 			 "Ordered Entries and Values in LDAP [online]",
+     	publisher =    "Symas Corp.",
+      year =         "2006",
+			howpublished = 				"\url{http://tools.ietf.org/html/draft-chu-ldap-xordered-00}",
+		}
 
     @BOOK{Fedora_16-System_Administrators_Guide,
-      author =       "Skupina autorù",
+      author =       "Hradílek Jaromír, Silas Douglas, Prpiè Martin",
       title =        "Fedora 16 System Administrator's Guide",
       publisher =    "Red Hat, Inc.",
       year =         "2011",
-			url =       "http://docs.fedoraproject.org/en-US/Fedora/16/pdf/System_Administrators_Guide/Fedora-16-System_Administrators_Guide-en-US.pdf",
+			howpublished = "\url{http://docs.fedoraproject.org/en-US/Fedora/16/pdf/System_Administrators_Guide/Fedora-16-System_Administrators_Guide-en-US.pdf}",
     }
-
 
     @MISC{Identity_Management_Guide,
       author =       "Ella Deon Lackey",
       title =        "Red Hat Enterprise Linux 6 Identity Management Guide",
       publisher =    "Red Hat, Inc.",
       year =         "2013",
-			url =       "https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/pdf/Identity_Management_Guide/Red_Hat_Enterprise_Linux-6-Identity_Management_Guide-en-US.pdf",
-			dvd = "path to dvd",
+			howpublished = "\url{https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/pdf/Identity_Management_Guide/Red_Hat_Enterprise_Linux-6-Identity_Management_Guide-en-US.pdf}",
     }
 
     @MISC{rfc2254,
-      author =       " T. Howes",
+      author =       "T. Howes",
       title =        "The String Representation of LDAP Search Filters. RFC2254",
       publisher =    " Netscape Communications Corp.",
       year =         "December 1997",
@@ -48,8 +72,7 @@
       title =        "Red Hat Directory Server 8.2 Administration Guide",
       publisher =    "Red Hat, Inc.",
       year =         "2010",
-			url =       "https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/8.2/pdf/Administration_Guide/Red_Hat_Directory_Server-8.2-Administration_Guide-en-US.pdf",
-			dvd = "path to dvd",
+			howpublished = "\url{https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/8.2/pdf/Administration_Guide/Red_Hat_Directory_Server-8.2-Administration_Guide-en-US.pdf}",
     }
 
     @BOOK{tevent,
@@ -66,33 +89,5 @@
 			TYPE = "Bakaláøská práce",
 			SCHOOL = "Masarykova univerzita, Fakulta informatiky",
 			SUPERVISOR = "Jan Kasprzak",
-			url = "http://is.muni.cz/th/359290/fi_b/",
-		}
-
-
-    @BOOK{Eikh,
-      author =       "Victor Eikhout",
-      title =        "{\TeX}by Topics, a {\TeX}nitian's Reference ",
-      publisher =    "Addison-Wesley UK",
-      year =         "2001",
-      note =         "ISBN~0-201-56882-9",
-    }
-
-   @MISC{cstugWeb,
-      author =       "{WWW stránky}",  
-      title =        "Èeskoslovenské sdru¾ení u¾ivatelù {\TeX}u",
-      howpublished=  "{\tt http://www.cstug.cz}",
-   }
-
-   @MISC{sudoers_ldap_manual,
-      author =       "Komunita SUDO vývojáøù",  
-      title =        "Sudoers LDAP manual",
-      publisher =    "???",
-      year =         "???",
-      howpublished=  "{\tt http://www.sudo.ws/sudoers.ldap.man.html}",
-   }
-
-		@misc{sudoers_manual,
-			title = "Sudoers Manual [online]",
-			url = "http://www.sudo.ws/sudoers.man.html",
+			howpublished = "\url{http://is.muni.cz/th/359290/fi_b/}",
 		}
