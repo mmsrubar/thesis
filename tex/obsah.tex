@@ -291,6 +291,8 @@ Order]{understanding_and_deploying_LDAP}. Vychází to z~pøedpokladu, ¾e jak
 záznamy, tak jednotlivé atributy jsou definovány jako mno¾ina. Proto bylo nutné
 definovat atribut pomocí kterého je mo¾né øadit jednotlivá pravidla.
 
+
+
 Záznam ekvivalentního suda pravidla, pro pravidlo \ref{sudoer}, by v~LDAP
 adresáøi vypadal tak, jak jej popisuje obrázek \ref{fig:ldap_sudoer}.
 
@@ -456,10 +458,8 @@ nebo adresy sítì.  Tento atribut ov¹em v~praxi není vyu¾íván.
 Poslední mno¾inou, kterou je nutno specifikovat pro vytvoøení kompletního
 pravidla, jsou pøíkazy. Zde popsané schéma pøiná¹í novou vlastnost a tou jsou
 \textbf{skupiny pøíkazù}. Jak záznamy pøíkazù, tak záznamy skupin pøíkazù jsou
-v~samostatných kontejnerech. Jsou také definovány pomocí jiných tøíd. Atributy a
+v~\textbf{samostatných} kontejnerech. Jsou také definovány pomocí jiných tøíd. Atributy a
 pøíklad jejich mo¾ných hodnot popisuje tabulka \ref{table:ipa_sudo_cmds_attrs}.
-Záznamy pro sudo pøíkazy se nacházejí v~kontejneru
-\texttt{cn=sudocmds,cn=sudo,\$DC}. 
 
 \begin{table}[ht]
   \begin{center}	
@@ -474,6 +474,7 @@ Záznamy pro sudo pøíkazy se nacházejí v~kontejneru
 	\label{table:ipa_sudo_cmds_attrs}
 \end{table}
 
+
 Kromì skupin pøíkazù pøiná¹í nové schéma dal¹í výhodu a to povolování/zakazování
 pravidel.  Jestli¾e administrátor spravuje SUDO pravidla pomocí LDAP
 serveru\footnote{tj.  sudo pravidla jsou definována pomocí nativního LDAP SUDO
@@ -482,7 +483,29 @@ Pokud by chtìl administrátor, napøíklad z~dùvodu testování, nìjaké pravidlo
 doèasnì zakázat, musel by jej z~adresáøe odstranit. Tøída
 \texttt{ipaAssociation} definuje atribut \texttt{ipaEnableFlag}. Pomocí tohoto
 atributu je mo¾né libovolné pravidlo doèasnì povolit nebo zakázat bez nutnosti
-jeho odstranìní z~adresáøe.  Záznam ekvivalentního suda pravidla pro pravidla
+jeho odstranìní z~adresáøe.  
+
+Sudo pravidla jsou tedy na IPA serveru ulo¾ena v kontejneru
+\texttt{cn=sudo,\$DC}. Zde jsou ov¹em dále dìlena do dal¹ích tøí kontejnerù,
+viz. Tabulka \ref{table:ipa_rules_containers}.
+
+\begin{table}[ht]
+  \begin{center}	
+  \begin{tabular}{| l | l |} \hline
+    \textbf{Obsah kontejneru} & \textbf{Kontejner} \\ \hline\hline
+		kompletní sudo pravidla & \texttt{cn=sudo,\$DC} \\ \hline
+		sudo pravidla & \texttt{cn=sudorules,cn=sudo,\$DC} \\ \hline
+    pøíkazy & \texttt{cn=sudocmds,cn=sudo,\$DC} \\ \hline
+		skupiny pøíkazù & \texttt{cn=sudocmdgroups,cn=sudo,\$DC} \\ \hline
+  \end{tabular}
+  \end{center}
+	\caption[Table caption text]{Rozmístìní sudo pravidel na IPA serveru.}
+	\label{table:ipa_rules_containers}
+\end{table}
+
+
+
+Záznam ekvivalentního suda pravidla pro pravidla
 \ref{sudoer} a \ref{fig:ldap_sudoer} v~novém IPA SUDO schématu popisuje obrázek
 \ref{fig:ipa_sudo_rule}.
 
@@ -693,8 +716,8 @@ pamì», která byla pøidìlena v¹em zanoøeným událostem.
 
 Knihovna tevent je také vyu¾ívána ve spojení s~knihovnami
 OpenLDAP\footnote{www.openldap.org} a DBUS\footnote{dbus.freedesktop.org}, které
-obaluje aby bylo mo¾né vyu¾it jejich vlastností. Tyto knihovny jsou poté v~SSSD
-oznaèovány jako SDAP a SBUS.
+obaluje. Tyto knihovny byly obaleny právì proto, aby mohly být vyu¾ity jako vý¹e
+zmínìné \uv{tevent requests}.
 
 \section {Architektura SSSD}\label{sssd:architecture}
 SSSD se skládá z~nìkolika komponent (démonù). Hlavním procesem je zde
@@ -760,6 +783,11 @@ disponuje podobným API\footnote{Application programming interface}, které
 napøíklad pøi vyhledávání v této databázi umo¾òuje vyu¾ít stejnou syntaxi
 filtrù jako u LDAP dotazù. Tato cache pamì» se èasto oznaèuje také jako
 \emph{sysdb}. Toto oznaèení bude také pou¾íváno v následujícím textu.
+
+Respondeøi komunikují s providery skrze backend dané domény zasíláním SBUS
+zpráv. Jestli¾e responder nenajde hledaná data v sysdb, pak po¹le konkrétnímu
+providerovi zprávu, aby je aktualizoval. Provider tento po¾adavek provede a
+upozorní respondera o tom, ¾e byla cache pamì» aktualizována.
 
 \begin{figure}[h]
 \centering
@@ -1323,7 +1351,7 @@ Ka¾dý klientský poèítaè, který je èlenem IPA domény, má na IPA serveru záznam v~
 \texttt{cn=computers,cn=accounts,\$DC}. Ka¾dý takový záznam obsahuje napøíklad atribut
 \texttt{memberOf}, kde se nacházejí odkazy na záznamy skupin poèítaèù, sí»ových
 skupin a SUDO nebo HBAC\footnote{Host-Based Access Control} pravidel, kterými je
-daný poèítaè èlenem. Bylo by tedy mo¾né jedním dotazem získat odkazy na SUDO
+daný klient èlenem. Bylo by tedy mo¾né jedním dotazem získat odkazy na SUDO
 pravidla, která jsou aplikovatelná na daný klientský poèítaè a dal¹ími dotazy u¾
 konkrétní záznamy SUDO pravidel.  Jestli¾e bychom chtìli získat
 DNs\footnote{Distinguished Names} SUDO pravidel aplikovatelných na
