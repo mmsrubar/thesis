@@ -198,9 +198,9 @@ u¾ivatele, èeho¾ je mo¾no docílit pou¾itím hodnoty \texttt{ALL}.
   \begin{tabular}{| l | l |} \hline
     \textbf{Mo¾ná hodnota atributu} & \textbf{Pøíklad} \\ \hline\hline
 		u¾ivatelské jméno & \texttt{xsruba03} \\ \hline
-		uid\footnote{User ID} & \texttt{\#9843} \\ \hline
+		\sc{uid} & \texttt{\#9843} \\ \hline
 		skupina u¾ivatelù & \texttt{\%3bit} \\ \hline
-		gid\footnote{Group ID} & \texttt{\%\#43} \\ \hline
+		\sc{gid} & \texttt{\%\#43} \\ \hline
 		unixová sítová skupina & \texttt{+admins} \\ \hline
 		non-unixová sítová skupina & \texttt{\%:finance\_dp} \\ \hline
 		v¹ichni u¾ivatelé & \texttt{ALL} \\ \hline
@@ -260,9 +260,10 @@ definovat pomocí atributu \texttt{sudoOption} \cite[Sekce SUDOERS
 OPTIONS]{sudoers_manual}.
 
 Schéma také definuje atributy \texttt{sudoNotBefore} a \texttt{sudoNotAfter},
-které je mo¾no pou¾ít pro èasovì závislá pravidla. Jeliko¾ dále diskutovaný
-FreeIPA server øe¹í vypr¹ení platnosti pravidel jiným zpùsobem, viz. USN plugin v~sekci
-\ref{ipa_sudo_schema}, nebudeme se tìmito atributy dále zabývat.
+které je mo¾no pou¾ít pro èasovì závislá pravidla. Pomocí tìchto atributù je
+mo¾né specifikovat po jakou dobu bude pravidlo validní\footnote{napø. po dobu
+pracovní doby od 7:00 do 15:00}. Tyto atribut ov¹em aktuálnì nejsou FreeIPA
+serverem pou¾ívána a proto je jimi dále nebudeme zabývat.
 
 \label{sec:sudoers_ordering}
 Posledním definovaným atributem je atribut \texttt{sudoOrder}. Ten pøedstavuje
@@ -308,7 +309,7 @@ Pod pojmem \emph{identita} je mo¾no si pøedstavit objekt, u~kterého nás zajímá
 jeho jednoznaèná identifikace. V~linuxovém prostøedí tedy typicky napøíklad u¾ivatel.
 Vìt¹ina administrátorù spravujících prostøedí o~desítkách a více u¾ivatelù chce
 spravovat identity centrálnì.  LDAP adresáøe jsou pro tento úèel tedy velice
-vyu¾ívány. Napøíklad ve Windows prostøedích je dnes roz¹íøeno øe¹ení \emph{Active
+vyu¾ívány. Napøíklad ve Windows prostøedích je mo¾no pou¾ít øe¹ení \emph{Active
 Directory} nebo \emph{FreeIPA} v~linuxových prostøedích. Na tyto
 servery je tedy mo¾né nativní LDAP SUDO schéma nahrát a zaèít tak SUDO pravidla
 spravovat centrálnì.  Pøístup ke správì identit a bezpeènostních politik
@@ -321,8 +322,7 @@ pomocí LDAP adresáøe a nativního SUDO schématu má ov¹em nìkolik nevýhod:
 		souborù v~LDIF\footnote{LDAP Data Interchange Format} formátu.
 	\item V~pøípadì, ¾e se u¾ivatel ocitne bez pøipojení k~serveru, který uchovává
 		SUDO pravidla, pak není mo¾né SUDO pou¾ít (pøípadnì lze pracovat pouze s~lokálními pravidly definovanými v~souboru \texttt{/etc/sudoers}).
-	\item Pøi ¹patné konfiguraci NSS\footnote{Name Service Switch} mù¾e dojít
-k~pøekrytí u¾ivatele z~LDAP adresáøe s~lokálním u¾ivatelem.
+	\item mù¾e dojít k~pøekrytí u¾ivatele z~LDAP adresáøe s~lokálním u¾ivatelem.
 \end{itemize}
 
 Jako nejvìt¹í nevýhodu lze ov¹em pova¾ovat nulovou integraci mezi existujícími
@@ -332,8 +332,13 @@ centrálnì, pak by chtìl aby tyto entity byly vzájemnì propojeny.  Toho ov¹em
 není mo¾né dosáhnout s~pou¾itím nativního LDAP SUDO schématu. Pøi pou¾ití
 nativního schématu, se pøi definici SUDO pravidel není mo¾né odkazovat na ji¾
 administrátorem vytvoøené identity\footnote{napøíklad u¾ivatele nebo poèítaèe}.
-Toto je jeden z~problémù, které se sna¾í øe¹it projekt FreeIPA, kterým se zabývá
-následující sekce.
+Pøi ¹patné konfiguraci zde také vzniká problém s pøekrytím u¾ivatelù.
+Pøedpokládejme, ¾e se na unixovém systému nachází u¾ivatel
+\uv{xsruba03}\footnote{je tedy definován v souboru \texttt{/etc/passwd}} a
+zároveò je stejný u¾ivatel definován i v LDAP adresáøi, který administrátor
+pou¾ívá pro správu u¾ivatelù. Poté nastává problém zjistit na kterého u¾ivatele
+má být sudo pravidlo aplikováno. Toto je jeden z~problémù, které se sna¾í øe¹it
+projekt FreeIPA, kterým se zabývá následující sekce.
 
 %-------------------------------------------------------------------------------
 
@@ -470,10 +475,11 @@ Záznamy pro sudo pøíkazy se nacházejí v~kontejneru
 \end{table}
 
 Kromì skupin pøíkazù pøiná¹í nové schéma dal¹í výhodu a to povolování/zakazování
-pravidel. Jestli¾e administrátor spravuje SUDO pravidla pomocí LDAP serveru a
-nativního LDAP SUDO schématu. Pak pravidla, která jsou v~adresáøi definována
-budou v¾dy pou¾ita. Pokud by chtìl administrátor, napøíklad z~dùvodu testování,
-nìjaké pravidlo doèasnì zakázat, musel by jej z~adresáøe odstranit. Tøída
+pravidel.  Jestli¾e administrátor spravuje SUDO pravidla pomocí LDAP
+serveru\footnote{tj.  sudo pravidla jsou definována pomocí nativního LDAP SUDO
+schématu}, pak pravidla, která jsou v~adresáøi definována budou v¾dy pou¾ita.
+Pokud by chtìl administrátor, napøíklad z~dùvodu testování, nìjaké pravidlo
+doèasnì zakázat, musel by jej z~adresáøe odstranit. Tøída
 \texttt{ipaAssociation} definuje atribut \texttt{ipaEnableFlag}. Pomocí tohoto
 atributu je mo¾né libovolné pravidlo doèasnì povolit nebo zakázat bez nutnosti
 jeho odstranìní z~adresáøe.  Záznam ekvivalentního suda pravidla pro pravidla
@@ -494,11 +500,11 @@ daného záznamu.  Tento plugin tedy poskytuje zpùsob, který umo¾òuje informovat
 IPA klienty o~\textbf{modifikaci} jakéhokoliv záznamu \cite[Sekce
 3.4]{Redhat_Directory_Server_Administration_Guide}. 
 
-LDAP schémata, která pou¾ívá FreeIPA server je mo¾né nalézt v~adresáøi
-\texttt{/etc/dirsrv/\allowbreak slapd-instance\_name/}. Detailní popis tøíd a atributù pro
-definici SUDO pravidel na IPA serveru je mo¾né nalézt v~souboru \texttt{65sudo.ldif}.
-Schémata, která pou¾ívá FreeIPA server je mo¾né najít také na pøilo¾eném CD,
-viz. Pøíloha \ref{dvd}.
+LDAP schémata, která pou¾ívá FreeIPA server je na nainstalovaném IPA serveru
+mo¾né nalézt v~adresáøi \texttt{/etc/dirsrv/slapd-instance\_name/}.  Detailní
+popis tøíd a atributù pro definici SUDO pravidel na IPA serveru je mo¾né nalézt
+v~souboru \texttt{65sudo.ldif}. Schémata, která pou¾ívá FreeIPA server je mo¾né
+najít také na pøilo¾eném CD, viz. Pøíloha \ref{cd}.
 
 \subsection{Definice SUDO pravidel} 
 Dal¹í výhodou, kterou pøiná¹í FreeIPA je snadnìj¹í definice pravidel.  SUDO
@@ -563,7 +569,13 @@ a nìkteré konfiguraèní volby také
 v~\texttt{sssd-ldap}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-ldap.5.html}.
 
 \subsection{Aktualizace SUDO pravidel v~cache pamìti}
-SSSD provádí následující tøi typy aktualizací SUDO pravidel ve své cache pamìti:
+SSSD provádí následující tøi typy aktualizací SUDO pravidel ve své cache pamìti.
+Smyslem tìchto aktualizací je zachovat pøesnost pravidel a zároveò redukovat
+poèet dotazù na server. SUDO ve spojení s LDAP adresáøem pracuje v¾dy a
+aktuálními pravidly, proto¾e se dotazuje LDAP adresáøe pøi ka¾dém spu¹tìní. SSSD
+se dotazuje LDAP serveru pouze v pøípadì, kdy dané pravidla v cache pamìti ji¾
+není validní. Aktualizace se poté sna¾í reflektovat stav SUDO pravidel na
+serveru v cache pamìti SSSD.
 
 \subsubsection{Prùbì¾né aktualizace}
 Periodicky stahují pravidla, která jsou na serveru novì pøidány nebo byly od
@@ -573,9 +585,11 @@ mo¾né tento typ aktualizace vyhledat jako \uv{\emph{smart refresh}}.
 \subsubsection{Úplná aktualizace}
 Provede smazání v¹ech pravidel z~cache pamìti a sta¾ení v¹ech pravidel ze serveru.
 Tento typ aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství
-pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD nebo
-pøi detekci zmìny pravidel na serveru. V~manuálnových stránkách a v~kódu SSSD
-je mo¾né tento typ aktualizace najít jako \uv{\emph{full refresh}}.
+pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD,
+pøi detekci zmìny pravidel na serveru nebo periodicky s men¹í frekvencí ne¾
+prùbì¾né aktualizace\footnote{pøi zachování výchozího nastavení se provádní
+ka¾dých 6 hodin}. V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ
+aktualizace najít jako \uv{\emph{full refresh}}.
 
 \subsubsection{Aktualizace pravidel}
 Je provedena pøi ka¾dém spu¹tìní programu SUDO. Zajistí aby u¾ivatel nedostal vìt¹í
@@ -655,14 +669,27 @@ S~tím je také spojena následující konvence:
 	\label{tevent_requests}
 \end{figure}
 
+Tuto konvenci je vhodné striktnì dodr¾ovat, proto¾e èitelnost asynchronního kódu
+je obecnì slo¾itìj¹í. Pou¾ití správného stylu zápisu kódu zlep¹uje èitelnost a
+pomáhá programátorovi si lépe pøedstavit v jakém poøadí se bude kód vykonávat.
+
 Nejprve je danou událost nutno vytvoøit a spojit s~ní privátní data. Knihovna
 tevent pro alokaci dynamické pamìti pou¾ívá rovnì¾ knihovnu talloc. Asynchronní
 funkci je mo¾né zavolat pomocí rozhraní \uv{request\_send}\footnote{funkci je
 mo¾né pojmenovat napø. \texttt{ldap\_query\_send}}. Poté probíhá asynchronní
 provádìní programu. V~okam¾iku kdy bude událost oznaèena jako dokonèená, vyvolá
 se její callback tj. funkce \uv{request\_done}. V~této funkci je mo¾né zpracovat výsledky
-dané události a následnì ji odstranit.  Volání asynchronních funkcí je mo¾né do
-sebe také zanoøovat. Jedna asynchronní operace tak mù¾e volat jinou atd.
+dané události a následnì ji odstranit.  
+
+Volání asynchronních funkcí je mo¾né do sebe také zanoøovat. Jedna asynchronní
+operace tak mù¾e volat jinou. Jeliko¾ jsou s ka¾dou událostí spojena privátní
+data, bylo by nutné tyto data pøi ukonèení zanoøené události, uvolnit.
+Privátními daty ov¹em mù¾e být komplexní struktura potenciálnì obsahující dal¹í
+struktury. Z tohoto dùvodu pou¾ívá knihovna tevent pro alokaci pamìti rovnì¾ alokátor
+talloc, který ve¹kerá data zanoøených asynchronních funkcí alokuje hierarchicky. Pøi
+dokonèení první události\footnote{ta která volala dal¹í asynchronní funkce a ta
+dal¹í atd} je poté najednou uvolnìna ve¹kerá pøidìlená pamì», tj. také ve¹kerá
+pamì», která byla pøidìlena v¹em zanoøeným událostem.
 
 Knihovna tevent je také vyu¾ívána ve spojení s~knihovnami
 OpenLDAP\footnote{www.openldap.org} a DBUS\footnote{dbus.freedesktop.org}, které
@@ -705,17 +732,17 @@ doménu je vytvoøen samostatný proces, který danou doménu reprezentuje. Takový
 proces je nazýván \emph{backend}. Backend pou¾ívá providery pro pro komunikaci
 se vzdálenými servery.  
 
-Ka¾dý backend má ve svém kontextu\footnote{\texttt{struct be\_ctx}} ukazatel na
-pole \texttt{bet\_info}, které obsahuje informace o~providerech, které daný
-backend pou¾ívá. Ka¾dá polo¾ka tohoto pole je tvoøena strukturou
-\texttt{bet\_info}. Ta obsahuje napø.  jméno pluginu, který se má pro daný
-provider pou¾ít, ukazatel na privátní data nebo ukazatel na strukturu
+Ka¾dý backend má ve své interní struktuøe\footnote{kontext \texttt{struct
+be\_ctx}} ukazatel na pole \texttt{bet\_info}, které obsahuje informace
+o~providerech, které daný backend pou¾ívá. Ka¾dá polo¾ka tohoto pole je tvoøena
+strukturou \texttt{bet\_info}. Ta obsahuje napø.  jméno pluginu, který se má pro
+daný provider pou¾ít, ukazatel na privátní data nebo ukazatel na strukturu
 \texttt{bet\_ops}, kde se nachází ukazatel na funkci, kterou volají respondeøi,
 pokud chtìjí danému providerovi zaslat nìjaký po¾adavek. Jméno této funkce má
 v~SSSD obecnì pøíponu \textbf{handler}\footnote{napøíklad
 \texttt{sdap\_sudo\_handler} je SUDO handler pro LDAP SUDO providera} a takto
-bude oznaèována i v~následujícím textu.  Polo¾ku pole \texttt{bet\_info} pro LDAP
-SUDO providera zobrazuje obrázek \ref{fig:bet_info_sudo}.
+bude oznaèována i v~následujícím textu.  Polo¾ku pole \texttt{bet\_info} pro
+LDAP SUDO providera zobrazuje obrázek \ref{fig:bet_info_sudo}.
 
 \begin{figure}[h]
 \centering
@@ -728,8 +755,11 @@ SUDO providera zobrazuje obrázek \ref{fig:bet_info_sudo}.
 Ka¾dý backend také pou¾ívá svou cache pamì». Do této pamìti zapisuje pouze daný
 backend a respondeøi z~ní mohou data pouze èíst. Pro tuto cache je pou¾ita
 transakèní LDB\footnote{http://ldb.samba.org/} databáze, co¾ je zjednodu¹ená
-vezre LDAP adresáøe. Tato cache pamì» se èasto oznaèuje také jako \emph{sysdb}.
-Toto oznaèení bude takté¾ pou¾ito v následujícím textu.
+vezre LDAP adresáøe.  I kdy¾ tato databáze pøesnì neodpovídá LDAP standardu,
+disponuje podobným API\footnote{Application programming interface}, které
+napøíklad pøi vyhledávání v této databázi umo¾òuje vyu¾ít stejnou syntaxi
+filtrù jako u LDAP dotazù. Tato cache pamì» se èasto oznaèuje také jako
+\emph{sysdb}. Toto oznaèení bude také pou¾íváno v následujícím textu.
 
 \begin{figure}[h]
 \centering
@@ -904,8 +934,7 @@ funkcionalitu popisuje schéma \ref{ldap_provider_high_level}.
 \begin{sidewaysfigure}
 	\centering
 	\includegraphics[scale=1.20]{fig/sssd/ldap_sudo_provider/ldap_sudo_provider_highlevel_overview.pdf}
-	\caption{Schéma událostí asynchroního modulu
-	\texttt{providers/ldap/sdap\_async\_sudo.c}.}
+	\caption{Schéma popisující celkovou funkcionalitu modulù LDAP SUDO providera.}
 	\label{ldap_provider_high_level}
 \end{sidewaysfigure}
 
@@ -926,9 +955,8 @@ pøi ní následující úlohy:
 Inicializaci provádí funkce \texttt{sdap\_sudo\_init()}.  Vytváøí se zde
 SUDO mapa, která je pou¾ita v~SDAP dotazech. Jako výchozí mapa je pou¾ita
 \texttt{native\_sudorule\_map} a pøi vytváøení se také zohledòují volby zadané
-v~konfiguraèním souboru SSSD.  Ukazatel na vytvoøenou mapu je ulo¾en
-v~\texttt{id\_ctx}\footnote{Kontext providera identit (angl.  Context of Identity
-Provider)}. Vytvoøení a pou¾ití map je blí¾e popsáno v~sekci \ref{sdap}.
+v~konfiguraèním souboru SSSD. Vytvoøení a pou¾ití map je blí¾e popsáno v~sekci
+\ref{sdap}.
 
 Jména poèítaèe, pro která budou stahována aplikovatelná SUDO pravidla, jsou
 získávána automaticky pomocí systémového volání \texttt{gethostname()}. Jestli¾e
@@ -974,12 +1002,40 @@ provádìjí následující funkce:
 
 \subsubsection{Úplná aktualizace}
 \label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
-Pro úplnou aktualizaci SUDO pravidlel je pou¾it následující LDAP
-filter. Tento i v¹echny následující filtry se øídí syntaxí specifikovaou
+Pro úplnou aktualizaci SUDO pravidlel pou¾ívá SUDO provider LDAP filtr
+\ref{ldap:full_refresh}
+Tento i v¹echny následující filtry se øídí syntaxí specifikovaou
 dokumentem RFC2254 \cite{rfc2254}. Jsou pouze doplnìny bílými znaky pro lep¹í
 èitelnost.
 
-\lstinputlisting{CD/ldap_filters/ldap_sudo_provider/full_refresh_filter}
+\def\lstlistingname{LDAP filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	caption={Filtr, který vyhledá sudo pravidla na serveru.},
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={ldap:full_refresh}]
+(&(objectClass=sudoRole)
+  (|(!(sudoHost=*))
+    (sudoHost=ALL)
+    (sudoHost=hostname.domain)	
+    (sudoHost=hostname)
+    (sudoHost=IPv4)
+    (sudoHost=IPv4/netmask)
+    (sudoHost=IPv6)
+    (sudoHost=IPv6/netmask)
+    (sudoHost=+*)					
+    (|(sudoHost=*\\*)
+      (sudoHost=*?*)
+      (sudoHost=*\**)
+      (sudoHost=*[*]*)
+    )
+  )
+)
+\end{lstlisting}
 
 Tento filtr vyhledá v¹echna SUDO pravidla, která jsou aplikovatelná na
 klientský poèítaè. Jméno poèítaèe (\texttt{hostname} a \texttt{hostname.domain})
@@ -989,8 +1045,22 @@ aplikovatelná na jakoukoliv sí»ovou skupinu poèítaèù
 skupinách se poèítaè nachází.
 
 Pøed ulo¾ením sta¾ených pravidel jsou nejprve z~sysdb odstranìny \textbf{v¹echny} SUDO
-pravidla pomocí filtru \texttt{(objectClass=sudoRule)}. A¾ poté je zahájena
+pravidla pomocí filtru \ref{sysdb:full_refresh}. A¾ poté je zahájena
 transakce pro ulo¾ení novì sta¾ených pravidel.
+
+\def\lstlistingname{SYSDB filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	caption={Filtr, který z cache pamìti odstraní v¹echny sudo pravidla.},
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={sysdb:full_refresh}]
+(objectClass=sudoRule)
+\end{lstlisting}
+
 
 \subsubsection {Prùbì¾ná aktualizace}
 \label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
@@ -1009,23 +1079,108 @@ následující parametry:
 	\end{tabular}
 \end{table}
 
-
 V~sysdb ji¾ máme sta¾ená nìjaká pravidla a nejvy¹¹í hodnota atributu \texttt{EntryUSN},
-která se mezi pravidly nachází je \textbf{9270}. LDAP filtr, který by se pou¾il pøi
-prùbì¾né aktualizaci by vypadal následovnì:
+která se mezi pravidly nachází je \textbf{9270}. SUDO provider by vytvoøil LDAP
+dotaz, který by pou¾il filtr \ref{ldap:smart_refresh}. Tento dotaz by vyhledal
+v¹echny pravidla, jejich¾ hodnota atributu \texttt{entryUSN} je vìt¹í ne¾ 9270.
 
-\lstinputlisting{CD/ldap_filters/ldap_sudo_provider/smart_refresh_filter}
+\def\lstlistingname{LDAP filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	caption={Filtr, který vyhledá novì pøidaná pravidla.},
+	captionpos=b,
+	emph={entryUSN, objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={ldap:smart_refresh}]
+(&(&(objectclass=sudoRole)
+    (entryUSN>=9270)
+    (!(entryUSN=9270))
+  )
+  (|(!(sudoHost=*))
+    (sudoHost=ALL)
+    (sudoHost=client1.example.cz)
+    (sudoHost=client1)
+    (sudoHost=192.168.0.2)
+    (sudoHost=192.168.0.0/24)
+    (sudoHost=fe80::a00:27ff:fe71:1191)
+    (sudoHost=fe80::/64)
+    (sudoHost=+*)
+    (|(sudoHost=*\\\\*)
+      (sudoHost=*?*)
+      (sudoHost=*\\**)
+      (sudoHost=*[*]*)
+    )
+  )
+)
+\end{lstlisting}
 
-Pøi prùbì¾ných aktualizacích z~sysdb nejsou mazána ¾ádná pravidla. Dochází pouze
+Pøi prùbì¾ných aktualizacích z cache pamìti nejsou mazána ¾ádná pravidla. Dochází pouze
 k~pøidávání pravidel, jestli¾e se na serveru vyskytují novìj¹í pravidla.
+Smyslem tohoto typu aktualizace je tedy stahovat pravidla, která mají na IPA
+serveru vìt¹í hodnoty \texttt{entryUSN} atributù ne¾ nejvìt¹í známá hodnota v
+sysdb.
 
-\subsubsection {Aktualizace pravidel}\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
-Jestli¾e se v~sysdb pøi spu¹tìní programu SUDO nachází nìjaká pravidla, která ji¾ nejsou
-platná, pak se provede jejich aktualizace. Pøedpokládejme pøíklad, kdy v~sysdb
-ji¾ nejsou validní pravidla \textbf{rule1} a \textbf{rule2}. Poté by LDAP a
-sysdb filtr pro jejich aktualizaci vypadal následovnì:
+\subsubsection {Aktualizace pravidel}
+\label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
+Jestli¾e se v~sysdb pøi spu¹tìní programu SUDO nachází nìjaká pravidla, která
+ji¾ nejsou platná, pak se provede jejich aktualizace. Pøedpokládejme pøíklad,
+kdy v~sysdb ji¾ nejsou validní pravidla \textbf{rule1} a \textbf{rule2}. Nejprve
+se provede vyhledání tìchto pravidel na serveru. Pro LDAP dotaz bude pou¾it
+filtr \ref{ldap:rules_refresh}. Jakmile budou potøebná pravidla sta¾ena, provede
+se nejprve odstranìní neplatných pravidel z cache pamìti. Pro vyhledání tìchto
+pravidel pou¾ije SUDO provider filtr \ref{sysdb:rules_refresh}. Novì sta¾ená
+pravidla poté budou ulo¾eno do sysdb.
 
-\lstinputlisting{CD/ldap_filters/ldap_sudo_provider/rules_refresh_filter}
+\def\lstlistingname{LDAP filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	caption={Filtr, který na serveru vyhledá neplatná pravidla z sysdb.},
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={ldap:rules_refresh}]
+(&(&(objectClass=sudoRole)
+    (|(cn=rule1)
+      (cn=rule2)
+    )
+  )
+  (|(!(sudoHost=*))
+    (sudoHost=ALL)
+    (sudoHost=client1.example.cz)
+    (sudoHost=client1)
+    (sudoHost=192.168.0.2)
+    (sudoHost=192.168.0.0/24)
+    (sudoHost=fe80::a00:27ff:fea1:b983)
+    (sudoHost=fe80::/64)
+    (sudoHost=+*)
+    (|(sudoHost=*\\\\*)
+      (sudoHost=*?*)
+      (sudoHost=*\\**)
+      (sudoHost=*[*]*)
+    )
+  )
+)
+\end{lstlisting}
+
+\def\lstlistingname{SYSDB filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	caption={Filtr, pro odstranìní neplatných pravide z cache pamìti.},
+	captionpos=b,
+	emph={cn, objectClass},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={sysdb:rules_refresh}]
+(&(objectClass=sudoRule)
+  (|(cn=test4)
+    (cn=test5)
+  )
+)
+\end{lstlisting}
 
 Nejprve by se provedlo vyhledání a sta¾ení pravidel z~LDAP serveru. Poté by
 do¹lo k~vymazání pravidel \texttt{rule1} \texttt{rule2} ze sysdb a následnì
@@ -1075,20 +1230,21 @@ v~cache pamìti spoleènì s~pravidly, ale v~kontextu \texttt{id\_ctx->srv\_opts}
 v~promìnné \texttt{max\_sudo\_value}.
 
 \subsection {LDAP SUDO Handler}
-Jestli¾e SUDO responder nenajde daná pravidla v~sysdb, pak za¹le
-SBUS po¾adavek pøes SUDO
-handler danému providerovi.  Jestli¾e SUDO pou¾ívá LDAP jako provider plugin
-\footnote{\texttt{sudo\_provider=ldap}}, pak se zavolá handler
-\texttt{sdap\_sudo\_handler}. Handler se nachází v~kontextu backendu, viz. Sekce
-\ref{sec:sssd_from_sudo_prespective}. Samotnou definici handleru je mo¾né najít v~modulu
-\texttt{sdap\_sudo.c}.
+Jestli¾e SUDO responder nenajde daná pravidla v~sysdb, pak za¹le SBUS po¾adavek
+pøes SUDO handler danému providerovi.  Jestli¾e SUDO pou¾ívá LDAP jako provider
+plugin \footnote{\texttt{sudo\_provider=ldap}}, pak se zavolá funkce
+\texttt{sdap\_sudo\_handler()}. Tato funkce, která se také oznaèuje jako
+\uv{Handler} se nachází v interní struktuøe backendu, viz. Sekce
+\ref{sec:sssd_from_sudo_prespective}. Samotnou definici handleru je mo¾né najít
+v~modulu \texttt{sdap\_sudo.c}.
 
 LDAP SUDO provideru je pøes handler pøedán typ aktualizace, který po nìm SUDO
-respoder ¾ádá a pole pravidel, které chce responder aktualizovat\footnote{pole jmen pravidel, tj. pole hodnot
-\texttt{cn} atributù}. SUDO responder mù¾e po¾ádat o~úplnou aktualizaci
-nebo o~aktualizaci pravidel, která ji¾ v~sysdb nejsou nadále platná.
+respoder ¾ádá a pole pravidel, které chce responder aktualizovat\footnote{pole
+jmen pravidel, tj. pole hodnot \texttt{cn} atributù}. SUDO responder mù¾e
+po¾ádat o~úplnou aktualizaci nebo o~aktualizaci pravidel, která ji¾ v~sysdb
+nejsou nadále platná.
 
-\begin{figure}[H]
+\begin{figure}[h]
 \centering
 \includegraphics{fig/sssd/ldap_sudo_provider/ldap_sudo_handler.pdf}
 \caption{LDAP SUDO Handler.}
@@ -1386,14 +1542,13 @@ a \texttt{sudoHost}, které zobrazují tabulky \ref{table:sudoUser} a
     
 Pro algoritmus pøekladu pravidel byla vytvoøena pøekladová tabulka, která
 definuje jakým zpùsobem má být proveden pøeklad jednotlivých jmen a hodnot
-atributù vèetnì pøíkladù, viz. Pøíloha \ref{dvd}. Tato tabulka byla vytvoøena na
+atributù vèetnì pøíkladù, viz. Pøíloha \ref{cd}. Tato tabulka byla vytvoøena na
 základì implementace compat pluginu a byla diskutována s~vývojáøi projektu
 FreeIPA. Pøi jejím sestavovaní byla také objevena chyba, které se vyskytuje ve
 webovém rozhraní serveru FreeIPA. Ta umo¾òuje atributu
 \texttt{ipaSudoRunAsGroup} pøiøadit libovolnou skupinu.  Správnì by mìlo být
 mo¾né tomuto atributu pøiøadit pouze POSIX skupinu. Pro tuto chybu byl vytvoøen
 ticket èíslo 4314\footnote{https://fedorahosted.org/freeipa/ticket/4314\#no1}.
-
 
 \subsubsection{Algoritmus pøekladu pravidel}
 Uva¾ujeme variantu stahování SUDO pravidel popsanou v~sekci
@@ -1511,6 +1666,16 @@ specifikuje klienta pomocí FQDN daného poèítaèe a skupin ve kterých je
 \texttt{ipa\_host\_info\_send()}. Základní filtr, který je pou¾it pro
 úplnou aktualizaci vypadá následovnì:
 
+\def\lstlistingname{LDAP filtr}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	caption={Filtr, který ipa plugin pou¾ívá pro úplnou aktualizaci.},
+	captionpos=b,
+	emph={ipaEnabledFlag, objectClass, cn, hostCategory, memberHost,
+	externalHost},emphstyle={\bf\color{black}},
+}
 \lstinputlisting{CD/ldap_filters/ipa_sudo_provider/full_refresh_filter}
 
 Pøi aktualizaci pravidel jsou pouze pøidána jména pravidel, stejnì jako u~LDAP
@@ -1612,6 +1777,10 @@ pokrývají následující pøípady pou¾ití:
 \chapter{Závìr}
 TODO: pochlub se co bylo potreba nastudovat: talloc, tevent, ldb ke teré není
 dokumentace. 
+\begin{itemize}
+	\item NSS, pam, ldb ke které neni doc
+\end{itemize}
+
 Tato bakaláøská práce popisuje LDAP schémata, která pou¾ívají program SUDO a
 server FreeIPA
 k~ukládání SUDO pravidel v~LDAP adresáøích. Srovnává jejich rozdíly a výhody
