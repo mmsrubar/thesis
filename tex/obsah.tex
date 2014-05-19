@@ -872,121 +872,127 @@ plánovány. Tuto funkcionalitu blí¾e popisuje sekce
 \end{figure}
 
 
-\section{SDAP dotaz a mapování atributù}\label{sdap}
-Jestli¾e se administrátor rozhodne ulo¾it SUDO pravidla do LDAP adresáøe, tj. ne
-na server FreeIPA, poté musí dodr¾et schéma, které SUDO definuje a které bylo
-popsáno v~sekci \ref{native_ldap_sudo_schema}. Tedy pøesná jména atributù a
-formát hodnot.  Pravidla v~jiném formátu SUDO zpracovat neumí\footnote{Neumí
-zpracovat ani pravidla v~IPA SUDO schématu, který pou¾ívá IPA server, viz. Sekce
-\ref{ch:sssd:sec:ipa_provider}}. S~pomocí SSSD je mo¾né ovlivnit alespoò názvy
-atributù pod kterými jsou SUDO pravidla ulo¾ena. Toho je docíleno za pou¾ití
-map.
-
-Mapy se pou¾ívají k~mapování hodnot voleb z~konfiguraèního souboru
-SSSD\footnote{Ve výchozím nastavení se nachází v~\texttt{/etc/sssd/sssd.conf} },
-pro výbìr atributù pøi sestavování LDAP dotazu a pro definování jmen atributù
-pod kterými budou výsledky dotazù ulo¾eny v~sysdb.  Výchozí mapy jsou definovány
-v~hlavièkovém souboru \texttt{providers/ldap/ldap\_opts.h}. Zde je také
-definována výchozí mapa, kterou LDAP SUDO Provider pou¾ívá pøi stahování SUDO
-pravidel z~LDAP serveru.  Mapy pou¾ívané pøi komunikaci s~IPA serverem se
-nacházejí v~souboru \texttt{providers/ipa/ipa\_opts.h}.
-
-Vìt¹ina map je definována jako pole následujících struktur.
-
-\lstset{language=c}
-\begin{lstlisting}
-struct sdap_attr_map {
-    const char *opt_name;
-    const char *def_name;
-    const char *sys_name;
-    char *name;
-};
-\end{lstlisting}
-
-Mapu je mo¾né vytvoøit pomocí funkce \texttt{sdap\_get\_map()}. Jako jeden
-z~parametrù je nutné specifikovat výchozí mapu, ze které bude mapa vytvoøena.
-V~promìnných \texttt{opt\_name} jsou ulo¾eny jména voleb z~konfiguraèního
-souboru, jejich¾ hodnoty se ulo¾í do promìnných \texttt{name}, pokud byly
-v~\texttt{sssd.conf} specifikovány.  Jestli¾e se daná
-volba v~konfiguraèním souboru nenachází, pak je pro promìnnou \texttt{name}
-pou¾ita výchozí hodnota tj. hodnota prommìné \texttt{def\_name}, která bude
-specifikována ve výchozí mapì.  Hodnoty promìnných \texttt{name} jsou pou¾ity
-pøi vytváøení atributù, které se mají vyhledat pøi LDAP dotazech. Promìnná
-\texttt{sys\_name} je poté pou¾ita pro jméno atributu, pod kterým bude ulo¾ena
-hodnota, která se nachází na serveru pod hledaným atributem, v~\texttt{sysdb}.
-Ukázka z~výchozí mapy kterou pou¾ívá SUDO vypadá následovnì:
-
-\begin{table}[H]
-	\begin{tabular}{c}
-	\texttt{\{"ldap\_sudorule\_user", "sudoUser", "sudoUser", NULL\},}
-	\end{tabular}
-\end{table}
-
-Z~této ukázky je mo¾no odvodit, ¾e jestli¾e není v~\texttt{sssd.conf} zadaná
-volba \texttt{ldap\_sudoru-\allowbreak le\_user}. Pak bude pøi sestavování LDAP dotazu na
-SUDO pravidlo po¾adován atribut \texttt{sudoUser} a do sysdb bude jeho hodnota
-rovnì¾ ulo¾ena pod jménem atributu \texttt{sudoUser}.
-
-Uva¾ujme následující pøíklad, který demonstruje schéma \ref{map_usage_example}.
-V~\texttt{sssd.conf} se nachází následující volba: 
-
-
-\begin{table}[H]
-	\begin{tabular}{c}
-	\texttt{ldap\_sudorule\_user = my\_sudo\_user\_attr}
-	\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[scale=1.00]{fig/sssd/map_usage_example.pdf}
-	\caption{Ukázka mapování atributù z~\texttt{sssd.conf} do sysdb.}
-	\label{map_usage_example}
-\end{figure}
-
-Jméno u¾ivatele, na kterého bude aplikováno SUDO pravidlo, bude hledán pod 
-atributem \texttt{my\_sudo\_user\_attr} a jeho hodnota bude do sysdb ulo¾ena pod atribut
-\texttt{sudoUser}.
-
-Asynchronní volání \texttt{ldap\_search\_ext()} samozøejmì neumo¾òuje ¾ádnou
-mapu specifikovat. SDAP definuje vlastní asynchronní rozhraní
-\texttt{sdap\_get\_generic\_ext\_send()}, které s~tìmito mapami pracuje. Toto
-rozhraní také provádí zpracování výsledkù, které vrací funkce knihovny OpenLDAP,
-a vrací je jako ldb elementy\footnote{zjednodu¹enì øeèeno elementy typu
-klíè:hodnota}. Zde je nezbytné zmínit, ¾e jako první polo¾kou v~mapì musí být
-\textbf{v¾dy} uvedena tøída.  Pøijaté záznamy, které neodpovídají této tøídì
-nebudou pøedány jako výsledek!  Takté¾ v~mapì není mo¾né specifikovat více ne¾
-jednu tøídu! Výsledky \texttt{ldap\_search\_ext} a
-\texttt{sdap\_get\_generic\_ext\_send}, který je postaven nad OpenLDAP, tedy
-nemusejí být v¾dy ekvivalentní.
-
-SDAP je¹tì nabízí druhé rozhraní a to \texttt{sdap\_deref\_search\_send}. Pomocí
-kterého je mo¾né získat záznam a také v¹echny záznamy na které je ze
-záznamu odkazováno pomocí DN.  U~tohoto dotazu ov¹em není mo¾né specifikovat
-filtr, jeliko¾ mohu provést dereferenci atributù pouze \textbf{jednoho} záznamu!
-Obrázek \ref{sdap_deref} zobrazuje záznamy, které by byly vráceny po zaslání
-dereferenèního dotazu s~tìmito parametry:
-
-\begin{table}[H]
-	\begin{tabular}{l}
-		prohledávaná oblast: \texttt{fqdn=client1.example.cz,cn=computers,cn=accounts,\$DC}\\
-		odkazované atributy: \texttt{memberOf}
-	\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[scale=1.00]{fig/sssd/deref_example.pdf}
-	\caption{Ukázka dereferenèního dotazu.}
-	\label{sdap_deref}
-\end{figure}
-
+%\section{SDAP dotaz a mapování atributù}\label{sdap}
+%Jestli¾e se administrátor rozhodne ulo¾it SUDO pravidla do LDAP adresáøe, tj. ne
+%na server FreeIPA, poté musí dodr¾et schéma, které SUDO definuje a které bylo
+%popsáno v~sekci \ref{native_ldap_sudo_schema}. Tedy pøesná jména atributù a
+%formát hodnot.  Pravidla v~jiném formátu SUDO zpracovat neumí\footnote{Neumí
+%zpracovat ani pravidla v~IPA SUDO schématu, který pou¾ívá IPA server, viz. Sekce
+%\ref{ch:sssd:sec:ipa_provider}}. S~pomocí SSSD je mo¾né ovlivnit alespoò názvy
+%atributù pod kterými jsou SUDO pravidla ulo¾ena. Toho je docíleno za pou¾ití
+%map.
+%
+%Mapy se pou¾ívají k~mapování hodnot voleb z~konfiguraèního souboru
+%SSSD\footnote{Ve výchozím nastavení se nachází v~\texttt{/etc/sssd/sssd.conf} },
+%pro výbìr atributù pøi sestavování LDAP dotazu a pro definování jmen atributù
+%pod kterými budou výsledky dotazù ulo¾eny v~sysdb.  Výchozí mapy jsou definovány
+%v~hlavièkovém souboru \texttt{providers/ldap/ldap\_opts.h}. Zde je také
+%definována výchozí mapa, kterou LDAP SUDO Provider pou¾ívá pøi stahování SUDO
+%pravidel z~LDAP serveru.  Mapy pou¾ívané pøi komunikaci s~IPA serverem se
+%nacházejí v~souboru \texttt{providers/ipa/ipa\_opts.h}.
+%
+%Vìt¹ina map je definována jako pole následujících struktur.
+%
+%\lstset{language=c}
+%\begin{lstlisting}
+%struct sdap_attr_map {
+%    const char *opt_name;
+%    const char *def_name;
+%    const char *sys_name;
+%    char *name;
+%};
+%\end{lstlisting}
+%
+%Mapu je mo¾né vytvoøit pomocí funkce \texttt{sdap\_get\_map()}. Jako jeden
+%z~parametrù je nutné specifikovat výchozí mapu, ze které bude mapa vytvoøena.
+%V~promìnných \texttt{opt\_name} jsou ulo¾eny jména voleb z~konfiguraèního
+%souboru, jejich¾ hodnoty se ulo¾í do promìnných \texttt{name}, pokud byly
+%v~\texttt{sssd.conf} specifikovány.  Jestli¾e se daná
+%volba v~konfiguraèním souboru nenachází, pak je pro promìnnou \texttt{name}
+%pou¾ita výchozí hodnota tj. hodnota prommìné \texttt{def\_name}, která bude
+%specifikována ve výchozí mapì.  Hodnoty promìnných \texttt{name} jsou pou¾ity
+%pøi vytváøení atributù, které se mají vyhledat pøi LDAP dotazech. Promìnná
+%\texttt{sys\_name} je poté pou¾ita pro jméno atributu, pod kterým bude ulo¾ena
+%hodnota, která se nachází na serveru pod hledaným atributem, v~\texttt{sysdb}.
+%Ukázka z~výchozí mapy kterou pou¾ívá SUDO vypadá následovnì:
+%
+%\begin{table}[H]
+%	\begin{tabular}{c}
+%	\texttt{\{"ldap\_sudorule\_user", "sudoUser", "sudoUser", NULL\},}
+%	\end{tabular}
+%\end{table}
+%
+%Z~této ukázky je mo¾no odvodit, ¾e jestli¾e není v~\texttt{sssd.conf} zadaná
+%volba \texttt{ldap\_sudoru-\allowbreak le\_user}. Pak bude pøi sestavování LDAP dotazu na
+%SUDO pravidlo po¾adován atribut \texttt{sudoUser} a do sysdb bude jeho hodnota
+%rovnì¾ ulo¾ena pod jménem atributu \texttt{sudoUser}.
+%
+%Uva¾ujme následující pøíklad, který demonstruje schéma \ref{map_usage_example}.
+%V~\texttt{sssd.conf} se nachází následující volba: 
+%
+%
+%\begin{table}[H]
+%	\begin{tabular}{c}
+%	\texttt{ldap\_sudorule\_user = my\_sudo\_user\_attr}
+%	\end{tabular}
+%\end{table}
+%
+%\begin{figure}[H]
+%	\centering
+%	\includegraphics[scale=1.00]{fig/sssd/map_usage_example.pdf}
+%	\caption{Ukázka mapování atributù z~\texttt{sssd.conf} do sysdb.}
+%	\label{map_usage_example}
+%\end{figure}
+%
+%Jméno u¾ivatele, na kterého bude aplikováno SUDO pravidlo, bude hledán pod 
+%atributem \texttt{my\_sudo\_user\_attr} a jeho hodnota bude do sysdb ulo¾ena pod atribut
+%\texttt{sudoUser}.
+%
+%Asynchronní volání \texttt{ldap\_search\_ext()} samozøejmì neumo¾òuje ¾ádnou
+%mapu specifikovat. SDAP definuje vlastní asynchronní rozhraní
+%\texttt{sdap\_get\_generic\_ext\_send()}, které s~tìmito mapami pracuje. Toto
+%rozhraní také provádí zpracování výsledkù, které vrací funkce knihovny OpenLDAP,
+%a vrací je jako ldb elementy\footnote{zjednodu¹enì øeèeno elementy typu
+%klíè:hodnota}. Zde je nezbytné zmínit, ¾e jako první polo¾kou v~mapì musí být
+%\textbf{v¾dy} uvedena tøída.  Pøijaté záznamy, které neodpovídají této tøídì
+%nebudou pøedány jako výsledek!  Takté¾ v~mapì není mo¾né specifikovat více ne¾
+%jednu tøídu! Výsledky \texttt{ldap\_search\_ext} a
+%\texttt{sdap\_get\_generic\_ext\_send}, který je postaven nad OpenLDAP, tedy
+%nemusejí být v¾dy ekvivalentní.
+%
+%SDAP je¹tì nabízí druhé rozhraní a to \texttt{sdap\_deref\_search\_send}. Pomocí
+%kterého je mo¾né získat záznam a také v¹echny záznamy na které je ze
+%záznamu odkazováno pomocí DN.  U~tohoto dotazu ov¹em není mo¾né specifikovat
+%filtr, jeliko¾ mohu provést dereferenci atributù pouze \textbf{jednoho} záznamu!
+%Obrázek \ref{sdap_deref} zobrazuje záznamy, které by byly vráceny po zaslání
+%dereferenèního dotazu s~tìmito parametry:
+%
+%\begin{table}[H]
+%	\begin{tabular}{l}
+%		prohledávaná oblast: \texttt{fqdn=client1.example.cz,cn=computers,cn=accounts,\$DC}\\
+%		odkazované atributy: \texttt{memberOf}
+%	\end{tabular}
+%\end{table}
+%
+%\begin{figure}[H]
+%	\centering
+%	\includegraphics[scale=1.00]{fig/sssd/deref_example.pdf}
+%	\caption{Ukázka dereferenèního dotazu.}
+%	\label{sdap_deref}
+%\end{figure}
+%
 %-------------------------------------------------------------------------------
 \section {LDAP SUDO Provider}
-Tento provider provádí ve¹kerou práci pøi komunikaci s~LDAP serverem na kterém jsou
-ulo¾ena SUDO pravidla v~nativním LDAP SUDO schématu. Tedy sta¾ení, zpracování a
-ulo¾ení tìchto pravidel do sysdb. Skládá se z~nìkolika modulù jejich¾ celkovou
-funkcionalitu popisuje schéma \ref{ldap_provider_high_level}.
+SUDO provider provádí ve¹kerou práci pøi komunikaci s~LDAP serverem. Pomocí
+volby \texttt{sudo\_provider} v konfiguraèním souboru \texttt{sssd.conf} je
+mo¾no urèit, který plugin tento provider bude pou¾ívat. Na výbìr jsou pluginy
+\uv{ldap}\footnote{\texttt{sudo\_provider=ldap}} a
+\uv{ipa}\footnote{\texttt{sudo\_provider=ipa}}.  Tato sekce popisuje
+funkcionalitu ldap pluginu, který je nutno pou¾ít, máme-li sudo pravidla ulo¾ena
+na LDAP serveru v nativním LDAP SUDO schématu. Tento plugin provádí sta¾ení,
+zpracování a ulo¾ení tìchto pravidel do sysdb. Skládá se z~nìkolika modulù
+jejich¾ celkovou funkcionalitu popisuje schéma
+\ref{ldap_provider_high_level}.
 
 \begin{sidewaysfigure}
 	\centering
@@ -1000,21 +1006,19 @@ funkcionalitu popisuje schéma \ref{ldap_provider_high_level}.
 Inicializaci zaji¹»uje modul \texttt{providers/ldap/sdap\_sudo.c} a probíhají
 pøi ní následující úlohy:
 \begin{itemize}
-	\item alokace \texttt{sudo\_ctx} kontextu, který je zároveò privátními daty LDAP SUDO
-			Providera
+	\item alokace a inicializace privátních dat LDAP SUDO providera
 		\item nastavení handleru pro SUDO respodera, tj. vytvoøení struktury
 			\texttt{bet\_ops}
-	\item vytvoøení mapy z~výchozí \texttt{native\_sudorule\_map} mapy
 	\item získání v¹ech jmen a IP adres daného poèítaèe
 	\item nastavení plánování aktualizací SUDO pravidel
 \end{itemize}
 	
-Inicializaci provádí funkce \texttt{sdap\_sudo\_init()}.  Vytváøí se zde
-SUDO mapa, která je pou¾ita v~SDAP dotazech. Jako výchozí mapa je pou¾ita
-\texttt{native\_sudorule\_map} a pøi vytváøení se také zohledòují volby zadané
-v~konfiguraèním souboru SSSD. Vytvoøení a pou¾ití map je blí¾e popsáno v~sekci
-\ref{sdap}.
-
+Inicializaci provádí funkce \texttt{sdap\_sudo\_init()}. 
+%Vytváøí se zde
+%SUDO mapa, která je pou¾ita v~SDAP dotazech. Jako výchozí mapa je pou¾ita
+%\texttt{native\_sudorule\_map} a pøi vytváøení se také zohledòují volby zadané
+%v~konfiguraèním souboru SSSD. Vytvoøení a pou¾ití map je blí¾e popsáno v~sekci
+%\ref{sdap}.
 Jména poèítaèe, pro která budou stahována aplikovatelná SUDO pravidla, jsou
 získávána automaticky pomocí systémového volání \texttt{gethostname()}. Jestli¾e
 je ji¾ jméno poèítaèe specifikováno jako FQDN\footnote{Fully Qualified Domain
@@ -1349,7 +1353,14 @@ serveru na klienta. To by znamenalo pøeklad pouze tìch pravidel,
 která jsou aplikovatelná pro daného klienta. 
 
 Smyslem této bakaláøské práce je odstranìní této re¾ie a implementace IPA SUDO
-pluginu, který bude zaji¹»ovat podporu nativního IPA SUDO schématu. 
+pluginu, který bude zaji¹»ovat podporu nativního IPA SUDO schématu. Návrhem
+nativního IPA SUDO providera se zabýva kapitola
+\ref{ch:native_ipa_sudo_provider}.
+
+\section{SDAP a dereferenèní dotaz}
+TODO: sekci o mapovani jsem zrusil a nahradim ji tady tou ktera popise co je to
+dereferencni dotaz a mapy, ktere zminuji v implementaci, taky odstranim, protoze
+uz je to hondne low-level.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 4. Nativní IPA SUDO Provider
@@ -1403,7 +1414,9 @@ jsou skupiny poèítaèù. Jestli¾e je SUDO pravidlo aplikovatelné na nìjakou
 skupinu poèítaèù a klient je zároveò èlenem této skupiny. Pak je SUDO pravidlo
 na daného klienta aplikovatelné. Odkaz na toto pravidlo se ov¹em nenachází
 v~záznamu daného poèítaèe, ale v~záznamu dané skupiny. Odkazy na tyto pravidla by
-bylo nutné získat pomocí dereference odkazù na dané skuipiny poèítaèù.
+bylo nutné získat pomocí dereference odkazù\footnote{Tato technika je blí¾e
+popsána v sekci zabývající se implementací, viz. \ref{dereference}} na dané
+záznamy skuipin poèítaèù.
 
 \subsubsection{Specifikace klientského poèítaèe}
 \label{design:rules_aplicable_to_host}
