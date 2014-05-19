@@ -5,7 +5,7 @@
 % 1. Úvod
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Úvod}\label{introduction}
-Tato bakaláøská práce popisuje správu bezpeènostních politik identit s~pomocí
+Tato bakaláøská práce popisuje správu bezpeènostních politik s~pomocí
 pou¾ití programu SUDO. Popisuje problémy, na které mù¾e administrátor narazit
 pøi nasazení tohoto øe¹ení v~doménovém prostøedí. Pøedstavuje mo¾ná øe¹ení
 tìchto problému pou¾itím technologií FreeIPA a SSSD, které jsou pou¾ívány v~Red Hat
@@ -22,13 +22,12 @@ konceptù online adresáøù a LDAP protokolu.
 
 Struktura této práce je rozdìlena do pìti kapitol. První kapitola popisuje obsah
 této práce.
-V~kapitole \ref{introduction} jsou popsány problémy, které vznikají
+V~kapitole \ref{politics_managament} jsou popsány problémy, které vznikají
 pøi centralizované správì identit a jejich bezpeènostních politik za pomoci
 programu SUDO. Diskutuje také nad mo¾ným øe¹ením v~podobì pou¾ití serveru
 FreeIPA a démonu SSSD. 
 
-Tøetí kapitola se blí¾e zabývá démonem SSSD. Popisuje jeho architekturu a
-èinnost
+Tøetí kapitola se blí¾e zabývá démonem SSSD. Popisuje jeho architekturu, èinnost
 z~pohledu programu SUDO a dokumentuje èinnost pluginù ipa a ldap, které SUDO
 provider pou¾ívá pro zpracování SUDO pravidel na stranì klienta. Tento popis byl
 sestaven na základì experimentování a ètení zdrojových kódù projektu SSSD. Sekce
@@ -59,14 +58,14 @@ Tato práce dále pou¾ívá následující konvence:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 2. Správa u¾ivatelských práv v doménì
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Správa bezpeènostních politik identit} 
-Tato kapitola popisuje mo¾nost správy bezpeènostních politik identit pomocí
-pomocí programu SUDO. Popisuje mo¾né problémy, které mohou nastat pøi distribuci
-pravidel, kterými se program SUDO øídí a dále LDAP schéma, které SUDO pou¾ívá
+\chapter{Správa bezpeènostních politik}\label{politics_managament}
+Tato kapitola popisuje mo¾nost správy bezpeènostních politik pomocí
+programu SUDO. Popisuje mo¾né problémy, které mohou nastat pøi distribuci
+pravidel, kterými se SUDO øídí a dále LDAP schéma, které SUDO pou¾ívá
 pro ulo¾ení tìchto pravidel v~LDAP adresáøích. Zabývá se nedostatky, kterými
 zmínìné schéma disponuje z~pohledu domény a pøedstavuje schéma projektu FreeIPA,
 které se tyto nedostatky sna¾í øe¹it. Dále popisuje klientského démona SSSD,
-který je nezbytný pro vyu¾ití tohoto schématu s~programem SUDO.
+který je nezbytný pro vyu¾ití tohoto schématu.
 
 \section{SUDO} Pomocí programu SUDO má administrátor mo¾nost delegovat oprávnìní
 správce\footnote{u¾ivatele root} ostatním u¾ivatelùm bez nutnosti sdílení hesla
@@ -616,10 +615,6 @@ tento úèel je popsána v~manuálové stránce
 a nìkteré konfiguraèní volby také
 v~\texttt{sssd-ldap}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-ldap.5.html}.
 
-Pro cíle této bakaláøské práce nás ov¹em 
-dále bude SSSD zajímat pouze z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD
-sudo pravidla zpracovává.
-
 
 \subsection{Aktualizace SUDO pravidel v~cache pamìti}
 SSSD provádí následující tøi typy aktualizací SUDO pravidel ve své cache pamìti.
@@ -630,30 +625,11 @@ se dotazuje LDAP serveru pouze v pøípadì, kdy dané pravidla v cache pamìti ji¾
 není validní. Aktualizace se poté sna¾í reflektovat stav SUDO pravidel na
 serveru v cache pamìti SSSD.
 
-\subsubsection{Prùbì¾né aktualizace}
-Periodicky stahují pravidla, která jsou na serveru novì pøidány nebo byly od
-poslední aktualizace modifikovány. V~manuálových stránkách a v~kódu SSSD je
-mo¾né tento typ aktualizace vyhledat jako \uv{\emph{smart refresh}}.
+Pro cíle této bakaláøské práce nás ov¹em 
+dále bude SSSD zajímat pouze z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD
+sudo pravidla zpracovává.
 
-\subsubsection{Úplná aktualizace}
-Provede smazání v¹ech pravidel z~cache pamìti a sta¾ení v¹ech pravidel ze serveru.
-Tento typ aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství
-pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD,
-pøi detekci zmìny pravidel na serveru nebo periodicky s men¹í frekvencí ne¾
-prùbì¾né aktualizace\footnote{pøi zachování výchozího nastavení se provádní
-ka¾dých 6 hodin}. V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ
-aktualizace najít jako \uv{\emph{full refresh}}.
 
-\subsubsection{Aktualizace pravidel}
-Je provedena pøi ka¾dém spu¹tìní programu SUDO. Zajistí aby u¾ivatel nedostal vìt¹í
-oprávnìní ne¾ je definováno. Tento typ aktualizace stáhne ze serveru pouze
-ty pravidla, která v~cache pamìti nadále nejsou platná\footnote{Èas po kterém
-	pravidla v~cache pamìti stanou neplatná je mo¾no
-nastavit v~\texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout}, viz.
-\texttt{manuálová stránka sssd.conf\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd.conf.5.html}}}. Jestli¾e se nìkteré pravidlo na serveru
-nenachází, indikuje to zmìnu na serveru a je provedena úplná aktualizace
-pravidel. V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ aktualizace
-najít jako \uv{\emph{rules refresh}}. 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1093,11 +1069,11 @@ provádìjí následující funkce:
 
 \subsubsection{Úplná aktualizace}
 \label{ch:sssd:sec:ldap_provider:full_refresh_implementation}
-Pro úplnou aktualizaci SUDO pravidlel pou¾ívá SUDO provider LDAP filtr
-\ref{ldap:full_refresh}
-Tento i v¹echny následující filtry se øídí syntaxí specifikovaou
-dokumentem RFC2254 \cite{rfc2254}. Jsou pouze doplnìny bílými znaky pro lep¹í
-èitelnost.
+Tento typ aktualizace provede smazání v¹ech pravidel z~cache pamìti a sta¾ení
+v¹ech pravidel ze serveru. SUDO provider pro ni pou¾ívá LDAP filtr
+\ref{ldap:full_refresh} Tento i v¹echny následující filtry se øídí syntaxí
+specifikovaou dokumentem RFC2254 \cite{rfc2254}. Jsou pouze doplnìny bílými
+znaky pro lep¹í èitelnost.
 
 \def\lstlistingname{LDAP filtr}
 \lstset{
@@ -1152,12 +1128,20 @@ transakce pro ulo¾ení novì sta¾ených pravidel.
 (objectClass=sudoRule)
 \end{lstlisting}
 
+Úplná aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství
+pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD,
+pøi detekci zmìny pravidel na serveru nebo periodicky s men¹í frekvencí ne¾
+prùbì¾né aktualizace\footnote{pøi zachování výchozího nastavení se provádní
+ka¾dých 6 hodin}. V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ
+aktualizace najít jako \uv{\emph{full refresh}}.
 
 \subsubsection {Prùbì¾ná aktualizace}
 \label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
-Pro detekci modifikovaných pravidel se pøi prùbì¾ných aktualizacích vyu¾ívá USN
-plugin a jeho \texttt{EntryUSN} atribut, viz. USN plugin v~sekce
-\ref{ipa_sudo_schema}.
+Smyslem prùbì¾ných aktualizací je periodicky stahovat taková pravidla,
+která jsou na serveru novì pøidány nebo byly od poslední aktualizace
+modifikovány.  Pro detekci modifikovaných pravidel se pøi prùbì¾ných
+aktualizacích vyu¾ívá USN plugin a jeho \texttt{EntryUSN} atribut, viz. USN
+plugin v~sekce \ref{ipa_sudo_schema}.
 
 Pøedpokládejme pøíklad kdy je na klientském poèítaèi spu¹tìno SSSD a tento poèítaè má
 následující parametry: 
@@ -1213,14 +1197,23 @@ Smyslem tohoto typu aktualizace je tedy stahovat pravidla, která mají na IPA
 serveru vìt¹í hodnoty \texttt{entryUSN} atributù ne¾ nejvìt¹í známá hodnota v
 sysdb.
 
+V~manuálových stránkách a v~kódu SSSD je mo¾né tento typ aktualizace vyhledat
+jako \uv{\emph{smart refresh}}.
+
 \subsubsection {Aktualizace pravidel}
 \label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
-Jestli¾e se v~sysdb pøi spu¹tìní programu SUDO nachází nìjaká pravidla, která
-ji¾ nejsou platná, pak se provede jejich aktualizace. Pøedpokládejme pøíklad,
-kdy v~sysdb ji¾ nejsou validní pravidla \textbf{rule1} a \textbf{rule2}. Nejprve
-se provede vyhledání tìchto pravidel na serveru. Pro LDAP dotaz bude pou¾it
-filtr \ref{ldap:rules_refresh}. Jakmile budou potøebná pravidla sta¾ena, provede
-se nejprve odstranìní neplatných pravidel z cache pamìti. Pro vyhledání tìchto
+Tato aktualizace je provedena pøi ka¾dém spu¹tìní programu SUDO. Zajistí aby
+u¾ivatel nedostal vìt¹í oprávnìní ne¾ je definováno.  Jestli¾e se v~sysdb pøi
+spu¹tìní programu SUDO nachází nìjaká pravidla, která ji¾ nejsou
+platná\footnote{Èas po kterém pravidla v~cache pamìti stanou neplatná je mo¾no
+nastavit v~\texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout},
+viz.  \texttt{manuálová stránka
+sssd.conf\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd.conf.5.html}}},
+pak se provede jejich aktualizace. Pøedpokládejme pøíklad, kdy v~sysdb ji¾
+nejsou validní pravidla \textbf{rule1} a \textbf{rule2}. Nejprve se provede
+vyhledání tìchto pravidel na serveru. Pro LDAP dotaz bude pou¾it filtr
+\ref{ldap:rules_refresh}. Jakmile budou potøebná pravidla sta¾ena, provede se
+nejprve odstranìní neplatných pravidel z cache pamìti. Pro vyhledání tìchto
 pravidel pou¾ije SUDO provider filtr \ref{sysdb:rules_refresh}. Novì sta¾ená
 pravidla poté budou ulo¾eno do sysdb.
 
@@ -1279,6 +1272,9 @@ ulo¾ení novì sta¾ených pravidel. Aktualizace pravidel, která jsou stále platná,
 se neprovede. Neprovede se ani aktualizace právì vyvolaného pravidla, za
 pøedpokladu, je stále platné.
 
+V~manuálnových stránkách a v~kódu SSSD se tento typ aktualizace oznaèuje
+jako \uv{\emph{rules refresh}}. 
+
 \subsection {Asynchronní modul}\label{async_engine_of_ldap_provider}
 Modul \texttt{providers/ldap/sdap\_async\_sudo.c} je nejdùle¾itìj¹í èástí LDAP
 SUDO pluginu, který provádí asynchronní sta¾ení a ulo¾ení SUDO pravidel do
@@ -1335,7 +1331,7 @@ jmen pravidel, tj. pole hodnot \texttt{cn} atributù}. SUDO responder mù¾e
 po¾ádat o~úplnou aktualizaci nebo o~aktualizaci pravidel, která ji¾ v~sysdb
 nejsou nadále platná.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics{fig/sssd/ldap_sudo_provider/ldap_sudo_handler.pdf}
 \caption{LDAP SUDO Handler.}
