@@ -54,7 +54,6 @@ Tato práce dále pou¾ívá následující konvence:
 \end{enumerate}
 
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -399,7 +398,22 @@ Umo¾òuje také daleko flexibilnìj¹í a jednodu¹¹í konfiguraci. U¾ivatel ji¾ tedy
 není dále specifikován pouze jako øetìzec znakù, ale jako odkaz na ji¾
 existující objekt dané domény. 
 
-Schéma definuje novou tøídu pro SUDO pravidla, jejich¾ definice vypadá
+Pro vyjádøení vztahu mezi jednotlivými záznamy se v adresáøích obecnì pou¾ívají
+DN\cite[Kapitola 1]{deref}. Jestli¾e se tedy atribut \texttt{user} odkazuje na
+záznam, s informacemi o u¾ivateli, bude hodnota tohoto atributu tvoøena právì DN
+daného záznamu:
+
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}
+\begin{lstlisting}[label={ldap:full_refresh}]
+	user: uid=xsruba03,cn=users,cn=accounts,$DC
+\end{lstlisting}
+
+IPA SUDO schéma definuje novou tøídu pro SUDO pravidla, jejich¾ definice vypadá
 následovnì:
 
 \lstinputlisting[language=bash]{listings/ipasudorule}
@@ -423,7 +437,7 @@ U¾ivatele, na kterého bude pravidlo aplikovatelné, je mo¾né specifikovat pomocí
 tøí atributù. Pøíklady hodnot tìchto atributù popisuje tabulka
 \ref{table:ipa_user_attrs}. Jak je mo¾né odvodit z~prvního øádku této tabulky, záznamy
 u¾ivatelù IPA domény se nacházejí v~kontejneru \texttt{
-cn=users,cn=accounts,\$DC}. Pomocí \texttt{externalUser} atributu je také mo¾né
+cn=users,cn=accounts,\$DC\footnote{Domain Controller}}. Pomocí \texttt{externalUser} atributu je také mo¾né
 vytvoøit SUDO pravidlo aplikovatelné na u¾ivatele, který není èlenem IPA domény.
 Tento u¾ivatel ov¹em musí být èlenem jiné domény\footnote{napøíklad doména
 spravována pomocí Active Directory} a mezi touto a IPA doménou musí být
@@ -436,7 +450,7 @@ doménami funguje nebo jak jej vytvoøit, je ov¹em nad rámec této bakaláøské práce
   \begin{tabular}{| l | l |} \hline
     \textbf{Jméno atributu} & \textbf{Hodnota atributu} \\ \hline\hline
 		
-		\texttt{memberUser} & \texttt{uid=xsruba03,cn=users,cn=accounts,\$DC\footnote{Domain Controller}} \\ \hline
+		\texttt{memberUser} & \texttt{uid=xsruba03,cn=users,cn=accounts,\$DC} \\ \hline
 		\texttt{userCategory} & \texttt{all} \\ \hline
 		\texttt{externalUser} & \texttt{xsruba04} \\ \hline
   \end{tabular}
@@ -1357,10 +1371,25 @@ pluginu, který bude zaji¹»ovat podporu nativního IPA SUDO schématu. Návrhem
 nativního IPA SUDO providera se zabýva kapitola
 \ref{ch:native_ipa_sudo_provider}.
 
-\section{SDAP a dereferenèní dotaz}
-TODO: sekci o mapovani jsem zrusil a nahradim ji tady tou ktera popise co je to
-dereferencni dotaz a mapy, ktere zminuji v implementaci, taky odstranim, protoze
-uz je to hondne low-level.
+\section{Dereferenèní dotaz}\label{sec:deref}
+LDAP dotaz umo¾òuje získat záznam, popøípadì mno¾inu záznamùz LDAP adreáøe.
+Jestli¾e se nìjaký atribut z tìchto záznamu odkazuje na jiné záznamy (hodnota
+nìkterého z atributù obsahuje DN jiného záznamu v adresáøi). Pak pro získání
+tìchto záznamù je nutné vytvoøit nový dotaz.
+
+Chování API knihovny OpenLDAP je mo¾né mìnit pomocí tzv. \uv{\emph{controls}}. Je
+tedy mo¾né modifikovat chování funkce \texttt{ldap\_search\_ext()}. Pak bude mo¾né
+pomocí této funkce získat nejenom po¾adované záznamy, ale také atributy ze
+záznamù, na které se daný záznam odkazuje. SDAP rozhraní vyu¾ívá této
+funkcionality a nabízí programátorovi asynchronní funkci
+\texttt{sdap\_deref\_search\_send()}. Tato situace je zachycena na obrázku
+\ref{fig:sdap_deref}.
+
+Server ov¹em musí tento typ \uv{controls} podporovat\footnote{supportedControl:
+1.3.6.1.4.1.4203.666.5.16}. U Active Directory se tato technika oznaèuje jako
+\emph{Attribute Scope
+Queries}.\footnote{http://msdn.microsoft.com/en-us/library/aa746418\%28v=vs.85\%29.aspx}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 4. Nativní IPA SUDO Provider
@@ -1415,7 +1444,7 @@ skupinu poèítaèù a klient je zároveò èlenem této skupiny. Pak je SUDO pravidlo
 na daného klienta aplikovatelné. Odkaz na toto pravidlo se ov¹em nenachází
 v~záznamu daného poèítaèe, ale v~záznamu dané skupiny. Odkazy na tyto pravidla by
 bylo nutné získat pomocí dereference odkazù\footnote{Tato technika je blí¾e
-popsána v sekci zabývající se implementací, viz. \ref{dereference}} na dané
+popsána v sekci \ref{sec:deref}} na dané
 záznamy skuipin poèítaèù.
 
 \subsubsection{Specifikace klientského poèítaèe}
@@ -1761,22 +1790,38 @@ Sta¾ení kompletních SUDO pravidel, tj. pravidla a pøíkazy, je provedeno pomocí
 dvou dotazù pro v¹echny typy aktualizací. Pro sta¾ení pravidel jsou tedy
 zapotøebí \textbf{nejvý¹e tøi} LDAP dotazy a nejménì dva v~pøípadì, ¾e sta¾ená
 pravidla neobsahují odkazy na dal¹í záznamy, tj. odkazy na záznamy pøíkazù.
-Zva¾ována byla také varianta, kde by se pro úplnou aktualizaci postupovalo
-podle metody \ref{all_at_once}, tzn.  sta¾ení SUDO pravidel a v¹ech pøíkazù
-v~jediném LDAP dotazu. Zde ov¹em vzniká problém s~SDAP rozhraním, které neumo¾òuje
-specifikovat více ne¾ jednu mapu.  Proto není mo¾né obdr¾et záznamy, které
-nemají alespoò jednu stejnou tøídu. SUDO pravidla v~IPA SUDO schématu mají tøídu
-\texttt{ipaSudoRule}, zatímco pøíkazy \texttt{ipaSudoCmd}. Tento problém je
-blí¾e popsán v~sekci \ref{sdap}. 
 
-Jako øe¹ení by se nabízelo vyu¾ít druhého rozhraní tedy
-\texttt{sdap\_deref\_search\_send()}, které dovoluje specifikovat více map.
-Problémem ov¹em je, ¾e toto rozhraní neumo¾òuje specifikovat LDAP filtr a tedy
-mno¾inu záznamù (SUDO pravidel) ze kterých by bylo mo¾né pøes odkazy získat
-odkazované záznamy (SUDO pøíkazy).  Z~implementaèního hlediska by tyto rozhraní
-pro daný úèel bylo mo¾né upravit.  I~kdyby tato zmìna byla provedena, stále by
-byl problém s~odkazy na skupiny pøíkazù. V~tìchto záznamech bychom toti¾ na¹li
-opìt odkazy na pøíkazy, co¾ by znamenalo dal¹í LDAP dotaz.
+Zva¾ována byla také varianta, kde by se pro úplnou aktualizaci postupovalo podle
+metody \ref{all_at_once}, tzn.  sta¾ení SUDO pravidel a zároveò v¹ech pøíkazù v~jediném
+LDAP dotazu. SSSD pou¾ívá své SDAP API pro provádìní LDAP dotazù. Výsledky LDAP
+a SDAP dotazù ov¹em v nìkterých pøípadech nejsou ekvivalentní\footnote{dùvodem
+jsou mapy a záznamy, které nemají spoleèné tøídy}. Záznamy, pøijaté ze serveru,
+jsou filtrovány pøedtím, ne¾ jsou pøedány programátorovi. To zaji¹»uje funkce
+\texttt{sdap\_parse\_enrty}. Ta vrací pouze záznamy, které spadají do jedné
+konkrétní tøídy.  Jestli¾e pøijaté záznamy nejsou odvozeny z této konkrétní
+tøídy, pak jsou zahozeny. 
+
+Záznamy o sudo pravidlech a pøíkazy pro tyto pravidla jsou ulo¾eny v separátních
+kontejnerech a také jsou definovány pomocí jiné tøídy, viz. Tabulka
+\ref{table:ipa_rules_containers}. Z tohoto dùvodu není mo¾né jedním SDAP dotazem
+získat záznamy sudo pravidel a zárovneò záznamy pøíkazù pro tyto pravidla.
+
+%Zva¾ována byla také varianta, kde by se pro úplnou aktualizaci postupovalo
+%podle metody \ref{all_at_once}, tzn.  sta¾ení SUDO pravidel a v¹ech pøíkazù
+%v~jediném LDAP dotazu. Zde ov¹em vzniká problém s~SDAP rozhraním, které neumo¾òuje
+%specifikovat více ne¾ jednu mapu.  Proto není mo¾né obdr¾et záznamy, které
+%nemají alespoò jednu stejnou tøídu. SUDO pravidla v~IPA SUDO schématu mají tøídu
+%\texttt{ipaSudoRule}, zatímco pøíkazy \texttt{ipaSudoCmd}. Tento problém je
+%blí¾e popsán v~sekci \ref{sdap}. 
+%
+%Jako øe¹ení by se nabízelo vyu¾ít druhého rozhraní tedy
+%\texttt{sdap\_deref\_search\_send()}, které dovoluje specifikovat více map.
+%Problémem ov¹em je, ¾e toto rozhraní neumo¾òuje specifikovat LDAP filtr a tedy
+%mno¾inu záznamù (SUDO pravidel) ze kterých by bylo mo¾né pøes odkazy získat
+%odkazované záznamy (SUDO pøíkazy).  Z~implementaèního hlediska by tyto rozhraní
+%pro daný úèel bylo mo¾né upravit.  I~kdyby tato zmìna byla provedena, stále by
+%byl problém s~odkazy na skupiny pøíkazù. V~tìchto záznamech bychom toti¾ na¹li
+%opìt odkazy na pøíkazy, co¾ by znamenalo dal¹í LDAP dotaz.
 
 Pro pøeklad pravidel byl zvolen základní algoritmus s~drobnými optimalizacemi,
 který se pøi testování osvìdèil jako dostateèný pro malou mno¾inu pravidel.
