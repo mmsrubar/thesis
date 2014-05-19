@@ -813,7 +813,7 @@ V tomto okam¾iku SUDO musí provést následující tøi úlohy:
 
 \subsection{Zji¹tìní informací o u¾ivateli}
 Pro zji¹tìní informací o u¾ivatelském úètu pou¾ije SUDO funkce standardní
-knihovny jazyka C, tj. \texttt{getpwend()}, popø. \texttt{getgrouplist}. Tyto
+knihovny jazyka C, tj. \texttt{getpwend()}, popø. \texttt{getgrouplist()}. Tyto
 funkce poté volají NSS\footnote{Name Service Switch} knihovnu\footnote{jedná se
 o upravenou verzi této knihovny}. Ta je dynamicky naèítána
 aplikacemi\footnote{ls, sudo, getent}, které potøebují komunikovat s SSSD.
@@ -830,18 +830,16 @@ NSS responder se nejprve podívá do sysdb, jestli¾e zde daného u¾ivatele nalezne,
 vrátí jej NSS. V opaèném pøípadì po¹le po¾adavek, na aktualizaci cache, provideru
 identit\footnote{v \texttt{sssd.conf} volba \texttt{id\_provider}}. Ten kontaktuje
 vzdálený server, aktualizuje cache pamì» SSSD a upozorní o tom NSS respondera. Ten
-poté vrátí informace o u¾ivateli NSS knihovnì a ta je pøedá programu SUDO. Zji¹»ování
-informací o u¾ivateli názornì zobrazuje obrázek \ref{fig:nss_sssd}.
+poté vrátí informace o u¾ivateli NSS knihovnì a ta je pøedá programu SUDO.
 
 \subsection{Autentizace u¾ivatele} Jestli¾e SUDO má informace o u¾ivateli, pak
 musí provést autentizaci tohoto u¾ivatele. Autentizaci prování, opìt upravená,
 knihovna PAM\footnote{Pluggable Authentication Modules}. Ta nedisponuje vlastní
 cache pamìtí a posílá tak po¾adavek pøímo PAM responderu. Ovìøení poté probíhá
-podobným zpùsobem jako u NSS respondera, které zobrazuje schéma
-\ref{fig:sudo_nss_sssd}. PAM responder ov¹em ¾ádá o aktualizaci
+podobným zpùsobem jako u NSS respondera.  PAM responder ov¹em ¾ádá o aktualizaci
 sysdb providera zaji¹tující autentizaci\footnote{v \texttt{sssd.conf} volba
-\texttt{auth\_provider}}. A navíc znovu provádí ovìøení daného
-u¾ivatele oproti vzdálenému serveru. 
+\texttt{auth\_provider}}. A navíc znovu provádí ovìøení daného u¾ivatele oproti
+vzdálenému serveru. 
 
 \subsection{získání sudo pravidel}
 Jestli¾e autentizace u¾ivatele probìhla úspì¹nì, pak pøichází na øadu SUDO
@@ -855,6 +853,8 @@ aktualizace v¹ech ostatních pravidel, která ji¾ nejsou nadále validní.
 Aktualizaci sysdb provádí SUDO provider, který zajistí vyhledání potøebných
 pravidel na vzdáleném serveru, jejich zpracování a ulo¾ení zpìt do sysdb. Po
 aktualizaci se SUDO responder opìt dotá¾e cache pamìti pro po¾adované pravidlo.
+Tento prùbìh také zobrazuje schéma \ref{fig:sssd_sudo_data_flow}, které
+pøedpokládá, ¾e u¾ivatelské jméno ji¾ bylo ovìøeno a probìhla také autentizace.
 
 Jestli¾e po druhém dotazu\footnote{v prvním dotaze bylo zji¹tìno, ¾e hledané
 pravidlo není platné} do cache pamìti není po¾adované pravidlo nalezeno, pak
@@ -867,7 +867,7 @@ plánovány. Tuto funkcionalitu blí¾e popisuje sekce
 \begin{figure}[h]
 	\centering
 	\includegraphics[scale=1.00]{fig/sssd/sssd_architecture.pdf}
-	\caption{Architektura SSSD.}
+	\caption{SUOD a SUDO responder.}
 	\label{fig:sssd_sudo_data_flow}
 \end{figure}
 
