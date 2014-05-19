@@ -798,30 +798,52 @@ upozorní respondera o tom, ¾e byla cache pamì» aktualizována.
 
 \section{SSSD z~pohledu programu SUDO}\label{sec:sssd_from_sudo_prespective}
 Pøedpokládejme, ¾e jak informace o~identitách, tak jejich autentizaci a
-bezpeènostních politikách jsou ulo¾eny na vzdáleném serveru, ke kterému
-pøistupujeme pomocí démonu SSSD. Bì¾ný u¾ivatel chce zobrazit obsah souboru
-\texttt{/etc/shadow}. K~tomu ov¹em potøebuje vy¹¹í oprávnìní a proto se rozhodne
-pou¾ít program SUDO. Tuto situaci demonstruje obrázek
-\ref{fig:sssd_sudo_data_flow}.
+bezpeènostních politikách (sudo pravidlech) jsou ulo¾eny na vzdáleném serveru.
+Na klientském poèítaèi na nainstalován démon SSSD. Uva¾ujme, ¾e je klient èlenem
+jediné domény. U¾ivatel s u¾ivatelským jménem \texttt{xsruba03} chce zobrazit
+obsah souboru \texttt{/etc/shadow}. K~tomu ov¹em potøebuje vy¹¹í oprávnìní a
+proto se rozhodne pou¾ít program SUDO. 
 
-Po spu¹tìní programu SUDO se nejprve zjistí informace o~u¾ivateli, který program SUDO
-vyvolal. Knihovna NSS po¹le po¾adavek
-o~informacích  NSS responderu, tj. procesu sssd\_nss. Ten nejprve zjistí zda se
-informace o~daném u¾ivateli nenacházejí v~cache pamìti. Jestli¾e ne, pak po¾ádá
-backend dané domény o~aktualizaci cache pamìti. Tuto aktualizaci provede
-nakonfigurovaný provider identit\footnote{identification provider, volba
-\texttt{id\_provider} v~\texttt{sssd.conf}}. Poté musí probìhnout autentizace
-u¾ivatele. Tu zajistí stejným zpùsobem PAM\footnote{Pluggable authentication
-module} responder.
+V tomto okam¾iku SUDO musí provést následující tøi úlohy:
+\begin{itemize}
+	\item zji¹tìní informací o u¾ivatelském úètu
+	\item autentizace daného u¾ivatele
+	\item získání sudo pravidel
+\end{itemize}
 
-\begin{figure}[h]
-	\centering
-	\includegraphics[scale=1.00]{fig/sssd/sssd_architecture.pdf}
-	\caption{Architektura SSSD.}
-	\label{fig:sssd_sudo_data_flow}
-\end{figure}
+\subsection{Zji¹tìní informací o u¾ivateli}
+Pro zji¹tìní informací o u¾ivatelském úètu pou¾ije SUDO funkce standardní
+knihovny jazyka C, tj. \texttt{getpwend()}, popø. \texttt{getgrouplist}. Tyto
+funkce poté volají NSS\footnote{Name Service Switch} knihovnu\footnote{jedná se
+o upravenou verzi této knihovny}. Ta je dynamicky naèítána
+aplikacemi\footnote{ls, sudo, getent}, které potøebují komunikovat s SSSD.
+Získávání informací o u¾ivatelích je velice èastá operace, proto tato knihovna
+disponuje svojí cache pamìtí, která se oznaèuje jako tzv. \emph{fast
+cache}\footnote{jedná se o jinou cache pamì», ne¾ kterou pou¾ívá SSSD}. Jesli¾e
+NSS ve své cache pamìti daného u¾ivatele nenajde, po¹le dotaz na tohoto
+u¾ivatele NSS responderu, co¾ je jeden z procesù SSSD, konkrétnì proces
+sssd\_nss.
 
+%FIXME: NSS shcema 
 
+NSS responder se nejprve podívá do sysdb, jestli¾e zde daného u¾ivatele nalezne,
+vrátí jej NSS. V opaèném pøípadì po¹le po¾adavek, na aktualizaci cache, provideru
+identit\footnote{v \texttt{sssd.conf} volba \texttt{id\_provider}}. Ten kontaktuje
+vzdálený server, aktualizuje cache pamì» SSSD a upozorní o tom NSS respondera. Ten
+poté vrátí informace o u¾ivateli NSS knihovnì a ta je pøedá programu SUDO. Zji¹»ování
+informací o u¾ivateli názornì zobrazuje obrázek \ref{fig:nss_sssd}.
+
+\subsection{Autentizace u¾ivatele} Jestli¾e SUDO má informace o u¾ivateli, pak
+musí provést autentizaci tohoto u¾ivatele. Autentizaci prování, opìt upravená,
+knihovna PAM\footnote{Pluggable Authentication Modules}. Ta nedisponuje vlastní
+cache pamìtí a posílá tak po¾adavek pøímo PAM responderu. Ovìøení poté probíhá
+podobným zpùsobem jako u NSS respondera, které zobrazuje schéma
+\ref{fig:sudo_nss_sssd}. PAM responder ov¹em ¾ádá o aktualizaci
+sysdb providera zaji¹tující autentizaci\footnote{v \texttt{sssd.conf} volba
+\texttt{auth\_provider}}. A navíc znovu provádí ovìøení daného
+u¾ivatele oproti vzdálenému serveru. 
+
+\subsection{získání sudo pravidel}
 Jestli¾e autentizace u¾ivatele probìhla úspì¹nì, pak pøichází na øadu SUDO
 responder. Ten hledá nejprve po¾adované pravidlo v~cache pamìti. Jestli¾e se dané
 pravidlo v~sysdb nachází a je stále validní, pak nastává
@@ -842,8 +864,15 @@ poèkat na provedení nìkteré z~prùbì¾ných aktualizací, které jsou prùbì¾nì
 plánovány. Tuto funkcionalitu blí¾e popisuje sekce
 \ref{ldap_sudo_refresh_scheduling}.
 
+\begin{figure}[h]
+	\centering
+	\includegraphics[scale=1.00]{fig/sssd/sssd_architecture.pdf}
+	\caption{Architektura SSSD.}
+	\label{fig:sssd_sudo_data_flow}
+\end{figure}
 
-\subsection{SDAP dotaz a mapování atributù}\label{sdap}
+
+\section{SDAP dotaz a mapování atributù}\label{sdap}
 Jestli¾e se administrátor rozhodne ulo¾it SUDO pravidla do LDAP adresáøe, tj. ne
 na server FreeIPA, poté musí dodr¾et schéma, které SUDO definuje a které bylo
 popsáno v~sekci \ref{native_ldap_sudo_schema}. Tedy pøesná jména atributù a
