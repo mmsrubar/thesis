@@ -346,13 +346,13 @@ projekt FreeIPA, kterým se zabývá následující sekce.
 \section{FreeIPA}
 Kvùli efektivitì a jednoduché správì se IT administrátoøi sna¾í spravovat
 identity centrálnì a spojovat identity s~autentizaèními a autorizaèními
-politikami. V~linuxových prostøedích existuje mnoho protokolù pro rùzné slu¾by,
-které napøíklad definují doménu (NIS\footnote{Network Information Service},
-Kerberos), LDAP\footnote{Lightweight Directory Access Protocol} pro uchování
-dat nebo SUDO pro správu pøístupu. ®ádné z~tìchto slu¾eb ov¹em nejsou nijak
-propojeny a zároveò v¹echny musí být spravovány lokálnì. Administrátor tedy musí
-mít potøebné znalosti v¹ech tìchto slu¾eb a protokolù aby je dokázal správnì
-pou¾ívat a dané slu¾by spravovat. 
+politikami. V~linuxových prostøedích existuje mnoho protokolù pro rùzné slu¾by.
+Je mo¾né napøíklad vyu¾tí NIS\footnote{Network Information Service} nebo
+Kerberos+LDAP\footnote{Lightweight Directory Access Protocol} pro správu identit
+a jejich autentizaci nebo pouze LDAP pro správu sudo pravidel.  ®ádné z~tìchto
+slu¾eb ov¹em nejsou nijak propojeny a zároveò v¹echny musí být spravovány
+lokálnì. Administrátor tedy musí mít potøebné znalosti v¹ech tìchto slu¾eb a
+protokolù aby je dokázal správnì pou¾ívat a dané slu¾by spravovat. 
 
 FreeIPA\footnote{Free  Identity, Policy and Audit, zkrácenì IPA}
 je projekt, který se zamìøuje na správu identit a jejich
@@ -554,32 +554,43 @@ správì pravidel v~LDAP adresáøi bylo nutné pravidla vytváøet textovì a ruènì je
 do adresáøe pøidávat. Webové rozhraní zde tedy administrátorovi velice
 zjednodu¹uje práci.  
 %-------------------------------------------------------------------------------
-
 \section{System Security Services Daemon}\label{sec:user_sssd}
-SSSD se skládá z~nìkolika komponent (démonù), které zaji¹t»ují pøístup ke
-vzdáleným adresáøùm a autentizaèním mechanizmùm jako jsou LDAP, Kerberos nebo
-FreeIPA skrze framework, který poskytuje cachování a offline podporu.
+Jestli¾e se administrátor rozhodne spravovat identity a jejich politiky
+centralizovanì napøíklad pomocí technologií LDAP+Kerberos, musí provést
+nastavení NSS\footnote{Name Service Switch} a PAM\footnote{Pluggable
+Authentication Modules}. Musí pou¾ít správnì moduly pro tuto podporu. Napøíklad
+\texttt{nss\_pam\_ldapd} pro pøístup k identitám a autentizacím na LDAP serveru.
+Nebo \texttt{pam\_krb5} pro Kerberos autentizaci. Správná konfigurace
+mù¾e být pro bì¾ného u¾ivatele velice slo¾itá. Ov¹em i po správné konfiguraci
+zde zùstávají dùle¾ité nedostatky tohoto øe¹ení:
 
-Pøedpokládejme následující pøípad, kdy se u¾ivatel pøipojuje do firemní sítì, kde
-jsou centrálnì spravovány identity. Jestli¾e je klient pøipojen k~síti, pak se
-pøi pøihlá¹ení ovìøí jeho identita pomocí vzdáleného serveru. Dostane-li se
-klient do situace kdy není pøipojen k~síti, tak nastává problém, proto¾e se
-klient nebude moci pøihlásit. V~takových pøípadech to klient musel øe¹it
-separátním úètem, který mu umo¾nil pøístup do systému. SSSD umo¾òuje cachovat
-informace o~identitách a jejich autorizaci. Pokud se klient bude chtít
-pøihlásit bez pøipojení k~síti, pak jeho identita není ovìøena vùèi vzdálenému
-serveru, ale oproti informacím ulo¾eným v~cache SSSD. \cite[Sekce 
-8.2]{Fedora_16-System_Administrators_Guide} 
+\begin{enumerate}
+	\item Jakmile je u¾ivatelský poèítaè odpojen od sítì, pak se u¾ivatel nemù¾e
+		pøihlásit. U¾ivatel to pak vìt¹inou øe¹í separátním u¾ivatelským úètem.
+	\item Jestli¾e se u¾ivatel pøipojuje do více domén zároveò, ka¾dá mù¾e
+		potencionálnì pou¾ívat jiný zpùsob autentizace a ovìøování oproti jiným
+		serverùm. Bylo by tedy nutné provést novou konfiguraci.
+	\item Pøi pou¾ití mnoha technologií je potøeba provádìt konfiguraci více souborù.
+\end{enumerate}
 
-SSSD také podporuje více domén, co¾ znamená, ¾e mù¾e být poèítaè pøipojen k~více
-doménám zároveò. Ov¹em pro cíle této bakaláøské práce nás dále bude SSSD zajímat
-pouze z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD tyto pravidla zpracovává 
-ne¾ jsou pøedány programu SUDO.
+Tyto nedostatky øe¹í projekt SSSD, který poskytuje pøístup k rùzným zdrojùm,
+které spravují identity a jejich autentizaci a politiky. Identity a jejich
+autentizace tak mù¾e být spravována pomocí technologií LDAP+Kerberos, FreeIPA
+nebo Active Directory. Je také mo¾né jej pou¾ít pouze pro pøístup k sudo
+pravidlùm spravovaných centrálnì pomocí LDAP adresáøe.
+
+Umo¾òuje u¾ivateli pøipojení do více domén zároveò. Pokud napøíklad klient
+støídá prostøední mezi prací a ¹kolou, nemusí stále mìnit slo¾itou konfiguraci.
+SSSD pøiná¹í také offline podporu a cachování. Informace o identitách nebo napø.
+sudo pravidla jsou ukládána do cache pamìti, která se nachází na disku klienta.
+Tyto informace je tedy mo¾né vyu¾ívat v situacích kdy se klient ocitne bez
+pøipojení k síti. To v¹e je mo¾né nakonfigurovat pomocí jediného konfiguraèního
+souboru \texttt{/etc/sssd/sssd.conf}. 
 
 Jestli¾e se administrátor rozhodnì spravovat SUDO politiky pomocí IPA serveru,
 pak u~v¹ech klientù musí být démon SSSD dostupný.  Pou¾ití SSSD pro pøístup
 k~SUDO politikám, ulo¾ených  na vzdáleném serveru, má oproti pøístupu pomocí ldap
-pluginu\footnote{Jedná se o~plugin, který dodáva SUDO. Nezamìnovat tedy s~ldap
+pluginu\footnote{Jedná se o~plugin, který dodává SUDO. Nezamìòovat tedy s~ldap
 pluginem, který pou¾ívá SUDO provider démona SSSD.} následující hlavní výhody: 
 
 \begin{itemize}
@@ -597,13 +608,18 @@ pluginem, který pou¾ívá SUDO provider démona SSSD.} následující hlavní výhody:
 		serverem
 \end{itemize}
 
-SSSD také podporuje nativní LDAP SUDO schéma. Je tedy mo¾né jej nastavit,
-tak aby získával SUDO pravidla z~LDAP serveru. V~takovém pøípadì získá u¾ivatel
+SSSD také podporuje nativní LDAP SUDO schéma. Je tedy mo¾né jej nastavit, tak
+aby získával SUDO pravidla z~LDAP serveru. V~takovém pøípadì získá u¾ivatel
 jednak offline podporu, ale také cachování tìchto pravidel. Konfigurace SSSD pro
 tento úèel je popsána v~manuálové stránce
 \texttt{sssd-sudo}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-sudo.5.html}
 a nìkteré konfiguraèní volby také
 v~\texttt{sssd-ldap}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-ldap.5.html}.
+
+Pro cíle této bakaláøské práce nás ov¹em 
+dále bude SSSD zajímat pouze z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD
+sudo pravidla zpracovává.
+
 
 \subsection{Aktualizace SUDO pravidel v~cache pamìti}
 SSSD provádí následující tøi typy aktualizací SUDO pravidel ve své cache pamìti.
