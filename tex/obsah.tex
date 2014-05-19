@@ -1377,6 +1377,14 @@ Jestli¾e se nìjaký atribut z tìchto záznamu odkazuje na jiné záznamy (hodnota
 nìkterého z atributù obsahuje DN jiného záznamu v adresáøi). Pak pro získání
 tìchto záznamù je nutné vytvoøit nový dotaz.
 
+\begin{figure}[h]
+	\centering
+	\includegraphics[scale=1.00]{fig/deref_example.pdf}
+	\caption{Pøíklad záznamu, jeho¾ atributy se odkazují na jiný záznam.}
+	\label{fig:sdap_deref}
+\end{figure}
+
+
 Chování API knihovny OpenLDAP je mo¾né mìnit pomocí tzv. \uv{\emph{controls}}. Je
 tedy mo¾né modifikovat chování funkce \texttt{ldap\_search\_ext()}. Pak bude mo¾né
 pomocí této funkce získat nejenom po¾adované záznamy, ale také atributy ze
