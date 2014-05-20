@@ -8,24 +8,19 @@
 Tato bakaláøská práce popisuje správu bezpeènostních politik s~pomocí
 pou¾ití programu SUDO. Popisuje problémy, na které mù¾e administrátor narazit
 pøi nasazení tohoto øe¹ení v~doménovém prostøedí. Pøedstavuje mo¾ná øe¹ení
-tìchto problému pou¾itím technologií FreeIPA a SSSD, které jsou pou¾ívány v~Red Hat
-Enterprise prostøedích. Toto øe¹ení ov¹em disponuje urèitými nedostatky, které
-tato práce odkrývá. Smyslem této práce je tedy tyto nedostatky identifikovat,
-navrhnout jejich øe¹ení a tyto øe¹ení implementovat.
+tìchto problémù zalo¾ená na pou¾ití technologií FreeIPA a SSSD, které jsou
+pou¾ívány v~Red Hat Enterprise prostøedích.  Tato øe¹ení ov¹em vykazují urèité
+nedostatky, které tato práce odkrývá. Smyslem této práce je tedy tyto nedostatky
+identifikovat, navrhnout jejich øe¹ení a tyto øe¹ení implementovat. Od ètenáøe
+je v~práci oèekávána u¾ivatelská znalost programu SUDO, základních konceptù
+online adresáøù a LDAP protokolu. Tato práce byla zadána ve spolupráci
+s~firmou Red Hat.
 
-Cílem tedy není diskutovat nad mo¾nostmi a technologiemi, které je mo¾né
-pro správu politik identit pou¾ít. Také nemá slou¾it jako návod pro konfiguraci
-vý¹e zmínìných technologii pro øe¹ení daného problému.
-
-Od ètenáøe je ov¹em oèekávána u¾ivatelská znalost programu SUDO, základních
-konceptù online adresáøù a LDAP protokolu.
-
-Struktura této práce je rozdìlena do pìti kapitol. První kapitola popisuje obsah
-této práce.
-V~kapitole \ref{politics_managament} jsou popsány problémy, které vznikají
-pøi centralizované správì identit a jejich bezpeènostních politik za pomoci
-programu SUDO. Diskutuje také nad mo¾ným øe¹ením v~podobì pou¾ití serveru
-FreeIPA a démonu SSSD. 
+Práce je rozdìlena do pìti kapitol. První kapitola popisuje obsah práce.
+V~kapitole \ref{politics_managament} jsou popsány problémy, které vznikají pøi
+centralizované správì identit a jejich bezpeènostních politik za pomoci programu
+SUDO. Diskutuje také nad mo¾ným øe¹ením v~podobì pou¾ití serveru FreeIPA a
+démonu SSSD. 
 
 Tøetí kapitola se blí¾e zabývá démonem SSSD. Popisuje jeho architekturu, èinnost
 z~pohledu programu SUDO a dokumentuje èinnost pluginù ipa a ldap, které SUDO
@@ -34,22 +29,20 @@ sestaven na základì experimentování a ètení zdrojových kódù projektu SSSD. Sekce
 \ref{ch:sssd:sec:ipa_provider} poté detailnì popisuje hlavní nedostatek v~démonu
 SSSD, na který se tato práce zamìøuje.
 
-Zmínìný popis dále poslou¾il pro sestavení návrhu, který tento nedostatek
-odstraòuje. Návrh, implementaci a testování navr¾eného øe¹ení popisuje kapitola
-\ref{ch:native_ipa_sudo_provider}.
+Kapitola \ref{ch:native_ipa_sudo_provider} následnì prezentuje návrh, který
+poslou¾il k~odstranìní nedostatku identifikovaného v~sekci 
+\ref{ch:sssd:sec:ipa_provider}.
 
-Poslední kapitola poté zhodnocuje dosa¾ené výsledky a diskutuje nad mo¾nostmi
-pokraèování v~této práci.
-
-Tato práce dále pou¾ívá následující konvence:
+Poslední kapitola práce poté zhodnocuje dosa¾ené výsledky a diskutuje nad
+mo¾nostmi pokraèování v~této práci.  Tato práce pou¾ívá následující konvence:
 \begin{enumerate}
 	\item V¹echny dùle¾ité pojmy jsou vysázeny \textbf{tuèným písmem}. 
 	\item Nové pojmy jsou vysázeny \emph{kurzivou}.
-	\item Hodnoty atributu \texttt{ipaUniqueID}\footnote{Atribut je blí¾e popsán v
-		sekci \ref{ipa_sudo_schema}.} byly zámìrnì zkráceny kvùli
+	\item Hodnoty atributu \texttt{ipaUniqueID}\footnote{Atribut je blí¾e popsán
+v~sekci \ref{ipa_sudo_schema}.} byly zámìrnì zkráceny kvùli
 		velikosti textu a obrázkù.
-	\item V¹echny názvy souborù, jejich obsahy, klíèových slova jazyka C nebo
-		jména identifikátorù jsou vysázeny \texttt{strojovým písmem}.
+	\item V¹echny názvy souborù, jejich obsahy, u¾ivatelské úèty, klíèových slova
+		jazyka C nebo jména identifikátorù jsou vysázeny \texttt{strojovým písmem}.
 \end{enumerate}
 
 
@@ -62,21 +55,21 @@ Tato práce dále pou¾ívá následující konvence:
 Tato kapitola popisuje mo¾nost správy bezpeènostních politik pomocí
 programu SUDO. Popisuje mo¾né problémy, které mohou nastat pøi distribuci
 pravidel, kterými se SUDO øídí a dále LDAP schéma, které SUDO pou¾ívá
-pro ulo¾ení tìchto pravidel v~LDAP adresáøích. Zabývá se nedostatky, kterými
-zmínìné schéma disponuje z~pohledu domény a pøedstavuje schéma projektu FreeIPA,
-které se tyto nedostatky sna¾í øe¹it. Dále popisuje klientského démona SSSD,
-který je nezbytný pro vyu¾ití tohoto schématu.
+pro ulo¾ení tìchto pravidel v~LDAP adresáøích. Zabývá se nedostatky, které
+zmínìné schéma provázejí z~pohledu domény a pøedstavuje nové schéma projektu
+FreeIPA, které se tyto nedostatky sna¾í øe¹it. Dále popisuje klientského démona
+SSSD, který je nezbytný pro vyu¾ití tohoto schématu.
 
 \section{SUDO} Pomocí programu SUDO má administrátor mo¾nost delegovat oprávnìní
-správce\footnote{u¾ivatele root} ostatním u¾ivatelùm bez nutnosti sdílení hesla
-správce. Umo¾òuje u¾ivateli operaèního systému spustit jeden pøíkaz jako jiný
+správce\footnote{u¾ivatele \texttt{root}} ostatním u¾ivatelùm bez nutnosti sdílení hesla
+správce. Tento program umo¾òuje u¾ivateli operaèního systému spustit jeden pøíkaz jako jiný
 u¾ivatel. Ve vìt¹inì pøípadù je tímto u¾ivatelem právì správce linuxového
-systému, tj. u¾ivatel \emph{root}. Tedy u¾ivatel, který má nejvy¹¹í oprávnìní.
-Jestli¾e u¾ivatel vyvolá nìjaký pøíkaz za pomocí programu SUDO, pak není vyzván
-k~zadání hesla správce systému, ale k~zadání hesla daného u¾ivatele. \cite[Sekce
-4.4.3.2]{Security_Guide} Bezpeènostní politiky, kterými se SUDO øídí, se
-nazývají SUDO pravidla. Nìkdy také oznaèovaná jako \emph{sudoers}. Tyto pravidla
-se zapisují v~následujícím formátu: 
+systému, neboli u¾ivatel \emph{root}, tedy u¾ivatel, který má nejvy¹¹í oprávnìní.
+Jestli¾e u¾ivatel spustí nìjaký pøíkaz za pomocí programu SUDO, pak není vyzván
+k~zadání hesla správce systému, ale k~zadání hesla daného u¾ivatele \cite[Sekce
+4.4.3.2]{Security_Guide}. Bezpeènostní politiky, kterými se SUDO øídí, se
+nazývají SUDO pravidla. Nìkdy jsou tato pravidla oznaèována jako \emph{sudoers}.
+Tato pravidla se zapisují jako následující ètveøice: 
 
 \begin{table}[H]
 	\begin{tabular}{c}
@@ -85,25 +78,25 @@ se zapisují v~následujícím formátu:
 \end{table}
 
 \begin{itemize}
-	\item \texttt{user} \,--\, specifikuje u¾ivatele nebo skupinu na kterou bude
-		pravidlo aplikováno 
-	\item \texttt{host\_list} \,--\, reprezentuje seznam koncových systému
-	\item \texttt{user\_list} \,--\, (nepovinné) specifikuje pod kterým u¾ivatelem
+	\item \texttt{user} \,--\, specifikuje u¾ivatele nebo skupinu, na kterou bude
+		pravidlo aplikováno,
+	\item \texttt{host\_list} \,--\, reprezentuje seznam koncových systémù,
+	\item \texttt{user\_list} \,--\, (nepovinné) specifikuje, pod kterým u¾ivatelem,
 		má být pøíkaz proveden
-	\item \texttt{command\_list} \,--\, seznam povolených/zakázaných pøíkazù
+	\item \texttt{command\_list} \,--\, seznam povolených/zakázaných pøíkazù.
 \end{itemize}
 
 Jestli¾e chce správce poèítaèe s~doménovým jménem \texttt{client.example.cz}
-dát napøíklad u¾ivateli \uv{xsruba03} oprávnìní spou¹tìt pøíkaz
-\texttt{/sbin/fdisk} s~právy u¾ivatele root, pak musí definovat následující
+dát napøíklad u¾ivateli \texttt{xsruba03} oprávnìní spou¹tìt pøíkaz
+\texttt{/sbin/fdisk} s~právy u¾ivatele \texttt{root}, pak musí definovat následující
 pravidlo: 
 
 \begin{table}[H]
 		\begin{tabular}{c}
+		\label{sudoer}
 		\texttt{xsruba03 client.example.cz = /sbin/fdisk}
 		\end{tabular}
 		%\caption{Pøíklad definice sudo pravidla.}
-		\label{sudoer}
 \end{table}
 SUDO pravidla se definují v~souboru \texttt{/etc/sudoers}. Tento soubor by mìl
 být editován pouze pomocí nástroje \textbf{visudo}, který provádí automatickou
@@ -116,7 +109,7 @@ pravidlo definující práva u¾ivatele root.
 	\end{tabular}
 \end{table}
 
-Toto pravidlo dává u¾ivateli root oprávnìní spustit jakýkoliv pøíkaz, jako
+Toto pravidlo dává u¾ivateli root oprávnìní spustit jakýkoliv pøíkaz jako
 jakýkoliv u¾ivatel na kterémkoliv systému, kde je vý¹e uvedené pravidlo
 definováno.
 
@@ -124,75 +117,97 @@ definováno.
 V~rozsáhlej¹ích sítích má administrátor na starost více ne¾ jednu koncovou
 stanici. Ka¾dou stanici mù¾e pou¾ít více ne¾ jeden u¾ivatel, který mù¾e
 potøebovat provést úlohu, pro kterou potøebuje vy¹¹í oprávnìní. Proto by chtìl
-správce distribuovat SUDO pravidla mezi více poèítaèù. SUDO ov¹em nemá nativní
-zpùsob jak tyto pravidla distribuovat mezi více poèítaèù \cite[Kapitola
-20]{Identity_Management_Guide}. Spravovat tyto pravidla ruènì na v¹ech
+správce distribuovat tyto pravidla mezi více poèítaèù. SUDO ov¹em nemá nativní
+zpùsob, jak tato pravidla mezi více poèítaèù distribuovat \cite[Kapitola
+20]{Identity_Management_Guide}. Spravovat tato pravidla ruènì na v¹ech
 poèítaèích, které administrátor spravuje, by bylo ov¹em velice pracné a èasovì
-nároèné. Otázkou tedy zùstává jak tyto pravidla ¹íøit mezi více poèítaèù.
-Existuje nìkolik zpùsobù jak toho docílit.
+nároèné. Otázkou tedy zùstává jak uvedená pravidla ¹íøit mezi více poèítaèù.
+Existuje nìkolik zpùsobù jak toho docílit:
 
 \begin{enumerate}
-	\item Ruènì distribuovat tyto pravidla mezi více systému za pou¾ití
-		standardních linuxových nástrojù jako jsou \emph{cron, scp, rsync, \dots} .
-		Tento pøístup by ov¹em mohl být èasovì nároèný a také by nemusel být spolehlivý.
-	\item Pou¾ít speciální nástroje jako je napøíklad \emph{Puppet}\footnote{http://puppetlabs.com}, který sleduje
-		a automaticky ¹íøí konfiguraèní soubory.  
+	\item Ruènì distribuovat pøíslu¹ná pravidla mezi více systémù za pou¾ití
+		standardních linuxových nástrojù, jako jsou \emph{cron, scp, rsync, \dots}
+		Tento pøístup by ov¹em mohl být èasovì nároèný a také by nemusel být
+		spolehlivý.
+	\item Pou¾ít speciální nástroje, jako je napøíklad
+		\emph{Puppet}\footnote{http://puppetlabs.com}, který sleduje a automaticky
+		¹íøí konfiguraèní soubory.  
 	\item Ulo¾it SUDO pravidla do centralizované databáze.
 \end{enumerate}
 
-
-LDAP adresáøe\footnote{Adresáø, ke kterému se pøistupuje pomocí LDAP protokolu.}
-mohou uchovávat rùzné typy informací a jsou tak pou¾ívány organizacemi a
-institucemi k~ukládání informací o~jejich zamìstnancích, u¾ivatelích nebo
-zaøízeních jejich poèítaèových sítí. Jsou charakterizovány jako
-\uv{jednou-zapsat-a-mnohokrát-èíst}\footnote{write-once-read-many-times} slu¾ba.
+V~souvislosti s~bodem 3 se jeví jako výhodné pou¾ití adresáøù
+LDAP\footnote{Adresáø, ke kterému se pøistupuje pomocí LDAP protokolu.}. Tyto
+adresáøe mohou uchovávat rùzné typy informací a jsou tak pou¾ívány organizacemi
+a institucemi k~ukládání informací o~jejich zamìstnancích, u¾ivatelích nebo
+zaøízeních jejich poèítaèových sítí. Jsou charakterizovány jako slu¾ba typu 
+\uv{jednou-zapsat-a-mnohokrát-èíst}\footnote{write-once-read-many-times}.
 Jsou optimalizovány pro rychlé ètení a vyhledávání, proto¾e pøedpokládají, ¾e
-budou uchovávat informace, které nebudou pøíli¹ èasto modifikovány.
-\cite{understanding_and_deploying_LDAP} SUDO pravidla jsou vìt¹inou jednou
+budou uchovávat informace, které nebudou pøíli¹ èasto modifikovány
+\cite{understanding_and_deploying_LDAP}. SUDO pravidla jsou vìt¹inou jednou
 definována správcem systému a mnohokrát pou¾ita u¾ivateli. Ulo¾ení SUDO pravidel
-do LDAP adresáøe je tedy velice výhodné a nabízí následující výhody:
+do LDAP adresáøe je tedy velice vhodné a nabízí následující výhody:
 
 \begin{enumerate}
 	\item Jestli¾e jsou SUDO pravidla centralizována, pak se správce systému
-		nemusí starat o~jejich distribuci. Spravuje pouze jediný soubor se SUDO
-		pravidly.
-	\item Vyhledávání SUDO pravidla v~LDAP adresáøi je rychlej¹í. Pøi pou¾ití
+		nemusí starat o~jejich distribuci. Spravuje pouze jediný soubor
+s~pravidly.
+	\item Vyhledávání pravidla v~LDAP adresáøi je rychlej¹í. Pøi pou¾ití
 		lokálních sudoers\footnote{tj. kdy¾ jsou SUDO pravidla definována v~lokální
-		\texttt{/etc/sudoers} souboru} musí SUDO pøeèíst celý SUDOer soubor. Pøi
+		\texttt{/etc/sudoers} souboru} musí SUDO pøeèíst celý soubor
+		\texttt{/etc/sudores}. Pøi
 		ulo¾ení pravidel v~LDAP adresáøi je potøeba pouze nìkolik LDAP
-		dotazù. \cite{sudoers_ldap_manual}
+		dotazù \cite{sudoers_ldap_manual}.
 	\item Jestli¾e udìlá správce v~sudoers souboru chybu, pak se program SUDO nespustí. Do
-		LDAP adresáøe není mo¾né ulo¾it data, která nesplòují syntaxi daného LDAP 
-		SUDO schématu. Správná syntaxe je tedy zaruèena. Ov¹em stále je mo¾né udìlat
-		chybu v~u¾ivatelském jménu, pøíkazu nebo názvu koncového systému.
+		LDAP adresáøe není mo¾né ulo¾it data, která nesplòují dané schéma.
+		Správná syntaxe je tedy zaruèena. Ov¹em stále je mo¾né udìlat chybu
+		v~u¾ivatelském jménu, pøíkazu nebo názvu koncového systému.
 \end{enumerate}
 
-Nevýhodou centralizované správy mù¾e být situace, kdy dojde k výpadku
-serveru\footnote{prvek na kterém jsou závislé ostatní èásti systému je v angl.
-oznaèován jako \uv{single point of failure}}, na kterém jsou pravidla ulo¾ena. V
-takovém pøípadì nejsou pravidla pro sudo dostupná a není mo¾né jej vyu¾ívat. V
-praxi se tento problém dá øe¹it replikací nebo cachováním sudo pravidel.
+Nevýhodou centralizované správy mù¾e být situace, kdy dojde k~výpadku
+serveru\footnote{Prvek, na kterém jsou závislé ostatní èásti systému, je v~angl.
+oznaèován jako \uv{\emph{single point of failure}}.}, na kterém jsou pravidla ulo¾ena.
+V~takovém pøípadì nejsou pravidla pro sudo dostupná a není mo¾né jej vyu¾ívat.
+V~praxi se tento problém dá øe¹it replikací nebo cachováním sudo pravidel.
 
 \subsection{Nativní LDAP SUDO schéma}\label{native_ldap_sudo_schema} LDAP schéma
-je mo¾no si pøedstavit jako mno¾inu pravidel\footnote{zde se nejedná o mno¾inu
-SUDO pravidel}, která definují jaký typ dat je mo¾no v adresáøi uchovat a jak
-klienti nebo server mají s tìmito daty pracovat. Skládá se z definice typù
-atributù a tøíd. \cite[Kapitola 8]{understanding_and_deploying_LDAP} SUDO definuje vlastní
-schéma, které je pou¾ito pøi vytváøení nebo vyhledávání SUDO pravidel. Schéma
-tedy definuje které atributy je nutno pou¾ít pro ulo¾ení prvkù\footnote{na koho
-bude pravidlo aplikovatelné, kde, jaké obsahuje pøíkazy, \dots} SUDO pravidla.
-Definuje také tøídu ze které jsou záznamy, reprezentující SUDO pravidla,
-odvozeny. Tato tøída se nazývá \uv{sudoRole} a její definice vypadá následovnì:
+je mo¾no si pøedstavit jako mno¾inu pravidel\footnote{Zde se nejedná o~mno¾inu
+SUDO pravidel.}, která definují, jaký typ dat je mo¾no v~adresáøi uchovat a jak
+klienti nebo server mají s~tìmito daty pracovat. Skládá se z~definice typù
+atributù a tøíd \cite[Kapitola 8]{understanding_and_deploying_LDAP}. SUDO
+definuje vlastní schéma, které je pou¾ito pøi vytváøení nebo vyhledávání SUDO
+pravidel. Schéma tedy definuje, které atributy je nutno pou¾ít pro ulo¾ení
+prvkù\footnote{Na koho bude pravidlo aplikovatelné, kde, jaké obsahuje pøíkazy,
+\dots} SUDO pravidla.  Definuje také tøídu, ze které jsou záznamy,
+reprezentující SUDO pravidla, odvozeny. Tato tøída se nazývá \uv{sudoRole} a
+její definice vypadá následovnì:
 
-\lstinputlisting{listings/sudoRole}
+\lstset{
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	captionpos=b,
+}
+\begin{lstlisting}[label={ldap:full_refresh}]
+objectclass (
+  1.3.6.1.4.1.15953.9.2.1 
+  NAME 'sudoRole' SUP top STRUCTURAL
+  DESC 'Sudoer Entries'
+  MUST ( cn )
+  MAY ( sudoUser $ sudoHost $ sudoCommand $ sudoRunAs $ 
+        sudoRunAsUser $ sudoRunAsGroup $ sudoOption $ 
+        sudoNotBefore $ sudoNotAfter $ sudoOrder $ description
+      )
+)
+\end{lstlisting}
 
-Atribut \texttt{sudoUser} specifikuje u¾ivatele na kterého bude pravidlo
+Atribut \texttt{sudoUser} specifikuje u¾ivatele, na kterého bude pravidlo
 aplikováno. U¾ivatele je mo¾no specifikovat nìkolika zpùsoby, které popisuje
-tabulka \ref{table:sudoUser}. SUDO pravidlo je také mo¾né aplikovat na ve¹keré
+tabulka \ref{table:sudoUser}. SUDO pravidlo je také mo¾né aplikovat na v¹echny
 u¾ivatele, èeho¾ je mo¾no docílit pou¾itím hodnoty \texttt{ALL}.
 
 \begin{table}[h]
   \begin{center}	
+	\caption[Table caption text]{Popis mo¾ných hodnot atributu \texttt{sudoUser}.}
+	\label{table:sudoUser}
   \begin{tabular}{| l | l |} \hline
     \textbf{Mo¾ná hodnota atributu} & \textbf{Pøíklad} \\ \hline\hline
 		u¾ivatelské jméno & \texttt{xsruba03} \\ \hline
@@ -204,16 +219,16 @@ u¾ivatele, èeho¾ je mo¾no docílit pou¾itím hodnoty \texttt{ALL}.
 		v¹ichni u¾ivatelé & \texttt{ALL} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Popis mo¾ných hodnot atributu \texttt{sudoUser}.}
-	\label{table:sudoUser}
 \end{table}
 
-Jestli¾e víme na koho bude pravidlo aplikováno, musíme dále specifikovat na
+Jestli¾e víme, na koho bude pravidlo aplikováno, musíme dále specifikovat, na
 kterých systémech bude toho pravidlo platné. To specifikuje atribut 
 \texttt{sudoHost}, jeho¾ mo¾né hodnoty uvádí tabulka \ref{table:sudoHost}.
 
 \begin{table}[h]
   \begin{center}	
+	\caption[Table caption text]{Popis mo¾ných hodnot atributu \texttt{sudoHost}.}
+	\label{table:sudoHost}
   \begin{tabular}{| l | l |} \hline
     \textbf{Mo¾ná hodnota atributu} & \textbf{Pøíklad} \\ \hline\hline
 		jméno poèítaèe & \texttt{client.example.cz} \\ \hline
@@ -223,52 +238,52 @@ kterých systémech bude toho pravidlo platné. To specifikuje atribut
 		kterýkoliv poèítaè & \texttt{ALL} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Popis mo¾ných hodnot atributu \texttt{sudoHost}.}
-	\label{table:sudoHost}
 \end{table}
 
-Posledním atributem, jeho¾ mo¾né hodnoty popisuje tabulka
-\ref{table:sudoCommand}, pro sestavení SUDO pravidla je atribut \texttt{sudoCommand}.
+Posledním atributem pro sestavení SUDO pravidla, jeho¾ mo¾né hodnoty popisuje tabulka
+\ref{table:sudoCommand}, je atribut \texttt{sudoCommand}.
 Ten specifikuje, který unixový pøíkaz má u¾ivatel povolen/zakázán spou¹tìt. Je
 také mo¾né specifikovat konkrétní parametry daného pøíkazu.
 
 \begin{table}[h]
   \begin{center}	
+	\caption[Table caption text]{Tabulka popisující mo¾né hodnoty atributu sudoCommand.}
+	\label{table:sudoCommand}
   \begin{tabular}{| l | l |} \hline
     \textbf{Mo¾ná hodnota atributu} & \textbf{Popis} \\ \hline\hline
-		povolený pøíkazzakázaný pøíkaz & \texttt{blkid /dev/sda1} \\ \hline
-		zakázaný pøíkaz & \texttt{!blkid} \\ \hline
+		povolený pøíkazzakázaný pøíkaz & \texttt{/sbin/blkid /dev/sda1} \\ \hline
+		zakázaný pøíkaz & \texttt{!/sbin/fdisk} \\ \hline
 		v¹echny pøíkazy & \texttt{ALL} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Tabulka popisující mo¾né hodnoty atributu sudoCommand.}
-	\label{table:sudoCommand}
 \end{table}
 
-SUDO pøíkaz je také mo¾né spustit jako jiný u¾ivatel ne¾ root. Specifikovat
-u¾ivatele popø. skupinu pod kterou bude u¾ivatel moct daný pøíkaz provést specifikují
+SUDO pøíkaz je také mo¾né spustit, jako jiný u¾ivatel ne¾ \texttt{root}. Specifikovat
+u¾ivatele popø. skupinu, pod kterou bude u¾ivatel moct daný pøíkaz provést, specifikují
 atributy \texttt{sudoRunAsUser} a \texttt{sudoRunAsGroup}. Ve star¹ích verzích
 programu SUDO byl také pou¾íván atribut \texttt{sudoRunAs}. Ten u¾  se dnes
-ov¹em nedoporuèuje pou¾ívat a pova¾uje se jako \uv{zastaralý}\footnote{deprecated}.
+ov¹em nedoporuèuje pou¾ívat a pova¾uje se za \uv{zastaralý}\footnote{deprecated}.
 
-K~SUDO pravidlu je také mo¾né specifikovat rùzné volby, které napøíklad urèují
-jak bude vypadat øetìzec, který po¾ádá u¾ivatele o~zadání hesla. Specifikovat
-zda bude heslo vùbec po¾adováno a mnoho dal¹ích. V¹echny tyto volby je mo¾né
+K~SUDO pravidlu je také mo¾no specifikovat rùzné volby, které napøíklad urèují,
+jak bude vypadat øetìzec, který po¾ádá u¾ivatele o~zadání hesla, specifikovat
+zda bude heslo vùbec po¾adováno, a mnoho dal¹ích. V¹echny tyto volby je mo¾né
 definovat pomocí atributu \texttt{sudoOption} \cite[Sekce SUDOERS
 OPTIONS]{sudoers_manual}.
 
-Schéma také definuje atributy \texttt{sudoNotBefore} a \texttt{sudoNotAfter},
-které je mo¾no pou¾ít pro èasovì závislá pravidla. Pomocí tìchto atributù je
-mo¾né specifikovat po jakou dobu bude pravidlo validní\footnote{napø. po dobu
-pracovní doby od 7:00 do 15:00}. Tyto atribut ov¹em aktuálnì nejsou FreeIPA
-serverem pou¾ívána a proto je jimi dále nebudeme zabývat.
+Schéma sudo pravidel také definuje atributy \texttt{sudoNotBefore} a
+\texttt{sudoNotAfter}, které je mo¾no pou¾ít pro èasovì závislá pravidla. Pomocí
+tìchto atributù je mo¾né specifikovat, po jakou dobu bude pravidlo
+validní\footnote{napø. po dobu pracovní doby od 7:00 do 15:00}. Tyto atributy
+ov¹em aktuálnì nejsou FreeIPA serverem pou¾ívána a proto se jimi dále nebudeme
+zabývat.
 
 \label{sec:sudoers_ordering}
-Posledním definovaným atributem je atribut \texttt{sudoOrder}. Ten pøedstavuje
-èíselnou hodnotu,  která je pou¾ita v~situaci, kdy bude mo¾no aplikovat více ne¾
-jedno pravidlo. V¾dy bude vybrán záznam s~vìt¹í hodnotou tohoto atributu. To odrá¾í chování
-\uv{poslední shody} lokálního sudoers souboru. Pøedpokládejme, ¾e soubor
-\texttt{/etc/sudoers} obsahuje pouze následující dvì pravidla:
+Posledním definovaným atributem sudo pravidel je atribut \texttt{sudoOrder}. Ten
+pøedstavuje èíselnou hodnotu,  která je pou¾ita v~situaci, kdy bude mo¾no
+aplikovat více ne¾ jedno pravidlo. V¾dy bude vybrán záznam s~vìt¹í hodnotou
+tohoto atributu. To odrá¾í chování \uv{poslední shody} lokálního sudoers
+souboru. Pøedpokládejme, ¾e soubor \texttt{/etc/sudoers} obsahuje pouze
+následující dvì pravidla:
 
 \begin{table}[H]
   \begin{center}	
@@ -279,25 +294,23 @@ jedno pravidlo. V¾dy bude vybrán záznam s~vìt¹í hodnotou tohoto atributu. To odr
   \end{center}
 \end{table}
 
-V~tomto pøípadì u¾ivatel \uv{xsruba03} nebude mít oprávnìní spustit pøíkaz
-\texttt{blkid}. Jestli¾e ov¹em prohodíme tyto pravidla, pak u¾ivatel
+V~tomto pøípadì u¾ivatel \texttt{xsruba03} nebude mít oprávnìní spustit pøíkaz
+\texttt{blkid}. Jestli¾e ov¹em uvedená pravidla prohodíme, pak u¾ivatel
 \textbf{bude mít} oprávnìní tento pøíkaz spustit. Poøadí, v~kterém jsou
 SUDO pravidla definována, má tedy výrazný vliv na chování programu SUDO.  LDAP
-protokol ov¹em negarantuje poøadí ve kterém jsou pøijaty jednotlivé záznamy, tj.
+protokol ov¹em negarantuje poøadí, ve kterém jsou pøijaty jednotlivé záznamy, tj.
 SUDO pravidla \cite{ldap_ordering}\cite[Kapitola 3, Sekce Maintaining
 Order]{understanding_and_deploying_LDAP}. Vychází to z~pøedpokladu, ¾e jak
 záznamy, tak jednotlivé atributy jsou definovány jako mno¾ina. Proto bylo nutné
-definovat atribut pomocí kterého je mo¾né øadit jednotlivá pravidla.
+definovat atribut, pomocí kterého je mo¾né øadit jednotlivá pravidla.
 
-
-
-Záznam ekvivalentního suda pravidla, pro pravidlo \ref{sudoer}, by v~LDAP
+Záznam ekvivalentního suda pravidla pro pravidlo \ref{sudoer} by v~LDAP
 adresáøi vypadal tak, jak jej popisuje obrázek \ref{fig:ldap_sudoer}.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[scale=1.00]{fig/sudo/ldap_sudoer.pdf}
-	\caption{Pøíklad záznamu SUDO v~LDAP adresáøi.}
+	\caption{Pøíklad záznamu SUDO pravidla v~LDAP adresáøi.}
 	\label{fig:ldap_sudoer}
 \end{figure}
 
@@ -306,37 +319,38 @@ Detailní popis nativního LDAP SUDO schématu je mo¾né nalézt v~manuálových stránk
 
 \subsection{Integrace identit a politik}\label{ldap_sudo_scheme_problems}
 Pod pojmem \emph{identita} je mo¾no si pøedstavit objekt, u~kterého nás zajímá
-jeho jednoznaèná identifikace. V~linuxovém prostøedí tedy typicky napøíklad u¾ivatel.
-Vìt¹ina administrátorù spravujících prostøedí o~desítkách a více u¾ivatelù chce
-spravovat identity centrálnì.  LDAP adresáøe jsou pro tento úèel tedy velice
-vyu¾ívány. Napøíklad ve Windows prostøedích je mo¾no pou¾ít øe¹ení \emph{Active
-Directory} nebo \emph{FreeIPA} v~linuxových prostøedích. Na tyto
-servery je tedy mo¾né nativní LDAP SUDO schéma nahrát a zaèít tak SUDO pravidla
-spravovat centrálnì.  Pøístup ke správì identit a bezpeènostních politik
-pomocí LDAP adresáøe a nativního SUDO schématu má ov¹em nìkolik nevýhod: 
+jeho jednoznaèná identifikace. V~linuxovém prostøedí se typicky jedná napø. o
+u¾ivatel nebo poèítaè.  Vìt¹ina administrátorù spravujících prostøedí
+o~desítkách a více u¾ivatelù chce spravovat identity centrálnì.  LDAP adresáøe
+jsou pro tento úèel tedy velice vyu¾ívány. Ve Windows prostøedích je
+mo¾no pou¾ít øe¹ení \emph{Active Directory}, \emph{FreeIPA}\footnote{Free
+Identity, Policy and Audit} pak v~linuxových prostøedích. Na tyto servery je 
+nativní LDAP SUDO schéma nahrát a zaèít tak SUDO pravidla spravovat centrálnì.
+Pøístup ke správì identit a bezpeènostních politik pomocí LDAP adresáøe a
+nativního SUDO schématu má ov¹em
+nìkolik nevýhod: 
 
 \begin{itemize}
 	\item Nativní LDAP SUDO schéma je pevnì dané a není mo¾né jej modifikovat.
 		Záznamy, které neodpovídají tomuto schématu SUDO neumí zpracovat.
 	\item Pravidla je mo¾no definovat pouze pomocí pøíkazového øádku, popø. pomocí
 		souborù v~LDIF\footnote{LDAP Data Interchange Format} formátu.
-	\item V~pøípadì, ¾e se u¾ivatel ocitne bez pøipojení k~serveru, který uchovává
+	\item V~pøípadì, ¾e se u¾ivatel ocitne bez pøipojení k~serveru, který spravuje
 		SUDO pravidla, pak není mo¾né SUDO pou¾ít (pøípadnì lze pracovat pouze s~lokálními pravidly definovanými v~souboru \texttt{/etc/sudoers}).
-	\item mù¾e dojít k~pøekrytí u¾ivatele z~LDAP adresáøe s~lokálním u¾ivatelem.
 \end{itemize}
 
 Jako nejvìt¹í nevýhodu lze ov¹em pova¾ovat nulovou integraci mezi existujícími
 identitami v~adresáøi a bezpeènostními politikami. Jestli¾e se administrátor
 rozhodne spravovat jak identity tak bezpeènostní politiky tìchto identit
-centrálnì, pak by chtìl aby tyto entity byly vzájemnì propojeny.  Toho ov¹em
-není mo¾né dosáhnout s~pou¾itím nativního LDAP SUDO schématu. Pøi pou¾ití
-nativního schématu, se pøi definici SUDO pravidel není mo¾né odkazovat na ji¾
-administrátorem vytvoøené identity\footnote{napøíklad u¾ivatele nebo poèítaèe}.
-Pøi ¹patné konfiguraci zde také vzniká problém s pøekrytím u¾ivatelù.
+centrálnì, pak by chtìl, aby tyto entity byly vzájemnì propojeny.  Toho ov¹em
+není mo¾né, s~pou¾itím nativního LDAP SUDO schématu, dosáhnout. Pøi pou¾ití
+nativního schématu se pøi definici SUDO pravidel není mo¾né odkazovat na ji¾
+administrátorem vytvoøené identity, tj. napøíklad u¾ivatele nebo poèítaèe.
+Pøi ¹patné konfiguraci zde také vzniká problém s~pøekrytím u¾ivatelù.
 Pøedpokládejme, ¾e se na unixovém systému nachází u¾ivatel
-\uv{xsruba03}\footnote{je tedy definován v souboru \texttt{/etc/passwd}} a
-zároveò je stejný u¾ivatel definován i v LDAP adresáøi, který administrátor
-pou¾ívá pro správu u¾ivatelù. Poté nastává problém zjistit na kterého u¾ivatele
+\texttt{xsruba03}\footnote{je tedy definován v~souboru \texttt{/etc/passwd}} a
+zároveò je stejný u¾ivatel definován i v~LDAP adresáøi, který administrátor
+pou¾ívá pro správu u¾ivatelù. Poté nastává problém zjistit, na kterého u¾ivatele
 má být sudo pravidlo aplikováno. Toto je jeden z~problémù, které se sna¾í øe¹it
 projekt FreeIPA, kterým se zabývá následující sekce.
 
@@ -344,31 +358,30 @@ projekt FreeIPA, kterým se zabývá následující sekce.
 
 \section{FreeIPA}
 Kvùli efektivitì a jednoduché správì se IT administrátoøi sna¾í spravovat
-identity centrálnì a spojovat identity s~autentizaèními a autorizaèními
+identity centrálnì a zároveò spojovat identity s~autentizaèními a autorizaèními
 politikami. V~linuxových prostøedích existuje mnoho protokolù pro rùzné slu¾by.
-Je mo¾né napøíklad vyu¾tí NIS\footnote{Network Information Service} nebo
+Je mo¾né napøíklad vyu¾ít NIS\footnote{Network Information Service} nebo
 Kerberos+LDAP\footnote{Lightweight Directory Access Protocol} pro správu identit
 a jejich autentizaci nebo pouze LDAP pro správu sudo pravidel.  ®ádné z~tìchto
 slu¾eb ov¹em nejsou nijak propojeny a zároveò v¹echny musí být spravovány
 lokálnì. Administrátor tedy musí mít potøebné znalosti v¹ech tìchto slu¾eb a
-protokolù aby je dokázal správnì pou¾ívat a dané slu¾by spravovat. 
+protokolù, aby je dokázal správnì pou¾ívat a dané slu¾by spravovat. 
 
-FreeIPA\footnote{Free  Identity, Policy and Audit, zkrácenì IPA}
-je projekt, který se zamìøuje na správu identit a jejich
-politik.  Je postaven nad existujícími nativními linuxovými
-aplikacemi a standardizovanými protokoly. Definuje doménu ve které se vyskytují
-servery, klienti a vzájemnì mezi sebou sdílí centrálnì spravované slu¾by jako
-jsou napøíklad Kerberos nebo DNS\footnote{Domain Name System}. Je tedy mo¾né
-øíci, ¾e je to v~podstatì doménový kontrolér pro linuxové a unixové stanice.
-Poskytuje jakousi obálku nad standardizovanými sí»ovými slu¾bami jako jsou PAM,
-LDAP, Kerberos, DNS, NTP nebo certifikaèní slu¾by. Jeho hlavní úlohou je tedy
-spravovat v¹echny tyto slu¾by na jednom místì. IPA navíc umo¾òuje synchronizaci
-dat s~Active Directory.  Neumí ov¹em Windows klienty spravovat.
+Projekt FreeIPA\footnote{zkrácenì jen IPA} se zamìøuje na správu identit a
+jejich politik.  Je postaven nad existujícími nativními linuxovými aplikacemi a
+standardizovanými protokoly. Definuje doménu, ve které se vyskytují servery,
+klienti a vzájemnì mezi sebou sdílí centrálnì spravované slu¾by.  Poskytuje
+jakousi obálku nad standardizovanými sí»ovými slu¾bami, jako jsou
+PAM\footnote{Pluggable Authentication Modules}, LDAP, Kerberos,
+DNS\footnote{Domain Name System}, NTP\footnote{Network Time Protocol} nebo
+certifikaèní slu¾by. Jeho hlavní úlohou je spravovat v¹echny tyto slu¾by na
+jednom místì. IPA navíc umo¾òuje synchronizaci dat s~Active Directory.  Neumí
+ov¹em Windows klienty spravovat.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[scale=0.65]{fig/ipa/ipa.pdf}
-	\caption{FreeIPA sjednocuje standardní slu¾by.}
+	\caption{FreeIPA sjednocuje standardní slu¾by \cite{Identity_Management_Guide}.}
 	\label{sssd_architecture}
 \end{figure}
 
@@ -377,75 +390,67 @@ Directory Server, http://directory.fedoraproject.org}. Pro autentizaci je pou¾it
 protokol Kerberos, který vyu¾ívá symetrickou kryptografií pro generování
 \emph{tiketù}, které jsou pou¾ívány namísto klasických hesel. Jako
 certifikaèní autoritu, která zaji¹»uje vystavování certifikátù serverùm, replikám
-nebo klientù, IPA pou¾ívá \emph{Dogtag Certificate System}. Slu¾by jako
+nebo klientù, IPA pou¾ívá \emph{Dogtag Certificate
+System}\footnote{http://pki.fedoraproject.org/wiki/PKI\_Main\_Page}. Slu¾by jako
 Kerberos jsou závislé na doménových jménech a èasových razítkách. Proto IPA
-slou¾í také jako DNS a NTP\footnote{Network Time Protocol} server.
-\cite[Kapitola 1]{Identity_Management_Guide}
+slou¾í také jako DNS a NTP server \cite[Kapitola 1]{Identity_Management_Guide}.
 
-Pro cíle této bakaláøské práce nás dále bude zajímat pouze správa SUDO politik.
-Tedy jakým zpùsobem IPA server SUDO pravidla uchovává a jak jsou zpracovány
-na stranì klienta.
+S ohledem na vytyèené cíle této bakaláøské práce nás dále bude zajímat pouze
+správa SUDO politik.  Tedy jakým zpùsobem IPA server SUDO pravidla ukládá a jak
+jsou zpracovány na stranì klienta.
 
 \subsection{IPA sudo schéma}\label{ipa_sudo_schema}
 Sekce \ref{ldap_sudo_scheme_problems} popisovala problémy, které mohou nastat
 pøi pou¾ití nativního LDAP SUDO schématu z~pohledu domény. Toto schéma sice mù¾e
 být nahráno na IPA server, ale neposkytuje ¾ádné propojení s~ji¾ existujícími
 objekty dané domény. Z~tìchto dùvodù se vývojáøi projektu FreeIPA rozhodli
-vytvoøit vlastní schéma pro uchovávání SUDO pravidel. Novì navr¾ené schéma
+vytvoøit vlastní schéma pro ukládání SUDO pravidel. Novì navr¾ené schéma
 umo¾òuje lep¹í integraci s~ji¾ existujícími objekty s~konkrétními pravidly.
-Umo¾òuje také daleko flexibilnìj¹í a jednodu¹¹í konfiguraci. U¾ivatel ji¾ tedy
-není dále specifikován pouze jako øetìzec znakù, ale jako odkaz na ji¾
+Umo¾òuje také daleko flexibilnìj¹í a jednodu¹¹í konfiguraci. U¾ivatel zde ji¾
+dále není dále specifikován pouze jako øetìzec znakù, ale jako odkaz na ji¾
 existující objekt dané domény. 
 
-Pro vyjádøení vztahu mezi jednotlivými záznamy se v adresáøích obecnì pou¾ívají
-DN\cite[Kapitola 1]{deref}. Jestli¾e se tedy atribut \texttt{user} odkazuje na
-záznam, s informacemi o u¾ivateli, bude hodnota tohoto atributu tvoøena právì DN
-daného záznamu:
-
-\lstset{
-	language=bash,
-	basicstyle=\normalsize\ttfamily,
-	captionpos=b,
-	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
-}
-\begin{lstlisting}[label={ldap:full_refresh}]
-	user: uid=xsruba03,cn=users,cn=accounts,$DC
-\end{lstlisting}
-
-IPA SUDO schéma definuje novou tøídu pro SUDO pravidla, jejich¾ definice vypadá
-následovnì:
+Pro vyjádøení vztahu mezi jednotlivými záznamy se v~adresáøích obecnì pou¾ívají
+jedineèná jména záznamù adresáøe \cite[Kapitola 1]{deref}. Pro tyto jména bude
+dále pou¾íváno oznaèení \emph{DN}\footnote{Distinguished Name}. Jestli¾e se tedy
+atribut \texttt{user} odkazuje na záznam, s~informacemi o~u¾ivateli, bude
+hodnota tohoto atributu tvoøena právì DN daného záznamu.  IPA SUDO schéma
+definuje novou tøídu pro SUDO pravidla, jejich¾ definice vypadá následovnì:
 
 \lstinputlisting[language=bash]{listings/ipasudorule}
 
 Tøída \texttt{ipaSudoRule} dìdí atributy tøídy \texttt{ipaAssociation}. Ka¾dý
 záznam, popisující konkrétní SUDO pravidlo, obsahuje jedineèný identifikátor
-(\texttt{ipaUniqueID}, který je automaticky generován serverem FreeIPA), své
+(\texttt{ipaUniqueID}), který je automaticky generován serverem FreeIPA, své
 jedineèné jméno (\texttt{cn}) a dále mù¾e obsahovat atributy specifikující
 samotné pravidlo.
 
 Obecnì v~záznamech SUDO pravidel na IPA serveru platí, ¾e \texttt{member*}
-atributy\footnote{tj. napøíklad \texttt{memberUser, memberAllowCmd}, \dots}
-obsahují DN\footnote{Distinguished Name} ji¾ existujících objektù IPA domény,
-zatímco \texttt{external*}\footnote{tj.  napøíklad \texttt{externalUser,
-externalHost}, \dots} atributy specifikují objekty, které jsou definovány mimo
-tuto doménu.  Speciální pøípady, kdy je napøíklad SUDO pravidlo aplikovatelné na
-kteréhokoliv u¾ivatele nebo poèítaè specifikují \texttt{*Category}\footnote{tj.
-napøíklad \texttt{userCategory, cmdCategory}, \dots} atributy.
+atributy, napø. \texttt{memberUser} nebo \texttt{memberAllowCmd}, obsahují DN
+ji¾ existujících objektù IPA domény. Pro objekty, které jsou definovány mimo IPA
+doménu, se pou¾ívají \texttt{external*} atributy, napø. \texttt{externalUser} nebo
+\texttt{externalHost}.  Speciální pøípady, kdy je napøíklad SUDO pravidlo
+aplikovatelné na kteréhokoliv u¾ivatele nebo poèítaè specifikují
+\texttt{*Category} atributy, napø. \texttt{userCategory} nebo
+\texttt{cmdCategory}.
 
 U¾ivatele, na kterého bude pravidlo aplikovatelné, je mo¾né specifikovat pomocí
 tøí atributù. Pøíklady hodnot tìchto atributù popisuje tabulka
 \ref{table:ipa_user_attrs}. Jak je mo¾né odvodit z~prvního øádku této tabulky, záznamy
 u¾ivatelù IPA domény se nacházejí v~kontejneru \texttt{
-cn=users,cn=accounts,\$DC\footnote{Domain Controller}}. Pomocí \texttt{externalUser} atributu je také mo¾né
-vytvoøit SUDO pravidlo aplikovatelné na u¾ivatele, který není èlenem IPA domény.
-Tento u¾ivatel ov¹em musí být èlenem jiné domény\footnote{napøíklad doména
-spravována pomocí Active Directory} a mezi touto a IPA doménou musí být
-vytvoøena vzájemná dùvìra, tzv.  \emph{trust}. Popis, jak toto propojení mezi
-doménami funguje nebo jak jej vytvoøit, je ov¹em nad rámec této bakaláøské práce.
+cn=users,cn=accounts,\$DC\footnote{Domain Controller}}. Pomocí atributu
+\texttt{externalUser} je také mo¾né vytvoøit SUDO pravidlo aplikovatelné na
+u¾ivatele, který není èlenem IPA domény.  Tento u¾ivatel ov¹em musí být èlenem
+jiné domény\footnote{napøíklad doména spravována pomocí Active Directory} a mezi
+touto a IPA doménou musí být vytvoøena vzájemná dùvìra, tzv.  \emph{trust}.
+Popis, jak toto propojení mezi doménami funguje nebo jak jej vytvoøit, je ov¹em
+nad rámec této bakaláøské práce.
 
 \begin{table}[h]
   %zarovnani cele tabulky na stred dokumentu
   \begin{center}	
+	\caption[Table caption text]{Atributy specifikující u¾ivatele SUDO pravidla.}
+	\label{table:ipa_user_attrs}
   \begin{tabular}{| l | l |} \hline
     \textbf{Jméno atributu} & \textbf{Hodnota atributu} \\ \hline\hline
 		
@@ -454,28 +459,29 @@ doménami funguje nebo jak jej vytvoøit, je ov¹em nad rámec této bakaláøské práce
 		\texttt{externalUser} & \texttt{xsruba04} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Atributy specifikující u¾ivatele SUDO pravidla.}
-	\label{table:ipa_user_attrs}
 \end{table}
 
-Identitu, pod kterou bude pøíkaz spu¹tìn je mo¾né specifikovat pomocí
+Identitu, pod kterou bude pøíkaz spu¹tìn, je mo¾né specifikovat pomocí
 \texttt{ipaSudoRunAs*} atributù. Zde je mo¾né specifikovat jak konkrétní
 identitu, tak i skupinu identit.
 
-Stejným zpùsobem je poté pomocí atributù \texttt{memberHost},
-\texttt{hostCategory} a \texttt{externalHost} definován poèítaè na který bude
-pravidlo aplikováno.  Zde je navíc definován atribut \texttt{hostMask} pomocí
+Stejným zpùsobem je poté, pomocí atributù \texttt{memberHost},
+\texttt{hostCategory} a \texttt{externalHost}, definován poèítaè, na který bude
+pravidlo aplikováno.  Zde je navíc definován atribut \texttt{hostMask}, pomocí
 kterého je mo¾né specifikovat poèítaè, popø. skupinu poèítaèù, pomocí IP adresy
 nebo adresy sítì.  Tento atribut ov¹em v~praxi není vyu¾íván. 
 
 Poslední mno¾inou, kterou je nutno specifikovat pro vytvoøení kompletního
-pravidla, jsou pøíkazy. Zde popsané schéma pøiná¹í novou vlastnost a tou jsou
+pravidla, jsou pøíkazy. Popsané schéma pøiná¹í novou vlastnost a tou jsou
 \textbf{skupiny pøíkazù}. Jak záznamy pøíkazù, tak záznamy skupin pøíkazù jsou
-v~\textbf{samostatných} kontejnerech. Jsou také definovány pomocí jiných tøíd. Atributy a
-pøíklad jejich mo¾ných hodnot popisuje tabulka \ref{table:ipa_sudo_cmds_attrs}.
+v~\textbf{samostatných} kontejnerech. Jsou také definovány pomocí jiných tøíd.
+Atributy a pøíklad jejich mo¾ných hodnot popisuje tabulka
+\ref{table:ipa_sudo_cmds_attrs}.
 
 \begin{table}[ht]
   \begin{center}	
+	\caption[Table caption text]{Atributy specifikující SUDO pøíkaz.}
+	\label{table:ipa_sudo_cmds_attrs}
   \begin{tabular}{| l | l |} \hline
     \textbf{Jméno atributu} & \textbf{Hodnota atributu} \\ \hline\hline
 		\texttt{memberAllowCmd} & \texttt{cn=dics,cn=sudocmdgroups,cn=sudo,\$DC} \\ \hline
@@ -483,27 +489,25 @@ pøíklad jejich mo¾ných hodnot popisuje tabulka \ref{table:ipa_sudo_cmds_attrs}.
 		\texttt{cmdCategory} & \texttt{all} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Atributy specifikující SUDO pøíkaz.}
-	\label{table:ipa_sudo_cmds_attrs}
 \end{table}
 
 
 Kromì skupin pøíkazù pøiná¹í nové schéma dal¹í výhodu a to povolování/zakazování
-pravidel.  Jestli¾e administrátor spravuje SUDO pravidla pomocí LDAP
-serveru\footnote{tj.  sudo pravidla jsou definována pomocí nativního LDAP SUDO
-schématu}, pak pravidla, která jsou v~adresáøi definována budou v¾dy pou¾ita.
+pravidel. Jestli¾e administrátor spravuje SUDO pravidla pomocí LDAP
+serveru, pak pravidla, která jsou v~adresáøi definována, budou v¾dy pou¾ita.
 Pokud by chtìl administrátor, napøíklad z~dùvodu testování, nìjaké pravidlo
 doèasnì zakázat, musel by jej z~adresáøe odstranit. Tøída
 \texttt{ipaAssociation} definuje atribut \texttt{ipaEnableFlag}. Pomocí tohoto
 atributu je mo¾né libovolné pravidlo doèasnì povolit nebo zakázat bez nutnosti
 jeho odstranìní z~adresáøe.  
 
-Sudo pravidla jsou tedy na IPA serveru ulo¾ena v kontejneru
-\texttt{cn=sudo,\$DC}. Zde jsou ov¹em dále dìlena do dal¹ích tøí kontejnerù,
-viz. Tabulka \ref{table:ipa_rules_containers}.
+Sudo pravidla jsou tedy na IPA serveru ulo¾ena v~kontejneru
+\texttt{cn=sudo,\$DC}. Zde jsou ov¹em dále dìlena do dal¹ích tøí kontejnerù.
 
 \begin{table}[ht]
   \begin{center}	
+	\caption[Table caption text]{Rozmístìní sudo pravidel na IPA serveru.}
+	\label{table:ipa_rules_containers}
   \begin{tabular}{| l | l |} \hline
     \textbf{Obsah kontejneru} & \textbf{Kontejner} \\ \hline\hline
 		kompletní sudo pravidla & \texttt{cn=sudo,\$DC} \\ \hline
@@ -512,8 +516,6 @@ viz. Tabulka \ref{table:ipa_rules_containers}.
 		skupiny pøíkazù & \texttt{cn=sudocmdgroups,cn=sudo,\$DC} \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Rozmístìní sudo pravidel na IPA serveru.}
-	\label{table:ipa_rules_containers}
 \end{table}
 
 
@@ -530,24 +532,25 @@ Záznam ekvivalentního suda pravidla pro pravidla
 	\label{fig:ipa_sudo_rule}
 \end{figure}
 
-Ka¾dý záznam na IPA serveru má také \textbf{operaèní} atribut entryUSN\footnote{Entry Update
-Sequence Number}. Hodnotu tohoto atributu aktualizuje USN plugin pøi ka¾dé zmìnì
-daného záznamu.  Tento plugin tedy poskytuje zpùsob, který umo¾òuje informovat
-IPA klienty o~\textbf{modifikaci} jakéhokoliv záznamu \cite[Sekce
-3.4]{Redhat_Directory_Server_Administration_Guide}. 
+Ka¾dý záznam na IPA serveru má také \textbf{operaèní} atribut
+entryUSN\footnote{Entry Update Sequence Number}. Hodnota tohoto atributu
+reprezentuje èas poslední zmìny záznamu. Aktualizaci této hodnoty provádí
+\emph{USN plugin} pøi ka¾dé zmìnì daného záznamu. Tento plugin poskytuje zpùsob,
+který umo¾òuje informovat IPA klienty o~\textbf{modifikaci} jakéhokoliv záznamu
+\cite[Sekce 3.4]{Redhat_Directory_Server_Administration_Guide}. 
 
 LDAP schémata, která pou¾ívá FreeIPA server je na nainstalovaném IPA serveru
 mo¾né nalézt v~adresáøi \texttt{/etc/dirsrv/slapd-instance\_name/}.  Detailní
 popis tøíd a atributù pro definici SUDO pravidel na IPA serveru je mo¾né nalézt
-v~souboru \texttt{65sudo.ldif}. Schémata, která pou¾ívá FreeIPA server je mo¾né
-najít také na pøilo¾eném CD, viz. Pøíloha \ref{cd}.
+v~souboru \texttt{65sudo.ldif}. Schémata, která pou¾ívá FreeIPA server, je mo¾né
+najít také na pøilo¾eném CD, viz Pøíloha \ref{cd}.
 
 \subsection{Definice SUDO pravidel} 
-Dal¹í výhodou, kterou pøiná¹í FreeIPA je snadnìj¹í definice pravidel.  SUDO
-pravidla na IPA serveru je mo¾né definovat dvìma zpùsoby. Jednak pomocí
-\textbf{webového rozhraní} nebo pomocí utilit pøíkazového øádku \texttt{ipa
-sudorule*}. Podrobnìj¹í popis s~pøíklady jak definovat pravidla ve webovém
-rozhraní nebo pomocí pøíkazového øádku je mo¾né nalézt napøíklad v~oficiální
+Dal¹í výhodou, kterou pøiná¹í FreeIPA, je snadnìj¹í definice pravidel.  SUDO
+pravidla na IPA serveru je mo¾né definovat dvìma zpùsoby a to pomocí
+\textbf{webového rozhraní} a jednak pomocí utilit pøíkazového øádku \texttt{ipa
+sudorule*}. Podrobnìj¹í popis s~pøíklady, jak definovat pravidla ve webovém
+rozhraní nebo pomocí pøíkazového øádku, je mo¾né nalézt napøíklad v~oficiální
 dokumentaci\footnote{Red Hat Enterprise Linux 6 Identity Management Guide}. Pøi
 správì pravidel v~LDAP adresáøi bylo nutné pravidla vytváøet textovì a ruènì je
 do adresáøe pøidávat. Webové rozhraní zde tedy administrátorovi velice
@@ -555,62 +558,60 @@ zjednodu¹uje práci.
 %-------------------------------------------------------------------------------
 \section{System Security Services Daemon}\label{sec:user_sssd}
 Jestli¾e se administrátor rozhodne spravovat identity a jejich politiky
-centralizovanì napøíklad pomocí technologií LDAP+Kerberos, musí provést
-nastavení NSS\footnote{Name Service Switch} a PAM\footnote{Pluggable
-Authentication Modules}. Musí pou¾ít správnì moduly pro tuto podporu. Napøíklad
-\texttt{nss\_pam\_ldapd} pro pøístup k identitám a autentizacím na LDAP serveru.
-Nebo \texttt{pam\_krb5} pro Kerberos autentizaci. Správná konfigurace
-mù¾e být pro bì¾ného u¾ivatele velice slo¾itá. Ov¹em i po správné konfiguraci
-zde zùstávají dùle¾ité nedostatky tohoto øe¹ení:
+centralizovanì, napø. pomocí technologií LDAP+Kerberos, musí provést
+konfiguraci NSS\footnote{Name Service Switch} a PAM a pou¾ít správné moduly
+pro tuto podporu. Napøíklad \texttt{nss\_pam\_ldapd} pro pøístup k~identitám a
+autentizacím na LDAP serveru.  Nebo \texttt{pam\_krb5} pro Kerberos autentizaci.
+Správná konfigurace mù¾e být pro bì¾ného u¾ivatele ov¹em velice slo¾itá. Navíc, i po
+správné konfiguraci, zde zùstávají dùle¾ité nedostatky tohoto øe¹ení:
 
 \begin{enumerate}
 	\item Jakmile je u¾ivatelský poèítaè odpojen od sítì, pak se u¾ivatel nemù¾e
-		pøihlásit. U¾ivatel to pak vìt¹inou øe¹í separátním u¾ivatelským úètem.
+		pøihlásit. U¾ivatel to pak øe¹í separátním u¾ivatelským úètem.
 	\item Jestli¾e se u¾ivatel pøipojuje do více domén zároveò, ka¾dá mù¾e
 		potencionálnì pou¾ívat jiný zpùsob autentizace a ovìøování oproti jiným
 		serverùm. Bylo by tedy nutné provést novou konfiguraci.
 	\item Pøi pou¾ití mnoha technologií je potøeba provádìt konfiguraci více souborù.
 \end{enumerate}
 
-Tyto nedostatky øe¹í projekt SSSD, který poskytuje pøístup k rùzným zdrojùm,
-které spravují identity a jejich autentizaci a politiky. Identity a jejich
-autentizace tak mù¾e být spravována pomocí technologií LDAP+Kerberos, FreeIPA
-nebo Active Directory. Je také mo¾né jej pou¾ít pouze pro pøístup k sudo
-pravidlùm spravovaných centrálnì pomocí LDAP adresáøe.
+Tyto nedostatky øe¹í projekt SSSD, který poskytuje pøístup k~rùzným zdrojùm,
+které spravují identity, jejich autentizaci a politiky. Identity a jejich
+autentizace tak mù¾e být spravována napø. pomocí technologií LDAP+Kerberos,
+FreeIPA nebo Active Directory. Je také mo¾né jej pou¾ít pouze pro pøístup k~SUDO
+pravidlùm spravovaných centrálnì pomocí LDAP adresáøe.  Dal¹í výhodou je, ¾e
+umo¾òuje u¾ivateli pøipojení do více domén zároveò.  Jestli¾e klient støídá
+prostøední napø. mezi prací a ¹kolou, nemusí stále mìnit slo¾itou konfiguraci.
+SSSD pøiná¹í také offline podporu a cachování. Informace o~identitách nebo napø.
+sudo pravidla jsou ukládána do cache pamìti, která se nachází na disku poèítaèe.
+Tyto informace je tedy mo¾né vyu¾ívat i v~situacích, kdy se klient ocitne bez
+pøipojení k~síti. To v¹e je mo¾né nakonfigurovat pomocí jediného konfiguraèního
+snapøíklad ouboru \texttt{/etc/sssd/sssd.conf}. 
 
-Umo¾òuje u¾ivateli pøipojení do více domén zároveò. Pokud napøíklad klient
-støídá prostøední mezi prací a ¹kolou, nemusí stále mìnit slo¾itou konfiguraci.
-SSSD pøiná¹í také offline podporu a cachování. Informace o identitách nebo napø.
-sudo pravidla jsou ukládána do cache pamìti, která se nachází na disku klienta.
-Tyto informace je tedy mo¾né vyu¾ívat v situacích kdy se klient ocitne bez
-pøipojení k síti. To v¹e je mo¾né nakonfigurovat pomocí jediného konfiguraèního
-souboru \texttt{/etc/sssd/sssd.conf}. 
-
-Jestli¾e se administrátor rozhodnì spravovat SUDO politiky pomocí IPA serveru,
+Jestli¾e se administrátor rozhodne spravovat SUDO politiky pomocí IPA serveru,
 pak u~v¹ech klientù musí být démon SSSD dostupný.  Pou¾ití SSSD pro pøístup
 k~SUDO politikám, ulo¾ených  na vzdáleném serveru, má oproti pøístupu pomocí ldap
 pluginu\footnote{Jedná se o~plugin, který dodává SUDO. Nezamìòovat tedy s~ldap
 pluginem, který pou¾ívá SUDO provider démona SSSD.} následující hlavní výhody: 
 
 \begin{itemize}
-	\item \textbf{offline podpora} - SSSD si ukládá v¹echna pøijatá pravidla do
-		své cache pamìti na disku. Jestli¾e dojde k~odpojení klienta od sítì, pak
+	\item \textbf{Offline podpora} \,--\, SSSD si ukládá v¹echna pøijatá pravidla do
+		své cache pamìti. Jestli¾e dojde k~odpojení klienta od sítì, pak
 		mù¾e stále pou¾ívat tyto ulo¾ená pravidla.
-	\item \textbf{lep¹í výkon} - ka¾dé zavolání SUDO utility zpùsobí jeden nebo více
-		LDAP dotazù na server, kde jsou daná pravidla ulo¾ena. V~kombinaci s~pomalou
-		sítí nebo zatí¾eným serverem to mù¾e znamenat znaèné zpomalení v~pøípadech,
-		kdy u¾ivatel potøebuje pou¾ít program SUDO vícekrát za sebou. SSSD si ulo¾í
-		pravidla do cache pamìti a pøi spu¹tìní programu SUDO se pravidla hledají
-		nejprve v~cache pamìti. Dal¹í zpomalením u~ldap pluginu mù¾e být situace,
-		kdy pou¾ívá SUDO více u¾ivatelù najednou. V~takovém pøípadì se vytváøí
-		nìkolik LDAP spojení.  Zatímco SSSD pou¾ívá pouze jediné spojení s~LDAP
-		serverem
+	\item \textbf{Lep¹í výkon} \,--\, Ka¾dé zavolání SUDO utility zpùsobí jeden
+		nebo více LDAP dotazù na server, kde jsou daná pravidla ulo¾ena. V~kombinaci
+		s~pomalou sítí nebo zatí¾eným serverem to mù¾e znamenat znaèné zpomalení
+		v~pøípadech, kdy u¾ivatel potøebuje pou¾ít program SUDO vícekrát za sebou.
+		SSSD si ulo¾í pravidla do cache pamìti a pøi spu¹tìní programu SUDO se
+		pravidla hledají nejprve v~cache pamìti. Dal¹ím zpomalením u~ldap pluginu
+		mù¾e být situace, kdy pou¾ívá SUDO více u¾ivatelù najednou. V~takovém
+		pøípadì se vytváøí nìkolik LDAP spojení.  Zatímco SSSD pou¾ívá pouze jediné
+		spojení s~LDAP serverem
 \end{itemize}
 
-SSSD také podporuje nativní LDAP SUDO schéma. Je tedy mo¾né jej nastavit, tak
+SSSD také podporuje nativní LDAP SUDO schéma. Je tedy mo¾né jej nastavit tak,
 aby získával SUDO pravidla z~LDAP serveru. V~takovém pøípadì získá u¾ivatel
-jednak offline podporu, ale také cachování tìchto pravidel. Konfigurace SSSD pro
-tento úèel je popsána v~manuálové stránce
+jednak offline podporu, ale také mo¾nost ukládání tìchto pravidel do cache pamìti.
+Konfigurace SSSD pro tento úèel je popsána v~manuálové stránce
 \texttt{sssd-sudo}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-sudo.5.html}
 a nìkteré konfiguraèní volby také
 v~\texttt{sssd-ldap}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd-ldap.5.html}.
@@ -619,17 +620,15 @@ v~\texttt{sssd-ldap}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/ss
 \subsection{Aktualizace SUDO pravidel v~cache pamìti}
 SSSD provádí následující tøi typy aktualizací SUDO pravidel ve své cache pamìti.
 Smyslem tìchto aktualizací je zachovat pøesnost pravidel a zároveò redukovat
-poèet dotazù na server. SUDO ve spojení s LDAP adresáøem pracuje v¾dy a
-aktuálními pravidly, proto¾e se dotazuje LDAP adresáøe pøi ka¾dém spu¹tìní. SSSD
-se dotazuje LDAP serveru pouze v pøípadì, kdy dané pravidla v cache pamìti ji¾
+poèet dotazù na server. SUDO, ve spojení s~LDAP adresáøem, pracuje v¾dy
+s~aktuálními pravidly, proto¾e se dotazuje LDAP adresáøe pøi ka¾dém spu¹tìní. SSSD
+se dotazuje LDAP serveru pouze v~pøípadì, kdy dané pravidlo v~cache pamìti ji¾
 není validní. Aktualizace se poté sna¾í reflektovat stav SUDO pravidel na
-serveru v cache pamìti SSSD.
+serveru v~cache pamìti SSSD.
 
-Pro cíle této bakaláøské práce nás ov¹em 
-dále bude SSSD zajímat pouze z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD
-sudo pravidla zpracovává.
-
-
+S ohledem na vytyèené cíle této práce nás ov¹em dále bude SSSD zajímat pouze
+z~pohledu programu SUDO. Tedy jakým zpùsobem SSSD sudo pravidla zpracovává na
+stranì klienta.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -637,16 +636,17 @@ sudo pravidla zpracovává.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{SSSD a SUDO provider}\label{ch:sssd}
 Smyslem této kapitoly je popsat vnitøní architekturu démona SSSD se zamìøením
-na SUDO providera a pluginy, které má k~dispozici. Tento popis byl sestaven na
-základì experimentování a ètení zdrojových kódù. Popis byl nezbytný pro úplné
-pochopení zpùsobu, jakým SSSD SUDO pravidla zpracovává. V~poslední sekci je také
-popsán hlavní problém, kterým se tato práce zabývá.
+na SUDO providera a zásuvné moduly, které má k~dispozici. Tento popis byl
+sestaven na základì experimentování a ètení zdrojových kódù. Získání zde
+popsaných informací bylo pøitom nezbytné pro úplné pochopení zpùsobu, jakým SSSD
+SUDO pravidla zpracovává. V~pøedposlední sekci je také popsán hlavní problém, který
+je v této práci øe¹en a to podpora IPA SUDO schéma v démonu SSSD.
 
 \section{Knihovny tøetích stran}
 SSSD pou¾ívá pro alokaci dynamické pamìti hierarchický alokátor
-\emph{talloc}\cite{talloc} namísto standardního systémového volání
+\emph{talloc} \cite{talloc} namísto standardního systémového volání
 \emph{malloc}. Nepou¾ívá imperativní ani OOP\footnote{Object-oriented
-programming} paradigma, ale událostmi øízené paradigma\footnote{Event-driven
+programming} paradigma, ale naopak událostmi øízené paradigma\footnote{Event-driven
 Programming Paradigm} programování.
 
 U~imperativního nebo OOP paradigmatu programování se pøi provádìní programu
@@ -655,24 +655,19 @@ Programy reagují na události a tyto události poté urèují, která èást programu
 bude vykonávána. Takový program se poté nachází ve dvou stavech:
 
 \begin{enumerate} 
-	\item èeká na událost 
-	\item provádí obsluhu události
+	\item èeká na událost, nebo 
+	\item provádí obsluhu této události.
 \end{enumerate}
 
-Knihovna tevent\cite{tevent} realizuje tyto události za pomocí asynchronních funkcí.
-Synchronní funkce poskytují programátorovi pouze jedno rozhraní, pøes které je
-mo¾no specifikovat vstupní parametry funkce a získat výsledek dané funkce.
-Naproti tomu asynchronní funkce poskytují rozhraní dvì. Jedno pro pøedání
-parametrù funkci a získání výsledkù a druhé pro zaslání samotného po¾adavku a
-uvìdomìní programátora o~dokonèení této asynchronní události. Funkce, která je
-zavolána jako výsledek o~dokonèení události se nazývá tzv. \emph{callback}.
-\cite{tevent} 
+Knihovna \emph{tevent} \cite{tevent} realizuje tyto události za pomocí
+asynchronních funkcí.  Synchronní funkce poskytují programátorovi pouze jedno
+rozhraní, pøes které je mo¾no specifikovat vstupní parametry funkce a získat
+výsledek dané funkce.  Naproti tomu asynchronní funkce poskytují rozhraní dvì.
+Jedno pro pøedání parametrù funkci a získání výsledkù a druhé pro zaslání
+samotného po¾adavku a uvìdomìní programátora o~dokonèení této asynchronní
+události. Funkce, která je zavolána jako výsledek o~dokonèení události se nazývá
+tzv. \emph{callback}.  
 
-\begin{figure}[h]
-	\centering
-	\includegraphics[scale=1.00]{fig/tevent/function_interfaces.pdf}
-	\caption{Rozhraní synchronních a asynchronních funkcí.}
-\end{figure}
 
 Knihovna tevent implementuje tyto asynchronní funkce pomocí tzv. \emph{tevent
 requests}. Jejich grafické znázornìní popisuje schéma \ref{tevent_requests}.
@@ -682,14 +677,34 @@ S~tím je také spojena následující konvence:
 	\item S~událostí jsou spojeny privátní data, které mají pøíponu
 		\texttt{\_state}.
 	\item Funkce, která provádí asynchronní volání má pøíponu \texttt{\_send}.
-	\item Funkce, která bude vyvolána v~okam¾iku dokonèení události má pøíponu
-		\texttt{\_done} 
-
+	\item Funkce, která bude vyvolána v~okam¾iku dokonèení události, má pøíponu
+		\texttt{\_done}.
 	\begin{itemize}
 		\item	V~této funkci je mo¾né získat výsledky asynchronní operace pomocí
 			volání funkce s~pøíponou \texttt{*\_recv}.
 	\end{itemize}
 \end{itemize}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=1.00]{fig/tevent/function_interfaces.pdf}
+	\caption{Rozhraní synchronních a asynchronních funkcí.}
+\end{figure}
+
+
+
+Tuto konvenci je vhodné striktnì dodr¾ovat, proto¾e èitelnost asynchronního kódu
+je obecnì slo¾itìj¹í. Pou¾ití správného stylu zápisu kódu zlep¹uje èitelnost a
+pomáhá programátorovi si lépe pøedstavit, v~jakém poøadí se bude kód vykonávat.
+
+Nejprve je danou událost nutno vytvoøit a spojit s~ní privátní data. Knihovna
+tevent pro alokaci dynamické pamìti pou¾ívá rovnì¾ knihovnu talloc. Asynchronní
+funkci je mo¾né zavolat pomocí funkce \uv{request\_send}\footnote{funkci je
+mo¾né si pojmenovat libovolnì, napø. \texttt{ldap\_query\_send}}. Poté probíhá
+asynchronní provádìní programu. V~okam¾iku kdy bude událost oznaèena jako
+dokonèená\footnote{napø. pomocí funkce \texttt{tevent\_req\_done()}}, vyvolá se
+její callback tj. funkce \uv{request\_done}. V~této funkci je mo¾né zpracovat
+výsledky dané události a následnì ji odstranit.  
 
 \begin{figure}[h]
 	\centering
@@ -698,27 +713,16 @@ S~tím je také spojena následující konvence:
 	\label{tevent_requests}
 \end{figure}
 
-Tuto konvenci je vhodné striktnì dodr¾ovat, proto¾e èitelnost asynchronního kódu
-je obecnì slo¾itìj¹í. Pou¾ití správného stylu zápisu kódu zlep¹uje èitelnost a
-pomáhá programátorovi si lépe pøedstavit v jakém poøadí se bude kód vykonávat.
-
-Nejprve je danou událost nutno vytvoøit a spojit s~ní privátní data. Knihovna
-tevent pro alokaci dynamické pamìti pou¾ívá rovnì¾ knihovnu talloc. Asynchronní
-funkci je mo¾né zavolat pomocí rozhraní \uv{request\_send}\footnote{funkci je
-mo¾né pojmenovat napø. \texttt{ldap\_query\_send}}. Poté probíhá asynchronní
-provádìní programu. V~okam¾iku kdy bude událost oznaèena jako dokonèená, vyvolá
-se její callback tj. funkce \uv{request\_done}. V~této funkci je mo¾né zpracovat výsledky
-dané události a následnì ji odstranit.  
-
 Volání asynchronních funkcí je mo¾né do sebe také zanoøovat. Jedna asynchronní
-operace tak mù¾e volat jinou. Jeliko¾ jsou s ka¾dou událostí spojena privátní
+operace tak mù¾e volat jinou. Jeliko¾ jsou s~ka¾dou událostí spojena privátní
 data, bylo by nutné tyto data pøi ukonèení zanoøené události, uvolnit.
-Privátními daty ov¹em mù¾e být komplexní struktura potenciálnì obsahující dal¹í
-struktury. Z tohoto dùvodu pou¾ívá knihovna tevent pro alokaci pamìti rovnì¾ alokátor
-talloc, který ve¹kerá data zanoøených asynchronních funkcí alokuje hierarchicky. Pøi
-dokonèení první události\footnote{ta která volala dal¹í asynchronní funkce a ta
-dal¹í atd} je poté najednou uvolnìna ve¹kerá pøidìlená pamì», tj. také ve¹kerá
-pamì», která byla pøidìlena v¹em zanoøeným událostem.
+Privátními daty ov¹em mù¾e být komplexní struktura, potenciálnì obsahující
+ukazatele na dal¹í struktury. Z~tohoto dùvodu pou¾ívá knihovna tevent pro
+alokaci pamìti rovnì¾ alokátor talloc, který ve¹kerá data zanoøených
+asynchronních funkcí alokuje hierarchicky. Pøi dokonèení první
+události, tj. té, která volala dal¹í asynchronní funkce, je
+poté najednou uvolnìna ve¹kerá pøidìlená pamì», tj. také ve¹kerá pamì», která
+byla pøidìlena v¹em zanoøeným událostem.
 
 Knihovna tevent je také vyu¾ívána ve spojení s~knihovnami
 OpenLDAP\footnote{www.openldap.org} a DBUS\footnote{dbus.freedesktop.org}, které
@@ -726,20 +730,20 @@ obaluje. Tyto knihovny byly obaleny právì proto, aby mohly být vyu¾ity jako vý¹e
 zmínìné \uv{tevent requests}.
 
 \section {Architektura SSSD}\label{sssd:architecture}
-SSSD se skládá z~nìkolika komponent (démonù). Hlavním procesem je zde
+SSSD se skládá z~nìkolika komponent. Hlavním procesem je zde
 \emph{Monitor}, který je rodièem v¹ech ostatních procesù. Stará se o~to, aby
 ostatní procesy zùstaly aktivní, detekuje sí»ové zmìny a informuje o~nich ostatní
 procesy. 
 
 Dal¹í komponentou jsou tzv. \emph{respondeøi}. Jsou to procesy, které pøijímají
-po¾adavky od klientských aplikací\footnote{napø.  \texttt{sudo}, \texttt{id},
-\texttt{getent}, \texttt{ls}, \dots} a vracejí odpovìdi na tyto po¾adavky.
-Smyslem tìchto procesù je vrátit, za pomoci cache pamìti, co nejrychleji odpovìï
-na dotaz, který jím klientská aplikace zaslala. Proto by mìly provádìt co
-nejménì algoritmicky nároèných operací a v~podstatì pouze èíst a pøedávat data
-z~cache pamìti SSSD. Komunikují tedy pouze s~cache pamìtí nebo poskytovali dat,
-ale nikdy nekomunikují se vzdáleným serverem. V~následujícím textu bude pro
-ka¾dý takový proces pou¾íván výraz \textbf{responder}.
+po¾adavky od klientských aplikací, jako jsou napø. \texttt{sudo}, \texttt{id}
+nebo \texttt{getent}, a vracejí odpovìdi na tyto po¾adavky.  Smyslem tìchto
+procesù je vrátit, za pomoci cache pamìti, co nejrychleji odpovìï na dotaz,
+který jím klientská aplikace zaslala. Proto by mìly provádìt co nejménì
+algoritmicky nároèných operací a v~podstatì pouze èíst a pøedávat data z~cache
+pamìti SSSD. Komunikují tedy pouze s~cache pamìtí nebo poskytovali dat, ale
+nikdy nekomunikují se vzdáleným serverem. V~následujícím textu bude pro ka¾dý
+takový proces pou¾íván výraz \textbf{responder}.
 
 Ve¹kerou práci spojenou s~komunikací se vzdáleným serverem, zpracování výsledkù
 a jejich ulo¾ení do cache pamìti by mìl zajistit konkrétní \emph{provider}.
@@ -747,9 +751,9 @@ Který provider bude pou¾it pro kterou slu¾bu je mo¾né nastavit v~konfiguraèním
 souboru \texttt{sssd.conf}. Napøíklad \texttt{id\_provider} specifikuje, který
 provider SSSD pou¾ije pro zji¹»ování informací o~identitách. Informace o~SUDO
 pravidlech poté poskytuje SUDO provider. Ka¾dý provider mù¾e pou¾ívat jiný
-plugin. Napøíklad provider identit mù¾e pou¾ít \emph{ldap plugin} pro pøístup
+modul. Napøíklad provider identit mù¾e pou¾ít \emph{ldap plugin} pro pøístup
 k~identitám ulo¾ený v~LDAP adresáøi, \emph{ad plugin} pro identity spravované
-serverem \emph{Active Direcetory}. Pro SUDO providera je mo¾né pou¾ít pluginy
+technologií Active Direcetory. Pro SUDO providera je mo¾né pou¾ít pluginy
 \emph{ldap} a \emph{ipa}. Informaci o~tom, které pluginy jsou konkrétními
 providery podporovány, je mo¾né nalézt v~manuálové stránce
 \texttt{sssd.conf}\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd.conf.5.html}.
@@ -758,20 +762,20 @@ kterého pøistupuje SUDO provider k~SUDO politikám na vzdáleném serveru.
 
 S~pomocí SSSD mù¾e být jedna stanice pøipojena do více domén zároveò. Pro ka¾dou
 doménu je vytvoøen samostatný proces, který danou doménu reprezentuje. Takový
-proces je nazýván \emph{backend}. Backend pou¾ívá providery pro pro komunikaci
+proces je nazýván \emph{backend}. Backend pou¾ívá providery pro komunikaci
 se vzdálenými servery.  
 
-Ka¾dý backend má ve své interní struktuøe\footnote{kontext \texttt{struct
-be\_ctx}} ukazatel na pole \texttt{bet\_info}, které obsahuje informace
-o~providerech, které daný backend pou¾ívá. Ka¾dá polo¾ka tohoto pole je tvoøena
-strukturou \texttt{bet\_info}. Ta obsahuje napø.  jméno pluginu, který se má pro
-daný provider pou¾ít, ukazatel na privátní data nebo ukazatel na strukturu
-\texttt{bet\_ops}, kde se nachází ukazatel na funkci, kterou volají respondeøi,
-pokud chtìjí danému providerovi zaslat nìjaký po¾adavek. Jméno této funkce má
-v~SSSD obecnì pøíponu \textbf{handler}\footnote{napøíklad
-\texttt{sdap\_sudo\_handler} je SUDO handler pro LDAP SUDO providera} a takto
-bude oznaèována i v~následujícím textu.  Polo¾ku pole \texttt{bet\_info} pro
-LDAP SUDO providera zobrazuje obrázek \ref{fig:bet_info_sudo}.
+Ka¾dý backend má ve své interní struktuøe ukazatel na pole \texttt{bet\_info},
+které obsahuje informace o~providerech, které daný backend pou¾ívá. Ka¾dá
+polo¾ka tohoto pole je tvoøena strukturou \texttt{bet\_info}. Ta obsahuje napø.
+jméno pluginu, který se má pro daný provider pou¾ít, ukazatel na privátní data
+nebo ukazatel na strukturu \texttt{bet\_ops}, kde se nachází ukazatel na funkci,
+kterou volají respondeøi, pokud chtìjí danému providerovi zaslat nìjaký
+po¾adavek. Jméno této funkce má v~SSSD obecnì pøíponu
+\emph{\_handler}
+a takto bude oznaèována i v~následujícím textu.
+Polo¾ku pole \texttt{bet\_info}, pro SUDO providera pou¾ívající ldap plugin, zobrazuje obrázek
+\ref{fig:bet_info_sudo}.
 
 \begin{figure}[h]
 \centering
@@ -784,16 +788,16 @@ LDAP SUDO providera zobrazuje obrázek \ref{fig:bet_info_sudo}.
 Ka¾dý backend také pou¾ívá svou cache pamì». Do této pamìti zapisuje pouze daný
 backend a respondeøi z~ní mohou data pouze èíst. Pro tuto cache je pou¾ita
 transakèní LDB\footnote{http://ldb.samba.org/} databáze, co¾ je zjednodu¹ená
-vezre LDAP adresáøe.  I kdy¾ tato databáze pøesnì neodpovídá LDAP standardu,
+vezre LDAP adresáøe.  I~kdy¾ tato databáze pøesnì neodpovídá LDAP standardu,
 disponuje podobným API\footnote{Application programming interface}, které
-napøíklad pøi vyhledávání v této databázi umo¾òuje vyu¾ít stejnou syntaxi
-filtrù jako u LDAP dotazù. Tato cache pamì» se èasto oznaèuje také jako
-\emph{sysdb}. Toto oznaèení bude také pou¾íváno v následujícím textu.
+napøíklad pøi vyhledávání v~této databázi umo¾òuje vyu¾ít stejnou syntaxi
+filtrù jako u~LDAP dotazù. Tato cache pamì» se èasto oznaèuje také jako
+\emph{sysdb}. Toto oznaèení bude také pou¾íváno v~následujícím textu.
 
-Respondeøi komunikují s providery skrze backend dané domény zasíláním SBUS
-zpráv. Jestli¾e responder nenajde hledaná data v sysdb, pak po¹le konkrétnímu
+Respondeøi komunikují s~providery skrze backend dané domény zasíláním SBUS
+zpráv. Jestli¾e responder nenajde hledaná data v~sysdb, pak po¹le konkrétnímu
 providerovi zprávu, aby je aktualizoval. Provider tento po¾adavek provede a
-upozorní respondera o tom, ¾e byla cache pamì» aktualizována.
+upozorní respondera na to, ¾e byla cache pamì» aktualizována.
 
 \begin{figure}[h]
 \centering
@@ -805,47 +809,43 @@ upozorní respondera o tom, ¾e byla cache pamì» aktualizována.
 \section{SSSD z~pohledu programu SUDO}\label{sec:sssd_from_sudo_prespective}
 Pøedpokládejme, ¾e jak informace o~identitách, tak jejich autentizaci a
 bezpeènostních politikách (sudo pravidlech) jsou ulo¾eny na vzdáleném serveru.
-Na klientském poèítaèi na nainstalován démon SSSD. Uva¾ujme, ¾e je klient èlenem
-jediné domény. U¾ivatel s u¾ivatelským jménem \texttt{xsruba03} chce zobrazit
-obsah souboru \texttt{/etc/shadow}. K~tomu ov¹em potøebuje vy¹¹í oprávnìní a
-proto se rozhodne pou¾ít program SUDO. 
-
-V tomto okam¾iku SUDO musí provést následující tøi úlohy:
-\begin{itemize}
-	\item zji¹tìní informací o u¾ivatelském úètu
+Na klientském poèítaèi je nainstalován démon SSSD. Uva¾ujme, ¾e je klient èlenem
+jediné domény. U¾ivatel s~u¾ivatelským jménem \texttt{xsruba03} chce zobrazit
+obsah souboru \texttt{/etc/shadow}. K~tomu ov¹em potøebuje vy¹¹í oprávnìní, a
+proto se rozhodne pou¾ít program SUDO. V~tomto okam¾iku musí SUDO provést
+následující tøi úlohy: 
+\begin{enumerate}
+	\item zji¹tìní informací o~u¾ivatelském úètu
 	\item autentizace daného u¾ivatele
 	\item získání sudo pravidel
-\end{itemize}
+\end{enumerate}
 
-\subsection{Zji¹tìní informací o u¾ivateli}
-Pro zji¹tìní informací o u¾ivatelském úètu pou¾ije SUDO funkce standardní
+\subsection{Zji¹tìní informací o~u¾ivateli}
+Pro zji¹tìní informací o~u¾ivatelském úètu pou¾ije SUDO funkce standardní
 knihovny jazyka C, tj. \texttt{getpwend()}, popø. \texttt{getgrouplist()}. Tyto
-funkce poté volají NSS\footnote{Name Service Switch} knihovnu\footnote{jedná se
-o upravenou verzi této knihovny}. Ta je dynamicky naèítána
-aplikacemi\footnote{ls, sudo, getent}, které potøebují komunikovat s SSSD.
-Získávání informací o u¾ivatelích je velice èastá operace, proto tato knihovna
-disponuje svojí cache pamìtí, která se oznaèuje jako tzv. \emph{fast
-cache}\footnote{jedná se o jinou cache pamì», ne¾ kterou pou¾ívá SSSD}. Jesli¾e
-NSS ve své cache pamìti daného u¾ivatele nenajde, po¹le dotaz na tohoto
-u¾ivatele NSS responderu, co¾ je jeden z procesù SSSD, konkrétnì proces
-sssd\_nss.
-
-%FIXME: NSS shcema 
+funkce poté volají NSS knihovnu\footnote{jedná se o~upravenou verzi této
+knihovny}. Ta je dynamicky naèítána aplikacemi\footnote{napø. \texttt{ls},
+\texttt{sudo}, \texttt{getent}}, které potøebují komunikovat s~SSSD.  Získávání
+informací o~u¾ivatelích je velice èastá operace, proto tato knihovna disponuje
+svojí cache pamìtí, která se oznaèuje jako tzv. \emph{fast cache}\footnote{jedná
+se o~jinou cache pamì», ne¾ kterou pou¾ívá SSSD}. Jesli¾e NSS ve své cache
+pamìti daného u¾ivatele nenajde, po¹le dotaz, na tohoto u¾ivatele, NSS responderu,
+co¾ je jeden z~procesù SSSD, konkrétnì proces sssd\_nss.
 
 NSS responder se nejprve podívá do sysdb, jestli¾e zde daného u¾ivatele nalezne,
-vrátí jej NSS. V opaèném pøípadì po¹le po¾adavek, na aktualizaci cache, provideru
-identit\footnote{v \texttt{sssd.conf} volba \texttt{id\_provider}}. Ten kontaktuje
-vzdálený server, aktualizuje cache pamì» SSSD a upozorní o tom NSS respondera. Ten
-poté vrátí informace o u¾ivateli NSS knihovnì a ta je pøedá programu SUDO.
+vrátí jej NSS. V~opaèném pøípadì po¹le po¾adavek, na aktualizaci cache, provideru
+identit. Ten kontaktuje vzdálený server, aktualizuje cache pamì» SSSD a upozorní
+o~tom NSS respondera. Ten poté vrátí informace o~u¾ivateli NSS knihovnì a ta je
+pøedá programu SUDO.
 
-\subsection{Autentizace u¾ivatele} Jestli¾e SUDO má informace o u¾ivateli, pak
-musí provést autentizaci tohoto u¾ivatele. Autentizaci prování, opìt upravená,
-knihovna PAM\footnote{Pluggable Authentication Modules}. Ta nedisponuje vlastní
-cache pamìtí a posílá tak po¾adavek pøímo PAM responderu. Ovìøení poté probíhá
-podobným zpùsobem jako u NSS respondera.  PAM responder ov¹em ¾ádá o aktualizaci
-sysdb providera zaji¹tující autentizaci\footnote{v \texttt{sssd.conf} volba
-\texttt{auth\_provider}}. A navíc znovu provádí ovìøení daného u¾ivatele oproti
-vzdálenému serveru. 
+\subsection{Autentizace u¾ivatele} 
+Jestli¾e má SUDO informace o~u¾ivateli, pak musí provést autentizaci tohoto
+u¾ivatele. Autentizaci prování, opìt upravená, knihovna PAM. Ta nedisponuje
+vlastní cache pamìtí a posílá tak po¾adavek pøímo PAM responderu. Ovìøení poté
+probíhá podobným zpùsobem jako u~NSS respondera.  PAM responder ov¹em ¾ádá
+o~aktualizaci sysdb providera, který zaji¹»uje autentizaci\footnote{v
+\texttt{sssd.conf} volba \texttt{auth\_provider}}. A~navíc znovu provádí ovìøení
+daného u¾ivatele oproti vzdálenému serveru. 
 
 \subsection{získání sudo pravidel}
 Jestli¾e autentizace u¾ivatele probìhla úspì¹nì, pak pøichází na øadu SUDO
@@ -990,15 +990,14 @@ plánovány. Tuto funkcionalitu blí¾e popisuje sekce
 %-------------------------------------------------------------------------------
 \section {LDAP SUDO Provider}
 SUDO provider provádí ve¹kerou práci pøi komunikaci s~LDAP serverem. Pomocí
-volby \texttt{sudo\_provider} v konfiguraèním souboru \texttt{sssd.conf} je
+volby \texttt{sudo\_provider} v~konfiguraèním souboru \texttt{sssd.conf} je
 mo¾no urèit, který plugin tento provider bude pou¾ívat. Na výbìr jsou pluginy
-\uv{ldap}\footnote{\texttt{sudo\_provider=ldap}} a
-\uv{ipa}\footnote{\texttt{sudo\_provider=ipa}}.  Tato sekce popisuje
-funkcionalitu ldap pluginu, který je nutno pou¾ít, máme-li sudo pravidla ulo¾ena
-na LDAP serveru v nativním LDAP SUDO schématu. Tento plugin provádí sta¾ení,
-zpracování a ulo¾ení tìchto pravidel do sysdb. Skládá se z~nìkolika modulù
-jejich¾ celkovou funkcionalitu popisuje schéma
-\ref{ldap_provider_high_level}.
+\uv{ldap} a \uv{ipa}\footnote{\texttt{sudo\_provider=ldap} nebo
+\texttt{sudo\_provider=ipa}}.  Tato sekce popisuje funkcionalitu ldap pluginu,
+který je nutno pou¾ít, máme-li sudo pravidla ulo¾ena na LDAP serveru v~nativním
+LDAP SUDO schématu. Tento plugin provádí sta¾ení, zpracování a ulo¾ení tìchto
+pravidel do sysdb. Skládá se z~nìkolika modulù jejich¾ celkovou funkcionalitu
+popisuje schéma \ref{ldap_provider_high_level}.
 
 \begin{sidewaysfigure}
 	\centering
@@ -1028,11 +1027,12 @@ Inicializaci provádí funkce \texttt{sdap\_sudo\_init()}.
 Jména poèítaèe, pro která budou stahována aplikovatelná SUDO pravidla, jsou
 získávána automaticky pomocí systémového volání \texttt{gethostname()}. Jestli¾e
 je ji¾ jméno poèítaèe specifikováno jako FQDN\footnote{Fully Qualified Domain
-Name}. Pak ji¾ dal¹í vyhledávání neprobíhá. V~opaèném pøípadì se LDAP plugin
+Name}, pak ji¾ dal¹í vyhledávání neprobíhá. V~opaèném pøípadì se LDAP plugin
 pokusí získat FQDN pomocí asynchronního volání
 \texttt{resolv\_gethostbyname\_send()}. I~kdy¾ jsou IP adresy a jméno poèítaèe
-získávána automaticky, je mo¾né je specifikovat pøímo v~\texttt{sssd.conf} pod
-volbami \texttt{ldap\_sudo\_hostnames} a \texttt{ldap\_sudo\_ip}. Jejich hodnoty
+získávána automaticky, je mo¾né je specifikovat pøímo v~\texttt{sssd.conf}
+pomocí
+voleb \texttt{ldap\_sudo\_hostnames} a \texttt{ldap\_sudo\_ip}. Jejich hodnoty
 jsou poté zohlednìny pøi sestavovaní filtrù pro LDAP dotazy. Pou¾itím tìchto
 voleb je poté mo¾né stahovat i taková SUDO pravidla, která nejsou aplikovatelná
 na klientský poèítaè\footnote{Pou¾íváno pøevá¾nì pro testování.}.
@@ -1041,7 +1041,7 @@ na klientský poèítaè\footnote{Pou¾íváno pøevá¾nì pro testování.}.
 Souèástí inicializace je také nastavení plánování prùbì¾ných a úplných
 aktualizací. Jak èasto budou tyto aktualizace provádìny je mo¾né ovlivnit 
 v~\texttt{sssd.conf}\footnote{Volby \texttt{ldap\_sudo\_full\_refresh\_interval} a
-\texttt{ldap\_sudo\_smart\_refresh\_interval}}.
+\texttt{ldap\_sudo\_smart\_refresh\_interval}.}.
 
 Pøi spou¹tìní SSSD by mohla nastat situace, kdy stihne u¾ivatel spustit program
 SUDO
@@ -1058,9 +1058,9 @@ implementaèní detaily je mo¾né nalézt ve funkci
 V¹echny tøi typy aktualizací vyu¾ívají modul
 \texttt{providers/ldap/sdap\_async\_sudo.c}, který provádí samotné sta¾ení a
 ulo¾ení SUDO pravidel do sysdb. Funkcionalitu tohoto modulu je mo¾né ovlivnit
-pomocí parametrù, které jsou mu pøedány. Parametry mohou být napøíklad filtry,
-které se mají pou¾ít. Pøedpøipravení parametrù pro konkrétní aktualizace
-provádìjí následující funkce: 
+pomocí parametrù, které jsou mu pøedány. Parametry mohou být napøíklad LDAP a
+SYSDB filtry, které se mají pou¾ít. Pøedpøipravení parametrù pro konkrétní
+aktualizace provádìjí následující funkce: 
 \begin{itemize} 
 	\item \texttt{sdap\_sudo\_full\_refresh\_send()} pro kompletní aktualizaci 
 	\item \texttt{sdap\_sudo\_smart\_refresh\_send()} pro prùbì¾né aktualizace 
@@ -1111,7 +1111,7 @@ aplikovatelná na jakoukoliv sí»ovou skupinu poèítaèù
 (\texttt{(sudoHost=+*)}, proto¾e nemá informaci o~tom, ve kterých sí»ových
 skupinách se poèítaè nachází.
 
-Pøed ulo¾ením sta¾ených pravidel jsou nejprve z~sysdb odstranìny \textbf{v¹echny} SUDO
+Pøed ulo¾ením sta¾ených pravidel jsou nejprve ze sysdb odstranìny \textbf{v¹echny} SUDO
 pravidla pomocí filtru \ref{sysdb:full_refresh}. A¾ poté je zahájena
 transakce pro ulo¾ení novì sta¾ených pravidel.
 
@@ -1120,7 +1120,7 @@ transakce pro ulo¾ení novì sta¾ených pravidel.
 	language=bash,
 	basicstyle=\normalsize\ttfamily,
 	morekeywords={*,objectClass},
-	caption={Filtr, který z cache pamìti odstraní v¹echny sudo pravidla.},
+	caption={Filtr, který z~cache pamìti odstraní v¹echny sudo pravidla.},
 	captionpos=b,
 	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
 }
@@ -1128,18 +1128,18 @@ transakce pro ulo¾ení novì sta¾ených pravidel.
 (objectClass=sudoRule)
 \end{lstlisting}
 
-Úplná aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství
-pravidel generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD,
-pøi detekci zmìny pravidel na serveru nebo periodicky s men¹í frekvencí ne¾
-prùbì¾né aktualizace\footnote{pøi zachování výchozího nastavení se provádní
-ka¾dých 6 hodin}. V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ
+Úplná aktualizace se neprovádí velmi èasto, proto¾e pøi velkém mno¾ství pravidel
+generuje velký sí»ový provoz. Provádí se tedy pouze pøi spu¹tìní SSSD, pøi
+detekci zmìny pravidel na serveru nebo periodicky s~men¹í frekvencí ne¾ prùbì¾né
+aktualizace. Pøi zachování výchozího nastavení se tato aktualizace provádní
+ka¾dých 6 hodin.  V~manuálnových stránkách a v~kódu SSSD je mo¾né tento typ
 aktualizace najít jako \uv{\emph{full refresh}}.
 
 \subsubsection {Prùbì¾ná aktualizace}
 \label{ch:sssd:sec:ldap_provider:smart_refresh_implementation}
 Smyslem prùbì¾ných aktualizací je periodicky stahovat taková pravidla,
-která jsou na serveru novì pøidány nebo byly od poslední aktualizace
-modifikovány.  Pro detekci modifikovaných pravidel se pøi prùbì¾ných
+která jsou na serveru novì pøidána nebo byla od poslední aktualizace
+modifikována.  Pro detekci modifikovaných pravidel se pøi prùbì¾ných
 aktualizacích vyu¾ívá USN plugin a jeho \texttt{EntryUSN} atribut, viz. USN
 plugin v~sekce \ref{ipa_sudo_schema}.
 
@@ -1191,38 +1191,36 @@ v¹echny pravidla, jejich¾ hodnota atributu \texttt{entryUSN} je vìt¹í ne¾ 9270.
 )
 \end{lstlisting}
 
-Pøi prùbì¾ných aktualizacích z cache pamìti nejsou mazána ¾ádná pravidla. Dochází pouze
+Pøi prùbì¾ných aktualizacích z~cache pamìti nejsou mazána ¾ádná pravidla. Dochází pouze
 k~pøidávání pravidel, jestli¾e se na serveru vyskytují novìj¹í pravidla.
 Smyslem tohoto typu aktualizace je tedy stahovat pravidla, která mají na IPA
-serveru vìt¹í hodnoty \texttt{entryUSN} atributù ne¾ nejvìt¹í známá hodnota v
-sysdb.
+serveru vìt¹í hodnoty \texttt{entryUSN} atributù ne¾ nejvìt¹í známá hodnota
+v~sysdb.
 
 V~manuálových stránkách a v~kódu SSSD je mo¾né tento typ aktualizace vyhledat
 jako \uv{\emph{smart refresh}}.
 
 \subsubsection {Aktualizace pravidel}
 \label{ch:sssd:sec:ldap_provider:rules_refresh_implementation}
-Tato aktualizace je provedena pøi ka¾dém spu¹tìní programu SUDO. Zajistí aby
+Tento typ aktualizace je proveden pøi ka¾dém spu¹tìní programu SUDO. Zajistí aby
 u¾ivatel nedostal vìt¹í oprávnìní ne¾ je definováno.  Jestli¾e se v~sysdb pøi
 spu¹tìní programu SUDO nachází nìjaká pravidla, která ji¾ nejsou
-platná\footnote{Èas po kterém pravidla v~cache pamìti stanou neplatná je mo¾no
+platná\footnote{Èas po kterém se pravidla v~cache pamìti stanou neplatná, je mo¾no
 nastavit v~\texttt{sssd.conf} pomocí volby \texttt{entry\_cache\_sudo\_timeout},
-viz.  \texttt{manuálová stránka
-sssd.conf\footnote{http://jhrozek.fedorapeople.org/sssd/1.11.5/man/sssd.conf.5.html}}},
-pak se provede jejich aktualizace. Pøedpokládejme pøíklad, kdy v~sysdb ji¾
-nejsou validní pravidla \textbf{rule1} a \textbf{rule2}. Nejprve se provede
-vyhledání tìchto pravidel na serveru. Pro LDAP dotaz bude pou¾it filtr
-\ref{ldap:rules_refresh}. Jakmile budou potøebná pravidla sta¾ena, provede se
-nejprve odstranìní neplatných pravidel z cache pamìti. Pro vyhledání tìchto
-pravidel pou¾ije SUDO provider filtr \ref{sysdb:rules_refresh}. Novì sta¾ená
-pravidla poté budou ulo¾eno do sysdb.
-
+viz. manuálová stránka \texttt{sssd.conf}}, pak se provede jejich aktualizace.
+Pøedpokládejme pøíklad, kdy v~sysdb ji¾ nejsou validní pravidla \textbf{rule1} a
+\textbf{rule2}. Nejprve se provede vyhledání tìchto pravidel na serveru. Pro
+LDAP dotaz bude pou¾it filtr \ref{ldap:rules_refresh}. Jakmile budou potøebná
+pravidla sta¾ena, provede se nejprve odstranìní neplatných pravidel z~cache
+pamìti. Pro vyhledání tìchto pravidel v~sysdb pou¾ije SUDO provider filtr
+\ref{sysdb:rules_refresh}. Novì sta¾ená pravidla poté budou ulo¾eno do sysdb.
+\\\\
 \def\lstlistingname{LDAP filtr}
 \lstset{
 	language=bash,
 	basicstyle=\normalsize\ttfamily,
 	morekeywords={*,objectClass},
-	caption={Filtr, který na serveru vyhledá neplatná pravidla z sysdb.},
+	caption={Filtr, který na serveru vyhledá neplatná pravidla z~sysdb.},
 	captionpos=b,
 	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
 }
@@ -1254,7 +1252,7 @@ pravidla poté budou ulo¾eno do sysdb.
 \lstset{
 	language=bash,
 	basicstyle=\normalsize\ttfamily,
-	caption={Filtr, pro odstranìní neplatných pravide z cache pamìti.},
+	caption={Filtr, pro odstranìní neplatných pravide z~cache pamìti.},
 	captionpos=b,
 	emph={cn, objectClass},emphstyle={\bf\color{black}},
 }
@@ -1321,7 +1319,7 @@ Jestli¾e SUDO responder nenajde daná pravidla v~sysdb, pak za¹le SBUS po¾adavek
 pøes SUDO handler danému providerovi.  Jestli¾e SUDO pou¾ívá LDAP jako provider
 plugin \footnote{\texttt{sudo\_provider=ldap}}, pak se zavolá funkce
 \texttt{sdap\_sudo\_handler()}. Tato funkce, která se také oznaèuje jako
-\uv{Handler} se nachází v interní struktuøe backendu, viz. Sekce
+\uv{Handler} se nachází v~interní struktuøe backendu, viz. Sekce
 \ref{sec:sssd_from_sudo_prespective}. Samotnou definici handleru je mo¾né najít
 v~modulu \texttt{sdap\_sudo.c}.
 
@@ -1385,8 +1383,8 @@ nativního IPA SUDO providera se zabýva kapitola
 
 \section{Dereferenèní dotaz}\label{sec:deref}
 LDAP dotaz umo¾òuje získat záznam, popøípadì mno¾inu záznamùz LDAP adreáøe.
-Jestli¾e se nìjaký atribut z tìchto záznamu odkazuje na jiné záznamy (hodnota
-nìkterého z atributù obsahuje DN jiného záznamu v adresáøi). Pak pro získání
+Jestli¾e se nìjaký atribut z~tìchto záznamu odkazuje na jiné záznamy (hodnota
+nìkterého z~atributù obsahuje DN jiného záznamu v~adresáøi). Pak pro získání
 tìchto záznamù je nutné vytvoøit nový dotaz.
 
 \begin{figure}[h]
@@ -1406,7 +1404,7 @@ funkcionality a nabízí programátorovi asynchronní funkci
 \ref{fig:sdap_deref}.
 
 Server ov¹em musí tento typ \uv{controls} podporovat\footnote{supportedControl:
-1.3.6.1.4.1.4203.666.5.16}. U Active Directory se tato technika oznaèuje jako
+1.3.6.1.4.1.4203.666.5.16}. U~Active Directory se tato technika oznaèuje jako
 \emph{Attribute Scope
 Queries}.\footnote{http://msdn.microsoft.com/en-us/library/aa746418\%28v=vs.85\%29.aspx}
 
@@ -1417,16 +1415,16 @@ Queries}.\footnote{http://msdn.microsoft.com/en-us/library/aa746418\%28v=vs.85\%
 \chapter{Nativní IPA SUDO Provider}\label{ch:native_ipa_sudo_provider}
 Tato kapitola se zabývá diskusí nad øe¹ením hlavních problémù, které je nutno
 zvá¾it pøi návrhu nativního IPA SUDO providera pro démona SSSD. Sekce
-implementace popisuje jak a které z tìchto pøístupù byly vybrány pro
-implementaci nového providera. V sekci testování je poté popsána metodika a
-nástroje vyu¾ité k otestování navr¾ených øe¹ení.
+implementace popisuje jak a které z~tìchto pøístupù byly vybrány pro
+implementaci nového providera. V~sekci testování je poté popsána metodika a
+nástroje vyu¾ité k~otestování navr¾ených øe¹ení.
 
 \section{Návrh}
 Cílem této sekce je popsat mo¾né pøístupy ke sta¾ení a zpracování SUDO pravidel,
-jejich¾ výhody a nevýhody byly diskutovány s vývojáøi LDAP SUDO providera.
-Nìkteré specifické detaily také s vývojáøi projektu FreeIPA. 
+jejich¾ výhody a nevýhody byly diskutovány s~vývojáøi LDAP SUDO providera.
+Nìkteré specifické detaily také s~vývojáøi projektu FreeIPA. 
 
-\subsection{Správný pøístup k získávání SUDO pravidel}
+\subsection{Správný pøístup k~získávání SUDO pravidel}
 %\subsection{SUDO pravidla aplikovatelná na klienta}
 Jedním z~problémù, které je nutno vyøe¹it, je správný pøístup k~tomu jakým
 zpùsobem získat kompletní SUDO pravidla pro daný poèítaè. A~zároveò nestahovat
@@ -1464,7 +1462,7 @@ skupinu poèítaèù a klient je zároveò èlenem této skupiny. Pak je SUDO pravidlo
 na daného klienta aplikovatelné. Odkaz na toto pravidlo se ov¹em nenachází
 v~záznamu daného poèítaèe, ale v~záznamu dané skupiny. Odkazy na tyto pravidla by
 bylo nutné získat pomocí dereference odkazù\footnote{Tato technika je blí¾e
-popsána v sekci \ref{sec:deref}} na dané
+popsána v~sekci \ref{sec:deref}} na dané
 záznamy skuipin poèítaèù.
 
 \subsubsection{Specifikace klientského poèítaèe}
@@ -1510,8 +1508,8 @@ pouze na IPA serveru. Tento problém by bylo mo¾né odstranit dvìma zpùsoby:
 		èlenem a a¾ poté sestavit LDAP dotaz pro sta¾ení SUDO pravidel. 
 \end{enumerate}
 
-Pro implementaci byl vybrán právì tento druhý pøístup. Detaily jsou poté popsány v
-úvodu sekce \ref{sec:implementation}.
+Pro implementaci byl vybrán právì tento druhý pøístup. Detaily jsou poté popsány
+v~úvodu sekce \ref{sec:implementation}.
 
 \subsection{Sta¾ení SUDO pravidel} 
 Jestli¾e víme, jak specifikovat SUDO pravidla aplikovatelná na klientský
@@ -1593,11 +1591,11 @@ pou¾ity. Bylo by je ov¹em nutné zpracovat, co¾ pøiná¹í výkonnostní ztráty.
 \subsection{Pøeklad pravidel}\label{ipa_sudo_rules_export}
 Jeliko¾ SUDO doká¾e zpracovat pouze pravidla, která odpovídají nativnímu LDAP
 SUDO schématu. Je nutné provést pøeklad pravidel, která jsou ulo¾ena na IPA
-serveru v IPA SUDO schématu. Jak bylo popsáno v sekci
-\ref{sudo_rules_compat_plugin}, pøeklad \textbf{v¹ech} sudo pravidel v souèasné
-dobì realizuje compat plugin a je provádìn \textbf{na serveru} FreeIPA. S
-podporovou nativního IPA SUDO schématu se tento pøeklad pøesune na stranu SSSD a
-bude tedy probíhat \textbf{u klienta}. Na stranì klienta se ji¾ nebudou
+serveru v~IPA SUDO schématu. Jak bylo popsáno v~sekci
+\ref{sudo_rules_compat_plugin}, pøeklad \textbf{v¹ech} sudo pravidel v~souèasné
+dobì realizuje compat plugin a je provádìn \textbf{na serveru} FreeIPA.
+S~podporovou nativního IPA SUDO schématu se tento pøeklad pøesune na stranu SSSD a
+bude tedy probíhat \textbf{u~klienta}. Na stranì klienta se ji¾ nebudou
 pøekládat ve¹kerá pravidla, ale pouze taková pravidla, která jsou aplikovatelná
 na klientský poèítaè.
 
@@ -1641,6 +1639,8 @@ a \texttt{sudoHost}, které zobrazují tabulky \ref{table:sudoUser} a
 
 \begin{table}[h]
   \begin{center}	
+	\caption[Table caption text]{Typy atributù a zpùsob jejich pøekladu.}
+	\label{table:ipa_sudo_attrs_types}
   \begin{tabular}{| l | l |} \hline
     \textbf{Typ atributu} & \textbf{Zpùsobe pøekladu hodnoty} \\ \hline\hline
 		\texttt{USER} & DN (hodnota kontejneru \texttt{uid}) \\ \hline
@@ -1654,8 +1654,6 @@ a \texttt{sudoHost}, které zobrazují tabulky \ref{table:sudoUser} a
 		\texttt{COPY}& kopie pùvodní hodnoty \\ \hline
   \end{tabular}
   \end{center}
-	\caption[Table caption text]{Typy atributù a zpùsob jejich pøekladu.}
-	\label{table:ipa_sudo_attrs_types}
 \end{table}
 
     
@@ -1814,16 +1812,16 @@ pravidla neobsahují odkazy na dal¹í záznamy, tj. odkazy na záznamy pøíkazù.
 Zva¾ována byla také varianta, kde by se pro úplnou aktualizaci postupovalo podle
 metody \ref{all_at_once}, tzn.  sta¾ení SUDO pravidel a zároveò v¹ech pøíkazù v~jediném
 LDAP dotazu. SSSD pou¾ívá své SDAP API pro provádìní LDAP dotazù. Výsledky LDAP
-a SDAP dotazù ov¹em v nìkterých pøípadech nejsou ekvivalentní\footnote{dùvodem
+a SDAP dotazù ov¹em v~nìkterých pøípadech nejsou ekvivalentní\footnote{dùvodem
 jsou mapy a záznamy, které nemají spoleèné tøídy}. Záznamy, pøijaté ze serveru,
 jsou filtrovány pøedtím, ne¾ jsou pøedány programátorovi. To zaji¹»uje funkce
 \texttt{sdap\_parse\_enrty}. Ta vrací pouze záznamy, které spadají do jedné
-konkrétní tøídy.  Jestli¾e pøijaté záznamy nejsou odvozeny z této konkrétní
+konkrétní tøídy.  Jestli¾e pøijaté záznamy nejsou odvozeny z~této konkrétní
 tøídy, pak jsou zahozeny. 
 
-Záznamy o sudo pravidlech a pøíkazy pro tyto pravidla jsou ulo¾eny v separátních
+Záznamy o~sudo pravidlech a pøíkazy pro tyto pravidla jsou ulo¾eny v~separátních
 kontejnerech a také jsou definovány pomocí jiné tøídy, viz. Tabulka
-\ref{table:ipa_rules_containers}. Z tohoto dùvodu není mo¾né jedním SDAP dotazem
+\ref{table:ipa_rules_containers}. Z~tohoto dùvodu není mo¾né jedním SDAP dotazem
 získat záznamy sudo pravidel a zárovneò záznamy pøíkazù pro tyto pravidla.
 
 %Zva¾ována byla také varianta, kde by se pro úplnou aktualizaci postupovalo
