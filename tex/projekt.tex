@@ -36,6 +36,19 @@
 \usepackage{float}
 \usepackage[tableposition=top]{caption}
 
+\lstnewenvironment{code}[1][]%
+  {\minipage{\linewidth} 
+   \lstset{
+ 			basicstyle=\ttfamily\footnotesize,
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}}
+  {\endminipage}
+
+
 
 %\hyphenation{dataExpireTimestamp}
 \hyphenation{FreeIPA}
