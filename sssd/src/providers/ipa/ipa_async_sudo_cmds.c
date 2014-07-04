@@ -210,11 +210,11 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
         return;
     } else if (ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE,
-              ("IPA SUDO connection failed - %s\n", strerror(ret)));
+              ("IPA SUDO cmds connection failed - %s\n", strerror(ret)));
         goto fail;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO connection successful\n"));
+    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO cmds connection successful\n"));
 
     struct sdap_attr_map *map = state->opts->ipa_sudocmds_map;
 
