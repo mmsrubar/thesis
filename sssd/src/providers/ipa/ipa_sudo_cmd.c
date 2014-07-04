@@ -114,8 +114,10 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
     int i;
 
     /* no ipa sudo rules -> nothing to build new filter from */
-    if (rules == NULL && count == 0) {
+    if (rules == NULL || count == 0) {
         return ENOENT;
+        DEBUG(SSSDBG_TRACE_FUNC, ("No IPA sudo rules necessary for building "
+                                  "LDAP filter for commands\n"));
     }
 
     DEBUG(SSSDBG_TRACE_FUNC,
@@ -165,7 +167,7 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
     /* no ipa commands needed by these ipa sudo rules */
     if (cmds_filter == NULL) {
         DEBUG(SSSDBG_TRACE_FUNC,
-          ("No IPA SUDO commands needed by downloaded IPA SUDO rules\n"));
+          ("No IPA sudo commands needed for downloaded IPA sudo rules\n"));
         ret = ENOENT;
     }
 

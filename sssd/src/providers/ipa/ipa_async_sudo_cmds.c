@@ -263,7 +263,7 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
     state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
  
     DEBUG(SSSDBG_TRACE_FUNC,
-          ("Receiving commands for IPA SUDO rules with base [%s]\n",
+          ("Receiving commands for IPA sudo rules with base [%s]\n",
            state->basedn));
 
     /* get IPA sudo commands */
@@ -271,28 +271,22 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
                                 &state->rules->ipa_cmds_count, 
                                 &state->rules->ipa_cmds);
     talloc_zfree(subreq);
-    if (ret) {
-        goto fail;
-    }
-
-    /*
-    print_rules("IPA sudoers:", state->rules->ipa_rules, state->rules->ipa_rules_count);
-    print_rules("IPA sudo commands:", state->rules->ipa_cmds, state->rules->ipa_cmds_count);
-    */
-
-       ret = ipa_sudo_export_cmds(state, 
-                                  state->rules->sudoers, 
-                                  state->rules->sudoers_count,
-                                  state->rules->cmds_index, 
-                                  state->rules->ipa_cmds, 
-                                  state->rules->ipa_cmds_count);
     if (ret != EOK) {
         goto fail;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("All IPA SUDO rules successfully exported into "
-                              "native LDAP SUDO scheme.\n"));
-    //print_rules("Exported IPA sudoers:", state->rules->sudoers, state->rules->sudoers_count);
+    ret = ipa_sudo_export_cmds(state, 
+                               state->rules->sudoers, 
+                               state->rules->sudoers_count,
+                               state->rules->cmds_index, 
+                               state->rules->ipa_cmds, 
+                               state->rules->ipa_cmds_count);
+    if (ret != EOK) {
+        goto fail;
+    }
+
+    DEBUG(SSSDBG_TRACE_FUNC, ("All IPA sudo rules successfully exported into "
+                              "native LDAP sudo scheme.\n"));
 
 fail:
     if (ret == EOK) {
