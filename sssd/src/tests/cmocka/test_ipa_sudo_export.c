@@ -1,6 +1,6 @@
 /*
     Authors:
-        Michal Srubar <mmsrubar@gmail.com>
+        Michal Šrubař <mmsrubar@gmail.com>
 
     Copyright (C) 2014 Red Hat
 
@@ -55,6 +55,7 @@
 #define TEST_CONF_FILE "tests_conf.ldb"
 
 static void test_export_done(struct tevent_req *subreq);
+void test_build_commands_filter_fail_done(struct tevent_req *subreq);
 
 struct sudo_rule {
     const char *attr;
@@ -250,7 +251,7 @@ struct sudo_rule ldap_rule4[] = {
 /* WHAT TO TEST ? */
 /* =================
  * - situation where there are no command needed for downloaded sudo rules
- * - projit vsechny mista, kde by se to mohlo posrat a zkusit je nasimulovat
+ * - projit vsechny mista, kde by se to mohlo padnout a zkusit je nasimulovat
  *   ... mozna v jinych testech?
  *
  */
@@ -558,6 +559,55 @@ void setup_sudo_env(void **state) {
     *state = sudo_test_ctx;
 }
 
+/* */
+static void test_build_commands_filter_fail_send(void **state)
+{
+    struct tevent_req *req;
+    struct sudo_test *test_ctx;
+ 
+    test_ctx = *state;
+
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
+
+    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
+    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
+    be_ctx->ev = test_ctx->test_ctx->ev;
+    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
+
+    req = ipa_sudo_get_cmds_send(test_ctx, NULL, 0, 
+                                 be_ctx, NULL, test_ctx->state->opts);
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_build_commands_filter_fail_done, test_ctx);
+
+    test_ev_loop(test_ctx->test_ctx);
+}
+
+void test_build_commands_filter_fail_done(struct tevent_req *subreq)
+{
+    struct sudo_test *ctx; 
+    struct ipa_sudo_get_cmds_state *state;
+    int ret;
+
+    /* req from ipa_sudo_load_sudoers_send() */
+    ctx = tevent_req_callback_data(subreq, struct sudo_test);
+    state = tevent_req_data(subreq, struct ipa_sudo_get_cmds_state);
+
+    /* get EXPORTED sudoers */
+    ret = ipa_sudo_get_cmds_recv(subreq, state, NULL, NULL);
+
+    assert_int_equal(ret, EINVAL);
+
+    /* end tevent loop */
+    ctx->test_ctx->done = true;
+    ctx->test_ctx->error = EOK;
+}
+
+
+
 /* simple IPA sudo rule with one command */
 void test_simple_rule_send(void **state)
 {
@@ -620,7 +670,6 @@ void test_no_commands_send(void **state)
     struct sudo_rule **rules;
     struct sudo_test *test_ctx;
     int count = 1;                  /* number of tested rules */
-    int cmds_count = 1;            /* number of cmds */
  
     test_ctx = *state;
 
@@ -846,6 +895,7 @@ void test_all_defined_ipa_rules_send(void **state)
 }
 
 
+
 static void test_export_done(struct tevent_req *subreq)
 {
 
@@ -879,6 +929,10 @@ void setup_sudo_env_teardown(void **state)
 int main(int argc, const char *argv[])
 {
     const UnitTest tests[] = {
+        unit_test_setup_teardown(test_build_commands_filter_fail_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+     
         unit_test_setup_teardown(test_simple_rule_send,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),

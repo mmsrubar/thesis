@@ -14,8 +14,8 @@ struct sudo_rules {
     struct sysdb_attrs **ipa_cmds;
     size_t ipa_cmds_count;
 
-    /* commands index created from ipa sudo rules, the length is the same as 
-     * number of ipa_rules 
+    /* commands index is an array created from ipa sudo rules which the length 
+     * is the same as number of ipa_rules 
      *
      * +----------------------------------------+-------------------------+
      * |cn=users_op,cn=sudocmdgroups,cn=sudo,$DC|fdfcaf84-...-080027eec4b0|
@@ -35,15 +35,22 @@ struct sudo_rules {
 
 void print_rules(const char *title, struct sysdb_attrs **rules, int count);
 
-errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
-                                struct sysdb_ctx *sysdb,
-                                struct sysdb_attrs **ipa_rules, 
-                                size_t rules_count, 
-                                struct sysdb_attrs ***exported_rules,
-                                size_t *sudoers_count,
-                                struct ipa_sudoer_cmds ***index,
-                                struct tevent_req *req);
-                                //struct ipa_sudoer_cmds ***index);
+errno_t export_sudoers(TALLOC_CTX *mem, 
+                       struct sysdb_ctx *sysdb,
+                       struct sysdb_attrs **ipa_rules, 
+                       size_t rules_count, 
+                       struct sysdb_attrs ***exported_rules,
+                       size_t *sudoers_count,
+                       struct ipa_sudoer_cmds ***index,
+                       struct tevent_req *req);
+                       //struct ipa_sudoer_cmds ***index);
+
+int export_sudoers_cmds(TALLOC_CTX *mem,
+                        struct sysdb_attrs **sudoers,
+                        int sudoers_count,
+                        struct ipa_sudoer_cmds **index, 
+                        struct sysdb_attrs **ipa_cmds,
+                        int ipa_cmds_count);
 
 errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx, 
                             struct sysdb_ctx *sysdb,

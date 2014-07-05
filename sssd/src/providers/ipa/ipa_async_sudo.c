@@ -37,12 +37,12 @@
 #include "providers/ipa/ipa_sudo_export.h"   // for print_rules
 #include "db/sysdb_sudo.h"
 
+static void ipa_sudo_sudoers_process(struct tevent_req *subreq);
+static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
 static void ipa_sudo_load_sudoers_finish(struct tevent_req *req, 
                                          struct sdap_sudo_refresh_state *state,
                                          struct sysdb_attrs **rules,
                                          size_t count);
-static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq);
-static void ipa_sudo_get_cmds_done(struct tevent_req *subreq);
 
 
 struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
@@ -62,6 +62,7 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_refresh_state);
     if (!req) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("tevent_req_create() failed\n"));
         return NULL;
     }
 
@@ -85,7 +86,15 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     /* if we don't have a search filter, this request is meaningless although
      * sysdb filter can be NULL for smart refresh */
     if (state->ldap_filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = EINVAL;
+        goto immediately;
+    }
+
+    /* sysdb_filter can be NULL at SMART REFRESH */
+    if (sysdb_filter != NULL && state->sysdb_filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        ret = ENOMEM;
         goto immediately;
     }
 
@@ -96,16 +105,15 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                     state->be_ctx,
                                     state->opts,
                                     state->sdap_conn_cache,
-                                    state->ldap_filter,
-                                    "");
+                                    state->ldap_filter, "");
     if (subreq == NULL) {
         ret = ENOMEM;
         goto immediately;
     }
 
-    /* we'll receive SUDO rules in IPA schema. We need to export these rules 
+    /* we'll receive SUDO rules in IPA schema. We need to export those rules 
      * into native LDAP SUDO schema before we can store them into sysdb. */
-    tevent_req_set_callback(subreq, ipa_sudo_load_ipa_sudoers_process, req);
+    tevent_req_set_callback(subreq, ipa_sudo_sudoers_process, req);
 
     /* asynchronous processing */
     return req;
@@ -149,7 +157,7 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
 }
 
 /* subreq -> req from sdap_sudo_refresh_send */
-static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
+static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
 {
     struct tevent_req *req;
     struct tevent_req *subsubreq;
@@ -169,6 +177,12 @@ static void ipa_sudo_load_ipa_sudoers_process(struct tevent_req *subreq)
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         tevent_req_error(req, ret);
+        return;
+    }
+
+    /* if there are no rules at IPA then we're done */
+    if (ipa_rules == NULL && ipa_rules_count == 0) {
+        tevent_req_done(req);
         return;
     }
 
@@ -205,15 +219,18 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     /* steal EXPORTED sudoers and free IPA sudo commands req */
     ret = ipa_sudo_get_cmds_recv(subreq, state, &count, &attrs);
     talloc_zfree(subreq);
-    if (ret) {
+    if (ret != EOK) {
         tevent_req_error(req, ret);
         return;
     }
 
+    /* FIXME: degub */
     print_rules("Exported ipa sudoers:", attrs, count);
 
-    // FIXME: multiple search bases not supported yet, is it even possible to
-    // use multiple search bases with IPA, should we support it?
+    /* FIXME: multiple search bases not supported yet, is it even possible to
+     * use multiple search bases with IPA, should we support it?
+     */
+
     /* add exported rules to result (because of multiple search bases) */
     if (count > 0) {
         state->ldap_rules = talloc_realloc(state, state->ldap_rules,
@@ -231,8 +248,6 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 
         state->ldap_rules_count += count;
     }
-
-    /* FIXME: skip next bases for now */
 
     /* now I need to purge sysdb and store exported sudoers */
     ipa_sudo_load_sudoers_finish(req, state, 

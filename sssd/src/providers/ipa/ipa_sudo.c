@@ -217,6 +217,9 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     ipa_access_ctx = talloc_get_type(be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
                                      struct ipa_access_ctx);
  
+    ipa_sudo_setup_periodical_refreshes(sudo_ctx);
+
+#ifdef SKIP_HOSTGROUPS
     /* we have the FQDN of the client so we can perform hostgroups lookup */
     req = ipa_sudo_get_hostgroups_send(sudo_ctx, 
                                        sudo_ctx->ipa_hostname, 
@@ -226,6 +229,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     }
  
     tevent_req_set_callback(req, ipa_sudo_get_hostinfo_finish, sudo_ctx);
+#endif
 
     return EOK;
 }

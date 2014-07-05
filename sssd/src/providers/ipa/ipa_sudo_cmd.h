@@ -11,18 +11,11 @@ struct ipa_sudoer_cmds {
     int denied_num;
 };
 
-int ipa_sudo_export_cmds(TALLOC_CTX *mem,
-                         struct sysdb_attrs **sudoers,
-                         int sudoers_count,
-                         struct ipa_sudoer_cmds **index, 
-                         struct sysdb_attrs **ipa_cmds,
-                         int ipa_cmds_count);
-
-errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
-                                   struct sysdb_ctx *sysdb,
-                                   struct sysdb_attrs **rules, 
-                                   int count, 
-                                   const char **cmd_filter);
+errno_t build_cmds_filter(TALLOC_CTX *mem,
+                          struct sysdb_ctx *sysdb,
+                          struct sysdb_attrs **rules, 
+                          int count, 
+                          const char **cmd_filter);
 
 /* Add a denied or allowed command of a rule into command index. */
 errno_t ipa_sudo_index_commands(TALLOC_CTX *mem, 

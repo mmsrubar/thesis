@@ -195,14 +195,16 @@ static errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx,
  *      externalUser, externalHost, ipaSudoOpt,
  *      ipaSudoRunAsExtUser, ipaSudoRunAsExtGroup 
  */
-static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
-                                         const char *ipa_name,
-                                         const char **sysdb_name)
+static errno_t export_attr_name(TALLOC_CTX *mem,
+                                const char *ipa_name,
+                                const char **sysdb_name)
 {
     errno_t ret = EOK;
 
-    // FIXME: use map or think through something smarter? Or let it be this way
-    // because it's more readable?
+    /* FIXME: 
+     * use map or think through something smarter? Or let it be this way
+     * because it's more readable?
+     */
 
     /* attrs which names need to be exported */
     if (strcasecmp(ipa_name, "memberUser") == 0 ) {
@@ -264,21 +266,21 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
         *sysdb_name = talloc_strdup(mem, ipa_name);
     } else {    /* ipa should NOT sent attr with other name */
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unknown attr name: %s\n", ipa_name));
-        ret = ENOENT;
+        return ENOENT;
     }
     
     if (sysdb_name == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
-        ret = ENOMEM;
+        return ENOMEM;
     }
 
     return ret;
 }
 
-static errno_t ipa_sudo_export_attr_value(TALLOC_CTX *mem,
-                                          struct ipa_sudo_export *properties,
-                                          struct sysdb_ctx *sysdb,
-                                          char **new_value)
+static errno_t export_attr_value(TALLOC_CTX *mem,
+                                 struct ipa_sudo_export *properties,
+                                 struct sysdb_ctx *sysdb,
+                                 char **new_value)
 {
     errno_t ret = EOK;
     char *value;
@@ -319,21 +321,23 @@ static errno_t ipa_sudo_export_attr_value(TALLOC_CTX *mem,
             break;
     }
 
-    if (ret != EOK || new_value == NULL) {
-        goto fail;
+    if (new_value == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc() failed\n"));
+        return ENOMEM;
     }
 
-fail:
     return ret;
 }
  
 
-// FIXME: use ipa_sudorule_map and macros for these constants?
-// It's much more readable and clear this way in my opinion
-static errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
-                                              const char *attr_name, 
-                                              const char *attr_val,
-                                              struct ipa_sudo_export **properties)
+/* FIXME: 
+ * Use ipa_sudorule_map and macros for these constants? It's much more 
+ * readable and clear this way in my opinion
+ */
+static errno_t export_set_properties(TALLOC_CTX *mem,
+                                     const char *attr_name, 
+                                     const char *attr_val,
+                                     struct ipa_sudo_export **properties)
 {
     struct ipa_sudo_export *prop;
     errno_t ret = EOK;
@@ -397,8 +401,8 @@ static errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
         prop->type = COPY;
     }
     else {
-        DEBUG(SSSDBG_CRIT_FAILURE, 
-             ("Don't know how to export this attr: %s\n", attr_name));
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Don't know how to export this attr: %s\n", 
+                                     attr_name));
         ret = ENOENT;
         goto fail;
     }
@@ -423,13 +427,14 @@ fail:
     return ret;
 }
 
-static errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem, 
-                                           struct sysdb_ctx *sysdb, 
-                                           struct ldb_message_element *e,
-                                           struct ipa_sudoer_cmds **cmd_index,
-                                           struct sysdb_attrs **sudoers,
-                                           const char *new_name,
-                                           struct tevent_req *req)
+static errno_t export_attr_values(TALLOC_CTX *mem_sudoer,
+                                  TALLOC_CTX *mem_cmd,
+                                  struct sysdb_ctx *sysdb,
+                                  struct ldb_message_element *e,
+                                  struct ipa_sudoer_cmds **cmd_index,
+                                  struct sysdb_attrs **sudoers,
+                                  const char *new_name,
+                                  struct tevent_req *req)
 {
     struct ldb_message_element *new_el = NULL;
     struct ipa_sudo_export *prop = NULL;
@@ -440,13 +445,12 @@ static errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
     /* EXPORT all values of the attribute */
     for (k = 0; k < e->num_values; k++) {
 
-        ret = ipa_sudo_export_set_properties(mem, e->name, 
-                                        (const char *)e->values[k].data, &prop);
+        ret = export_set_properties(mem_sudoer, e->name, (const char *)e->values[k].data, &prop);
         if (ret != EOK) {
             goto fail;
         }
 
-        ret = ipa_sudo_export_attr_value(mem, prop, sysdb, &new_value);
+        ret = export_attr_value(mem_sudoer, prop, sysdb, &new_value);
         if (ret != EOK) {
             goto fail;
         }
@@ -458,11 +462,7 @@ static errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
         if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
             strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
 
-            // FIXME: I should put cmds_index[i] as mem context here istead of
-            // ipa_sudo_get_state
-            //ret = ipa_sudo_index_commands(mem, *cmd_index, e->name, new_value);
-            ret = ipa_sudo_index_commands((TALLOC_CTX *)*cmd_index, 
-                                           *cmd_index, e->name, new_value);
+            ret = ipa_sudo_index_commands(mem_cmd, *cmd_index, e->name, new_value);
             if (ret != EOK) {
                 goto fail;
             }
@@ -474,14 +474,14 @@ static errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
          * new name of the attribute */
         ret = sysdb_attrs_get_el_ext(*sudoers, new_name, true, &new_el);
         if (ret != EOK) {
-            // FIXME: can't get new attribute
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             goto fail;
         }
 
         /* copy exported value to the values of the new attribute */
         ret = sysdb_attrs_add_string(*sudoers, new_name, new_value);
         if (ret != EOK) {
-            // FIXME: can't get new attribute
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
             goto fail;
         }
 
@@ -494,18 +494,21 @@ fail:
 }
 
 /* 
- * Export ipa specific attributes, copy attributes that doesn't need to be
+ * Export IPA specific attributes, copy attributes that doesn't need to be
  * exported and create command index (remeber commands for each rule so when we
- * got the commands we don't have to iterate through all rules attrs again).
+ * get the commands we don't have to iterate through all rules attrs again).
+ *
+ * Skip the commands attributes for now because we don't have the commands
+ * donwloaded yet.
  */
-errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
-                                struct sysdb_ctx *sysdb,
-                                struct sysdb_attrs **ipa_rules, 
-                                size_t rules_count, 
-                                struct sysdb_attrs ***exported_rules,
-                                size_t *sudoers_count,
-                                struct ipa_sudoer_cmds ***index,
-                                struct tevent_req *req)
+errno_t export_sudoers(TALLOC_CTX *mem, 
+                       struct sysdb_ctx *sysdb,
+                       struct sysdb_attrs **ipa_rules, 
+                       size_t ipa_rules_count, 
+                       struct sysdb_attrs ***exported_rules,
+                       size_t *sudoers_count,
+                       struct ipa_sudoer_cmds ***index,
+                       struct tevent_req *req)
 {
     struct ldb_message_element *e = NULL;
     struct sysdb_attrs **sudoers;
@@ -514,29 +517,37 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
     errno_t ret = EOK;
     int i, j;
 
+    /* no rules to export */
+    if (ipa_rules == NULL || ipa_rules_count == 0) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("no IPA sudo rules to export\n"));
+        return EINVAL;
+    }
+
     /* an array of exported sudoers (without commands) */
     *sudoers_count = 0;
-    sudoers = talloc_zero_array(mem, struct sysdb_attrs *, rules_count);
+    sudoers = talloc_zero_array(mem, struct sysdb_attrs *, ipa_rules_count);
     if (sudoers == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_zero_array() failed\n"));
+        ret = ENOMEM;
         goto fail;
     }
 
-    cmds_index = talloc_zero_array(mem, struct ipa_sudoer_cmds *, rules_count);
+    cmds_index = talloc_zero_array(mem, struct ipa_sudoer_cmds *, ipa_rules_count);
     if (cmds_index == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_zero_array() failed\n"));
+        ret = ENOMEM;
         goto fail;
     }
 
     /* for each rule aplicable to this host */
-    for (i = 0; i < rules_count; i++) {
+    for (i = 0; i < ipa_rules_count; i++) {
 
         DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO rule %s\n",
                                   (char *)ipa_rules[i]->a[1].values[0].data));
 
         /* new sudo rule */
         sudoers[i] = sysdb_new_attrs(sudoers);
-        /* new index of allowed and denied commands for this rules */
+        /* new index of allowed and denied commands for this specific rule*/
         cmds_index[i] = talloc_zero(cmds_index, struct ipa_sudoer_cmds);
 
         /* for each attribute of the rule */
@@ -546,16 +557,15 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
             e = &(ipa_rules[i]->a[j]);
 
             /* EXPORT the name of the attribute */
-            // FIXME: new atttrs has to be stored under sudoers attrs!
-            ret = ipa_sudo_export_attr_name(mem, e->name, &new_name);
+            ret = export_attr_name(sudoers[i], e->name, &new_name);
             if (ret != EOK) {
                 goto fail;
             }
 
             /* EXPORT all values of the attribute */
-            // FIXME: new atttrs has to be stored under sudoers context attrs!
-            ret = ipa_sudo_export_attr_values(mem, sysdb, e, &(cmds_index[i]), 
-                                              &(sudoers[i]), new_name, req);
+            ret = export_attr_values(sudoers[i], cmds_index[i], sysdb, e, 
+                                     &(cmds_index[i]), &(sudoers[i]), 
+                                     new_name, req);
                                               
             if (ret != EOK) {
                 goto fail;
@@ -569,8 +579,9 @@ errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem,
 
     } /* for each rule aplicable to this host */
 
-    if (rules_count != *sudoers_count || ret != EOK) {
+    if (ipa_rules_count != *sudoers_count || ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unsuccessful export of IPA SUDO rules\n"));
+        ret = EIO;
         goto fail;
     }
 
@@ -584,7 +595,7 @@ fail:
 /* If attr_name is ipaUniqueID then it'l return value of sudoCmd attribute on a
  * first call and NULL on second call.
  *
- * If attr_name is DN of a commands group then it'l return sudoCmd on each call
+ * If attr_name is DN of a commands group then it'll return sudoCmd on each call
  * and NULL if there are no more commands.
  */
 static const char *get_sudoCmd_value(TALLOC_CTX *mem,
@@ -644,12 +655,17 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
     int j;
 
     if (cmds == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("No ipa command index\n"));
-        return ENOENT;
+        DEBUG(SSSDBG_CRIT_FAILURE, ("No IPA command index\n"));
+        ret = ENOENT;
+        goto fail;
     }
 
     /* create sudoCommand attribute if there isn't yet */
-    sysdb_attrs_get_el_ext(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, true, &el);
+    ret = sysdb_attrs_get_el_ext(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, true, &el);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
+        goto fail;
+    }
 
     /* for each allowed or denied command */
     for (j = 0; j < count; j++) {
@@ -662,6 +678,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
             attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_MEMBEROF);
             cmd_group = true;
         }
+
         if (attr_name == NULL) {
             DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
             ret = ENOMEM;
@@ -669,7 +686,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         }
 
         while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
-            attr_name, cmds[j], cmd_group)) != NULL)
+                                        attr_name, cmds[j], cmd_group)) != NULL)
         {
 
             if (prefix) {   /* denied cmds has to have ! prefix */
@@ -696,17 +713,17 @@ fail:
     return ret;
 }
 
-int ipa_sudo_export_cmds(TALLOC_CTX *mem,
-                         struct sysdb_attrs **sudoers,
-                         int sudoers_count,
-                         struct ipa_sudoer_cmds **index, 
-                         struct sysdb_attrs **ipa_cmds,
-                         int ipa_cmds_count)
+int export_sudoers_cmds(TALLOC_CTX *mem,
+                        struct sysdb_attrs **sudoers,
+                        int sudoers_count,
+                        struct ipa_sudoer_cmds **index, 
+                        struct sysdb_attrs **ipa_cmds,
+                        int ipa_cmds_count)
 {
     errno_t ret = EOK;
     int i;
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("Exporting sudo commands\n"));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA sudo commands\n"));
 
     /* for each sudoer */
     for (i = 0; i < sudoers_count; i++) {

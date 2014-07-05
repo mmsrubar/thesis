@@ -38,7 +38,7 @@
 
 static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req);
 static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq);
-static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq);
+static void ipa_sudo_cmds_process(struct tevent_req *subreq);
 
 struct ipa_sudo_get_cmds_state {
 
@@ -49,7 +49,7 @@ struct ipa_sudo_get_cmds_state {
     struct sdap_id_conn_cache *conn_cache;
     struct sdap_options *opts;
 
-    const char *filter;     /* filter to get ipa sudo commands */
+    const char *filter;     /* LDAP filter for IPA sudo commands */
     const char *basedn;
     const char **attrs;
     int scope;
@@ -61,13 +61,12 @@ struct ipa_sudo_get_cmds_state {
     struct sudo_rules *rules;
 };
 
-struct tevent_req *
-ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
-                       struct sysdb_attrs **ipa_rules,
-                       int ipa_rules_count,
-                       struct be_ctx *be_ctx,
-                       struct sdap_id_conn_cache *conn_cache,
-                       struct sdap_options *opts)
+struct tevent_req *ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
+                                          struct sysdb_attrs **ipa_rules,
+                                          int ipa_rules_count,
+                                          struct be_ctx *be_ctx,
+                                          struct sdap_id_conn_cache *conn_cache,
+                                          struct sdap_options *opts)
 {
     struct ipa_sudo_get_cmds_state *state;
     struct tevent_req *req;
@@ -97,6 +96,12 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     state->error = EOK;
 
     state->rules = talloc_zero(state, struct sudo_rules);
+    if (state->rules == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_zero() failed\n"));
+        ret = ENOMEM;
+        goto immediately;
+    }
+
     state->rules->ipa_rules = talloc_steal(state->rules, ipa_rules);
     state->rules->ipa_rules_count = ipa_rules_count;
 
@@ -106,14 +111,10 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
         goto immediately;
     }
  
-    if (state->rules == NULL) {
-        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_zero() failed\n"));
-        ret = ENOMEM;
-        goto immediately;
-    }
+    DEBUG(SSSDBG_TRACE_FUNC, ("Getting commands for downloaded IPA SUDO rules\n"));
 
-    cmds_ret = ipa_sudo_build_cmds_filter(state, state->sysdb, ipa_rules, 
-                                          ipa_rules_count, &(state->filter));
+    cmds_ret = build_cmds_filter(state, state->sysdb, ipa_rules, 
+                                 ipa_rules_count, &(state->filter));
     if (cmds_ret != ENOENT && cmds_ret != EOK) {
         /* an error has occured */
         ret = cmds_ret;
@@ -121,13 +122,13 @@ ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     }
 
     /* EXPORT sudo rules but skip commands */
-    ret = ipa_sudo_export_sudoers(state, state->sysdb,
-                                  state->rules->ipa_rules, 
-                                  state->rules->ipa_rules_count, 
-                                  &(state->rules->sudoers),
-                                  &(state->rules->sudoers_count),
-                                  &(state->rules->cmds_index),
-                                  req);
+    ret = export_sudoers(state, state->sysdb,
+                         state->rules->ipa_rules, 
+                         state->rules->ipa_rules_count, 
+                         &(state->rules->sudoers),
+                         &(state->rules->sudoers_count),
+                         &(state->rules->cmds_index),
+                         req);
     if (ret != EOK) {
         goto immediately;
     } else if (ret == EOK && cmds_ret == ENOENT) {
@@ -150,6 +151,23 @@ immediately:
     tevent_req_post(req, state->ev);
 
     return req;
+}
+
+int ipa_sudo_get_cmds_recv(struct tevent_req *req,
+                           TALLOC_CTX *mem_ctx,
+                           size_t *reply_count,
+                           struct sysdb_attrs ***reply)
+{
+    struct ipa_sudo_get_cmds_state *ipa_state;
+
+    ipa_state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
+
+    TEVENT_REQ_RETURN_ON_ERROR(req);
+
+    *reply_count = ipa_state->rules->sudoers_count;
+    *reply = talloc_steal(mem_ctx, ipa_state->rules->sudoers);
+
+    return EOK;
 }
 
 static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req)
@@ -213,12 +231,12 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
         tevent_req_done(req);
         return;
     } else if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE,
-              ("IPA SUDO connection failed - %s\n", strerror(ret)));
+        DEBUG(SSSDBG_CRIT_FAILURE, ("IPA SUDO cmds connection failed - %s\n", 
+                                    strerror(ret)));
         goto fail;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO connection successful\n"));
+    DEBUG(SSSDBG_TRACE_FUNC, ("IPA SUDO cmds connection successful\n"));
 
     struct sdap_attr_map *map = state->opts->ipa_sudocmds_map;
 
@@ -246,7 +264,7 @@ static void ipa_sudo_get_cmds_connect_done(struct tevent_req *subreq)
         goto fail;
     }
 
-    tevent_req_set_callback(subreq, ipa_sudo_load_ipa_cmds_process, req);
+    tevent_req_set_callback(subreq, ipa_sudo_cmds_process, req);
 
 fail:
     state->error = ret;
@@ -256,7 +274,7 @@ fail:
     }
 }
 
-static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
+static void ipa_sudo_cmds_process(struct tevent_req *subreq)
 {
     struct ipa_sudo_get_cmds_state *state;
     struct tevent_req *req;
@@ -266,9 +284,8 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
  
-    DEBUG(SSSDBG_TRACE_FUNC,
-          ("Receiving commands for IPA SUDO rules with base [%s]\n",
-           state->basedn));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Receiving commands for IPA SUDO rules with "
+                              "base [%s]\n", state->basedn));
 
     /* get IPA sudo commands */
     ret = sdap_get_generic_recv(subreq, state, 
@@ -279,18 +296,18 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
         goto fail;
     }
 
-    ret = ipa_sudo_export_cmds(state, 
-                               state->rules->sudoers, 
-                               state->rules->sudoers_count,
-                               state->rules->cmds_index, 
-                               state->rules->ipa_cmds, 
-                               state->rules->ipa_cmds_count);
+    ret = export_sudoers_cmds(state, 
+                              state->rules->sudoers, 
+                              state->rules->sudoers_count,
+                              state->rules->cmds_index, 
+                              state->rules->ipa_cmds, 
+                              state->rules->ipa_cmds_count);
     if (ret != EOK) {
         goto fail;
     }
 
     DEBUG(SSSDBG_TRACE_FUNC, ("All IPA sudo rules successfully exported into "
-                              "native LDAP SUDO scheme.\n"));
+                              "the native LDAP SUDO scheme.\n"));
 
 fail:
     if (ret == EOK) {
@@ -301,17 +318,4 @@ fail:
     }
 }
 
-int ipa_sudo_get_cmds_recv(struct tevent_req *req,
-                           TALLOC_CTX *mem_ctx,
-                           size_t *reply_count,
-                           struct sysdb_attrs ***reply)
-{
-    struct ipa_sudo_get_cmds_state *ipa_state;
 
-    ipa_state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
-
-    *reply_count = ipa_state->rules->sudoers_count;
-    *reply = talloc_steal(mem_ctx, ipa_state->rules->sudoers);
-
-    return EOK;
-}

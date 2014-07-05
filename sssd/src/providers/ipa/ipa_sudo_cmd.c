@@ -32,8 +32,7 @@
 /* Take values of a memberAllowCmd or memberDenyCmd attribute and return 
  * these values as LDAP filter.
  */
-// FIXME: skip the command if it can't be parsed?
-static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem, 
+static errno_t get_cmd_filter(TALLOC_CTX *mem, 
                                   struct sysdb_ctx *sysdb,
                                   const char **values, 
                                   char **filter)
@@ -43,10 +42,13 @@ static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem,
     char *cmds_filter = *filter;
     int ret = EOK;
 
-    /* for all values (ipaUniquedID or DN of a cmds group) 
-     * FIXME: check if the cmd isn't already in a filter because the length of 
-     * the filter is limited
+    /* FIXME: 
+     * check if the cmd isn't already in a filter because the length of 
+     * the filter is limited and also lenght of the filter is limited!
+     * - potencial security bug!
      */
+
+    /* for all values (ipaUniquedID or DN of a cmds group) */
     for (; *values != NULL; values = values+1) {
 
         /* DN of a command => we need to get value of ipaUniqueID */
@@ -55,31 +57,26 @@ static errno_t ipa_cmd_get_filter(TALLOC_CTX *mem,
             ret = get_third_rdn_value(tmp, sysdb, *values, IPA_SUDO_ATTR_ID, 
                             "cn", "sudocmds", "cn", "sudo", &ipa_unique_id);
             if (ret != EOK) {
-                DEBUG(SSSDBG_MINOR_FAILURE, 
-                      ("Couldn't parse out the ipaUniqueID out of the DN\n"));
+                DEBUG(SSSDBG_MINOR_FAILURE, ("Couldn't parse out the "
+                                             "ipaUniqueID out of the DN\n"));
                 ret = ENOMEM;
                 goto fail;
             }
 
             cmds_filter = talloc_asprintf_append_buffer(
                     cmds_filter, "(ipaUniqueID=%s)", ipa_unique_id);
-            if (cmds_filter == NULL) {
-                DEBUG(SSSDBG_MINOR_FAILURE, 
-                      ("Couldn't add value of an ipaUniqueID to the commnads filter\n"));
-                ret = ENOMEM;
-                goto fail;
-            }
         } 
         /* DN of commands group */
         else if (strstr(*values, IPA_SUDO_CONTAINER_CMD_GRPS) != NULL) { 
             cmds_filter = talloc_asprintf_append_buffer(cmds_filter, 
                                    "(%s=%s)", IPA_SUDO_ATTR_MEMBEROF, *values);
-            if (cmds_filter == NULL) {
-                DEBUG(SSSDBG_MINOR_FAILURE, 
-                      ("Couldn't add DN of a cmds group to the commnads filter\n"));
-                ret = ENOMEM;
-                goto fail;
-            }
+        }
+
+        if (cmds_filter == NULL) {
+            DEBUG(SSSDBG_MINOR_FAILURE, ("talloc_asprintf_append_buffer() "
+                                         "failed\n"));
+            ret = ENOMEM;
+            goto fail;
         }
     }
 
@@ -100,11 +97,11 @@ fail:
  * FIXME: 
  * optimalization: this could be done in first iteration through the sudo rules
  */
-errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
-                                   struct sysdb_ctx *sysdb,
-                                   struct sysdb_attrs **rules, 
-                                   int count, 
-                                   const char **cmd_filter)
+errno_t build_cmds_filter(TALLOC_CTX *mem,
+                          struct sysdb_ctx *sysdb,
+                          struct sysdb_attrs **rules, 
+                          int count, 
+                          const char **cmd_filter)
 {
     TALLOC_CTX *tmp = NULL;
     const char **attr_vals;
@@ -113,16 +110,16 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
     errno_t ret = EOK;
     int i;
 
-    /* no ipa sudo rules -> nothing to build the new filter from */
-    if (rules == NULL && count == 0) {
-        DEBUG(SSSDBG_FATAL_FAILURE, ("ipa_sudo_build_cmds_filter() "
-                                     "no ipa sudo rules\n"));
-        return ENOENT;
+    /* no ipa sudo rules -> nothing to build the new filter from, this situation
+     * should not occure because if there are no sudo rules at IPA then this
+     * request shouldn't even be created */
+    if (rules == NULL || count == 0) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("no IPA sudo rules\n"));
+        return EINVAL;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC,
-          ("Building filter out of IPA sudo rules to get sudo commands "
-           "for those rules\n"));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Building LDAP filter out of IPA sudo rules to "
+                              "get sudo commands for those rules\n"));
 
     filter = talloc_asprintf(tmp, IPA_SUDO_CMD_FILTER, "ipasudocmd");
     if (filter == NULL) {
@@ -131,14 +128,14 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
         goto fail;
     }
 
-    /* for all downloaded ipa sudo rules */
+    /* for each downloaded ipa sudo rules */
     for (i = 0; i < count; i++) {
 
-        /* get values of a memberAllowCmd attr if any  */
-        if (sysdb_attrs_get_string_array(rules[i], 
-                    IPA_SUDO_ATTR_ALLOW_CMD, tmp, &attr_vals) == EOK) {
-
-            ret = ipa_cmd_get_filter(tmp, sysdb, attr_vals, &cmds_filter);
+        /* get values of a memberAllowCmd attr if any and put them into the
+         * LDAP filter */
+        if (sysdb_attrs_get_string_array(rules[i], IPA_SUDO_ATTR_ALLOW_CMD, 
+                                         tmp, &attr_vals) == EOK) {
+            ret = get_cmd_filter(tmp, sysdb, attr_vals, &cmds_filter);
             if (ret != EOK) {
                 goto fail;
             }
@@ -147,7 +144,7 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
         /* get values of a memberDenyCmd attr if any  */
         if (sysdb_attrs_get_string_array(rules[i], 
                     IPA_SUDO_ATTR_DENY_CMD, tmp, &attr_vals) == EOK) {
-            ret = ipa_cmd_get_filter(tmp, sysdb, attr_vals, &cmds_filter);
+            ret = get_cmd_filter(tmp, sysdb, attr_vals, &cmds_filter);
             if (ret != EOK) {
                 goto fail;
             }
@@ -166,8 +163,8 @@ errno_t ipa_sudo_build_cmds_filter(TALLOC_CTX *mem,
 
     /* no ipa commands needed by these ipa sudo rules */
     if (cmds_filter == NULL) {
-        DEBUG(SSSDBG_TRACE_FUNC,
-          ("No sudo commands needed by downloaded IPA sudo rules\n"));
+        DEBUG(SSSDBG_TRACE_FUNC, ("No sudo commands needed by downloaded IPA "
+                                  "sudo rules\n"));
         ret = ENOENT;
     }
 
@@ -184,7 +181,7 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
 {
     errno_t ret = EOK;
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("Building commands index for: %s\n", command));
+    DEBUG(SSSDBG_TRACE_FUNC, ("Building command index for: %s\n", command));
 
     if (strcasecmp(name, IPA_SUDO_ATTR_ALLOW_CMD) == 0) {
 
