@@ -292,7 +292,7 @@ static void ipa_sudo_cmds_process(struct tevent_req *subreq)
                                 &state->rules->ipa_cmds_count, 
                                 &state->rules->ipa_cmds);
     talloc_zfree(subreq);
-    if (ret) {
+    if (ret != EOK) {
         goto fail;
     }
 

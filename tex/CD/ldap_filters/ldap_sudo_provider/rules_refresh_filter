@@ -1,0 +1,31 @@
+LDAP filter:
+---------------------------------------
+(&(&(objectClass=sudoRole)
+    (|(cn=rule1)
+      (cn=rule2)
+    )
+  )
+  (|(!(sudoHost=*))
+    (sudoHost=ALL)
+    (sudoHost=client1.example.cz)
+    (sudoHost=client1)
+    (sudoHost=192.168.0.2)
+    (sudoHost=192.168.0.0/24)
+    (sudoHost=fe80::a00:27ff:fea1:b983)
+    (sudoHost=fe80::/64)
+    (sudoHost=+*)
+    (|(sudoHost=*\\\\*)
+      (sudoHost=*?*)
+      (sudoHost=*\\**)
+      (sudoHost=*[*]*)
+    )
+  )
+)
+
+SYSDB filter:
+---------------------------------------
+(&(objectClass=sudoRule)
+  (|(cn=test4)
+    (cn=test5)
+  )
+)

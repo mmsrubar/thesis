@@ -4,6 +4,7 @@
 #===========================================
 # asi budete chtit prejmenovat:
 CO=projekt
+NAME=xsruba03
 
 all: $(CO).pdf
 
@@ -36,4 +37,4 @@ clean:
 	rm -f *~
 
 pack:
-	tar czvf bp-xjmeno.tar.gz *.tex *.bib *.bst ./fig/* ./cls/* Makefile Changelog
+	tar czvf bp-$(NAME).tar.gz *.tex *.bib *.bst ./fig/* Makefile Changelog

@@ -1,0 +1,26 @@
+## Object class for SUDO rules
+objectClasses: (
+  2.16.840.1.113730.3.8.8.1 
+  NAME 'ipaSudoRule'
+  SUP ipaAssociation 
+  STRUCTURAL 
+  MAY ( externalUser $ externalHost $ hostMask $ memberAllowCmd $ 
+        memberDenyCmd $ cmdCategory $ ipaSudoOpt $ ipaSudoRunAs $ 
+        ipaSudoRunAsExtUser $ ipaSudoRunAsUserCategory $ 
+        ipaSudoRunAsGroup $ ipaSudoRunAsExtGroup $ 
+        ipaSudoRunAsGroupCategory $ sudoNotBefore $ 
+        sudoNotAfter $ sudoOrder 
+      ) 
+  X-ORIGIN 'IPA v2' 
+)
+
+objectClasses: (
+  2.16.840.1.113730.3.8.4.6 
+  NAME 'ipaAssociation' 
+  ABSTRACT 
+  MUST ( ipaUniqueID $ cn ) 
+  MAY ( memberUser $ userCategory $ memberHost $ hostCategory $ 
+        ipaEnabledFlag $ description 
+      ) 
+  X-ORIGIN 'IPA v2' 
+)

@@ -66,6 +66,12 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
         return NULL;
     }
 
+    /* if we don't have a search filter, this request is meaningless */
+    if (ldap_filter == NULL) {
+        ret = EINVAL;
+        goto immediately;
+    }
+
     state->be_ctx = be_ctx;
     state->opts = opts;
     state->sdap_op = NULL;
@@ -160,13 +166,12 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
 static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
 {
     struct tevent_req *req;
-    struct tevent_req *subsubreq;
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **ipa_rules = NULL;
     size_t ipa_rules_count;
     int ret = EOK;
 
-    /* req from ipa_sudo_refresh_send */
+    /* callback data is req from ipa_sudo_refresh_send */
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
 
@@ -186,20 +191,20 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
         return;
     }
 
-    print_rules("IPA sudoers:", ipa_rules, ipa_rules_count);
+    print_rules("IPA sudoer entry:", ipa_rules, ipa_rules_count);
 
-    subsubreq = ipa_sudo_get_cmds_send(state,
-                                       ipa_rules, 
-                                       ipa_rules_count, 
-                                       state->be_ctx, 
-                                       state->sdap_conn_cache,
-                                       state->opts);
-    if (subsubreq == NULL) {
+    subreq = ipa_sudo_get_cmds_send(state,
+                                    ipa_rules, 
+                                    ipa_rules_count, 
+                                    state->be_ctx, 
+                                    state->sdap_conn_cache,
+                                    state->opts);
+    if (subreq == NULL) {
         tevent_req_error(req, ENOMEM);
         return;
     }
 
-    tevent_req_set_callback(subsubreq, ipa_sudo_get_cmds_done, req);
+    tevent_req_set_callback(subreq, ipa_sudo_get_cmds_done, req);
 }
 
 static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
@@ -209,7 +214,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **attrs = NULL;
     size_t count;
-    int ret;
+    int ret = EOK;
     int i;
 
     /* req from ipa_sudo_refresh_send */
@@ -225,7 +230,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     }
 
     /* FIXME: degub */
-    print_rules("Exported ipa sudoers:", attrs, count);
+    print_rules("Exported IPA sudoer entry:", attrs, count);
 
     /* FIXME: multiple search bases not supported yet, is it even possible to
      * use multiple search bases with IPA, should we support it?
@@ -262,9 +267,9 @@ static void ipa_sudo_load_sudoers_finish(struct tevent_req *req,
                                          size_t count)
 {
     bool in_transaction = false;
-    errno_t sret;
+    errno_t sret = EOK;
+    int ret = EOK;
     time_t now;
-    int ret;
 
     /* start transaction */
     ret = sysdb_transaction_start(state->sysdb);
@@ -301,7 +306,7 @@ static void ipa_sudo_load_sudoers_finish(struct tevent_req *req,
 
     DEBUG(SSSDBG_TRACE_FUNC, ("Sudoers is successfully stored in cache\n"));
 
-    ret = EOK;
+    //ret = EOK;
     state->num_rules = count;
 
 done:

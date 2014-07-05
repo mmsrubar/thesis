@@ -1,0 +1,624 @@
+dn: cn=schema
+objectClass: top
+objectClass: ldapSubentry
+objectClass: subschema
+cn: schema
+aci: (target="ldap:///cn=schema")(targetattr !="aci")(version 3.0;acl "anonymo
+ us, no acis"; allow (read, search, compare) userdn = "ldap:///anyone";)
+modifiersName: cn=directory manager
+modifyTimestamp: 20130926192613Z
+objectClasses: ( 2.16.840.1.113730.3.2.4 NAME 'mailGroup' DESC 'mailGroup' SUP
+  top STRUCTURAL MUST mail MAY ( cn $ mgrpRFC822MailMember ) X-ORIGIN 'user de
+ fined' )
+objectClasses: ( 1.3.6.1.1.1.2.17 NAME 'automount' DESC 'Automount information
+ ' SUP top STRUCTURAL MUST ( automountKey $ automountInformation ) MAY descrip
+ tion X-ORIGIN ( 'RFC 2307bis' 'user defined' ) )
+objectClasses: ( 1.3.6.1.1.1.2.16 NAME 'automountMap' DESC 'Automount Map info
+ rmation' SUP top STRUCTURAL MUST automountMapName MAY description X-ORIGIN ( 
+ 'RFC 2307bis' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.1 NAME 'ipaExternalGroup' SUP top ST
+ RUCTURAL MUST cn MAY ( ipaExternalMember $ memberOf $ description $ owner ) X
+ -ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.2 NAME 'ipaNTUserAttrs' SUP top AUXI
+ LIARY MUST ipaNTSecurityIdentifier MAY ( ipaNTHash $ ipaNTLogonScript $ ipaNT
+ ProfilePath $ ipaNTHomeDirectory $ ipaNTHomeDirectoryDrive ) X-ORIGIN ( 'IPA 
+ v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.3 NAME 'ipaNTGroupAttrs' SUP top AUX
+ ILIARY MUST ipaNTSecurityIdentifier X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.4 NAME 'ipaNTDomainAttrs' SUP top AU
+ XILIARY MUST ( ipaNTSecurityIdentifier $ ipaNTFlatName $ ipaNTDomainGUID ) MA
+ Y ipaNTFallbackPrimaryGroup X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.5 NAME 'ipaNTTrustedDomain' DESC 'Tr
+ usted Domain Object' STRUCTURAL MUST cn MAY ( ipaNTTrustType $ ipaNTTrustAttr
+ ibutes $ ipaNTTrustDirection $ ipaNTTrustPartner $ ipaNTFlatName $ ipaNTTrust
+ AuthOutgoing $ ipaNTTrustAuthIncoming $ ipaNTTrustedDomainSID $ ipaNTTrustFor
+ estTrustInfo $ ipaNTTrustPosixOffset $ ipaNTSupportedEncryptionTypes $ ipaNTS
+ IDBlacklistIncoming $ ipaNTSIDBlacklistOutgoing ) X-ORIGIN 'user defined' )
+objectClasses: ( 2.16.840.1.113730.3.8.12.6 NAME 'groupOfPrincipals' SUP top A
+ UXILIARY MUST cn MAY memberPrincipal X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.7 NAME 'ipaKrb5DelegationACL' SUP gr
+ oupOfPrincipals STRUCTURAL MAY ( ipaAllowToImpersonate $ ipaAllowedTarget ) X
+ -ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.10 NAME 'ipaSELinuxUserMap' SUP ipaA
+ ssociation STRUCTURAL MUST ipaSELinuxUser MAY ( accessTime $ seeAlso ) X-ORIG
+ IN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.11 NAME 'ipaSshGroupOfPubKeys' ABSTR
+ ACT MAY ipaSshPubKey X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.12 NAME 'ipaSshUser' SUP ipaSshGroup
+ OfPubKeys AUXILIARY X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.13 NAME 'ipaSshHost' SUP ipaSshGroup
+ OfPubKeys AUXILIARY X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.14 NAME 'ipaIDobject' SUP top AUXILI
+ ARY MAY ( uidNumber $ gidNumber $ ipaNTSecurityIdentifier ) X-ORIGIN ( 'IPA v
+ 3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.15 NAME 'ipaIDrange' ABSTRACT MUST (
+  cn $ ipaBaseID $ ipaIDRangeSize $ ipaRangeType ) X-ORIGIN ( 'IPA v3' 'user d
+ efined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.16 NAME 'ipaDomainIDRange' SUP ipaID
+ range STRUCTURAL MAY ( ipaBaseRID $ ipaSecondaryBaseRID ) X-ORIGIN ( 'IPA v3'
+  'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.17 NAME 'ipaTrustedADDomainRange' SU
+ P ipaIDrange STRUCTURAL MUST ( ipaBaseRID $ ipaNTTrustedDomainSID ) X-ORIGIN 
+ ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.19 NAME 'ipaUserAuthTypeClass' DESC 
+ 'Class for authentication methods definition' STRUCTURAL MAY ipaUserAuthType 
+ X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.2.1 NAME 'ipaGuiConfig' AUXILIARY MAY (
+  ipaUserSearchFields $ ipaGroupSearchFields $ ipaSearchTimeLimit $ ipaSearchR
+ ecordsLimit $ ipaCustomFields $ ipaHomesRootDir $ ipaDefaultLoginShell $ ipaD
+ efaultPrimaryGroup $ ipaMaxUsernameLength $ ipaPwdExpAdvNotify $ ipaUserObjec
+ tClasses $ ipaGroupObjectClasses $ ipaDefaultEmailDomain $ ipaMigrationEnable
+ d $ ipaCertificateSubjectBase $ ipaSELinuxUserMapDefault $ ipaSELinuxUserMapO
+ rder $ ipaKrbAuthzData ) X-ORIGIN 'user defined' )
+objectClasses: ( 2.16.840.1.113730.3.8.6.2 NAME 'idnsConfigObject' DESC 'DNS g
+ lobal config options' STRUCTURAL MAY ( idnsForwardPolicy $ idnsForwarders $ i
+ dnsAllowSyncPTR $ idnsZoneRefresh $ idnsPersistentSearch ) X-ORIGIN 'user def
+ ined' )
+objectClasses: ( 2.16.840.1.113730.3.8.12.18 NAME 'ipaDNSZone' SUP top AUXILIA
+ RY MUST idnsName MAY managedBy X-ORIGIN ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.12.8 NAME 'ipaKrbPrincipal' SUP krbPrin
+ cipalAux AUXILIARY MUST ( krbPrincipalName $ ipaKrbPrincipalAlias ) X-ORIGIN 
+ ( 'IPA v3' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.16.2.1 NAME 'ipaToken' DESC 'Abstract t
+ oken class for tokens' STRUCTURAL MUST ipatokenUniqueID MAY ( description $ i
+ patokenOwner $ ipatokenDisabled $ ipatokenNotBefore $ ipatokenNotAfter $ ipat
+ okenVendor $ ipatokenModel $ ipatokenSerial ) X-ORIGIN ( 'IPA OTP' 'user defi
+ ned' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.16.2.2 NAME 'ipatokenTOTP' DESC 'TOTP T
+ oken Type' STRUCTURAL MAY ( ipatokenOTPkey $ ipatokenOTPalgorithm $ ipatokenO
+ TPdigits $ ipatokenTOTPclockOffset $ ipatokenTOTPtimeStep ) X-ORIGIN ( 'IPA O
+ TP' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.16.2.3 NAME 'ipatokenRadiusProxyUser' D
+ ESC 'Radius Proxy User' STRUCTURAL MUST ipatokenRadiusConfigLink MAY ipatoken
+ RadiusUserName X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+objectClasses: ( 2.16.840.1.113730.3.8.16.2.4 NAME 'ipatokenRadiusConfiguratio
+ n' DESC 'Proxy Radius Configuration' STRUCTURAL MUST ( cn $ ipatokenRadiusSer
+ ver $ ipatokenRadiusSecret ) MAY ( description $ ipatokenRadiusTimeout $ ipat
+ okenRadiusRetries $ ipatokenUserMapAttribute ) X-ORIGIN ( 'IPA OTP' 'user def
+ ined' ) )
+objectClasses: ( cmsuser-oid NAME 'cmsuser' DESC 'CMS User' SUP top STRUCTURAL
+  MUST usertype MAY userstate X-ORIGIN 'user defined' )
+objectClasses: ( CertACLS-oid NAME 'CertACLS' DESC 'CMS defined class' SUP top
+  STRUCTURAL MUST cn MAY resourceACLS X-ORIGIN 'user defined' )
+objectClasses: ( repository-oid NAME 'repository' DESC 'CMS defined class' SUP
+  top STRUCTURAL MUST ou MAY ( serialno $ description $ nextRange $ publishing
+ Status ) X-ORIGIN 'user defined' )
+objectClasses: ( request-oid NAME 'request' DESC 'CMS defined class' SUP top S
+ TRUCTURAL MUST cn MAY ( requestId $ dateOfCreate $ dateOfModify $ requestStat
+ e $ requestResult $ requestOwner $ requestAgentGroup $ requestSourceId $ requ
+ estType $ requestFlag $ requestError $ userMessages $ adminMessages ) X-ORIGI
+ N 'user defined' )
+objectClasses: ( transaction-oid NAME 'transaction' DESC 'CMS defined class' S
+ UP top STRUCTURAL MUST cn MAY ( transId $ description $ transName $ transStat
+ us $ transOps ) X-ORIGIN 'user defined' )
+objectClasses: ( crlIssuingPointRecord-oid NAME 'crlIssuingPointRecord' DESC '
+ CMS defined class' SUP top STRUCTURAL MUST cn MAY ( dateOfCreate $ dateOfModi
+ fy $ crlNumber $ crlSize $ thisUpdate $ nextUpdate $ deltaNumber $ deltaSize 
+ $ firstUnsaved $ certificateRevocationList $ deltaRevocationList $ crlCache $
+  revokedCerts $ unrevokedCerts $ expiredCerts $ cACertificate ) X-ORIGIN 'use
+ r defined' )
+objectClasses: ( certificateRecord-oid NAME 'certificateRecord' DESC 'CMS defi
+ ned class' SUP top STRUCTURAL MUST cn MAY ( serialno $ dateOfCreate $ dateOfM
+ odify $ certStatus $ autoRenew $ issueInfo $ metaInfo $ revInfo $ version $ d
+ uration $ notAfter $ notBefore $ algorithmId $ subjectName $ signingAlgorithm
+ Id $ userCertificate $ issuedBy $ revokedBy $ revokedOn $ extension $ publicK
+ eyData $ issuerName ) X-ORIGIN 'user defined' )
+objectClasses: ( userDetails-oid NAME 'userDetails' DESC 'CMS defined class' S
+ UP top STRUCTURAL MUST userDN MAY ( dateOfCreate $ dateOfModify $ password $ 
+ p12Expiration ) X-ORIGIN 'user defined' )
+objectClasses: ( keyRecord-oid NAME 'keyRecord' DESC 'CMS defined class' SUP t
+ op STRUCTURAL MUST cn MAY ( serialno $ dateOfCreate $ dateOfModify $ keyState
+  $ privateKeyData $ ownerName $ keySize $ metaInfo $ dateOfArchival $ dateOfR
+ ecovery $ algorithm $ publicKeyFormat $ publicKeyData $ archivedBy $ clientId
+  $ dataType $ status ) X-ORIGIN 'user defined' )
+objectClasses: ( pkiSecurityDomain-oid NAME 'pkiSecurityDomain' DESC 'CMS defi
+ ned class' SUP top STRUCTURAL MUST ( ou $ name ) X-ORIGIN 'user defined' )
+objectClasses: ( pkiSecurityGroup-oid NAME 'pkiSecurityGroup' DESC 'CMS define
+ d class' SUP top STRUCTURAL MUST cn X-ORIGIN 'user defined' )
+objectClasses: ( pkiSubsystem-oid NAME 'pkiSubsystem' DESC 'CMS defined class'
+  SUP top STRUCTURAL MUST ( cn $ host $ SecurePort $ SubsystemName $ Clone ) M
+ AY ( DomainManager $ SecureAgentPort $ SecureAdminPort $ SecureEEClientAuthPo
+ rt $ UnSecurePort ) X-ORIGIN 'user defined' )
+objectClasses: ( pkiRange-oid NAME 'pkiRange' DESC 'CMS defined class' SUP top
+  STRUCTURAL MUST ( cn $ beginRange $ endRange $ host $ SecurePort ) X-ORIGIN 
+ 'user defined' )
+objectClasses: ( securityDomainSessionEntry-oid NAME 'securityDomainSessionEnt
+ ry' DESC 'CMS defined class' SUP top STRUCTURAL MUST ( cn $ host $ uid $ cmsU
+ serGroup $ dateOfCreate ) X-ORIGIN 'user defined' )
+objectClasses: ( 1.3.6.1.1.1.2.14 NAME 'nisKeyObject' DESC 'nisKeyObject' SUP 
+ top STRUCTURAL MUST ( cn $ nisPublickey $ nisSecretkey ) MAY ( uidNumber $ de
+ scription ) X-ORIGIN 'user defined' )
+objectClasses: ( 1.3.1.6.1.1.1.2.15 NAME 'nisDomainObject' DESC 'nisDomainObje
+ ct' SUP top AUXILIARY MUST nisDomain X-ORIGIN 'user defined' )
+objectClasses: ( 1.3.6.1.4.1.42.2.27.1.2.6 NAME 'nisNetId' DESC 'nisNetId' SUP
+  top STRUCTURAL MUST cn MAY ( nisNetIdUser $ nisNetIdGroup $ nisNetIdHost ) X
+ -ORIGIN 'user defined' )
+objectClasses: ( 1.3.6.1.4.1.11.1.3.1.2.5 NAME 'DUAConfigProfile' DESC 'Abstra
+ ction of a base configuration for a DUA' STRUCTURAL MUST cn MAY ( defaultServ
+ erList $ preferredServerList $ defaultSearchBase $ defaultSearchScope $ searc
+ hTimeLimit $ bindTimeLimit $ credentialLevel $ authenticationMethod $ followR
+ eferrals $ dereferenceAliases $ serviceSearchDescriptor $ serviceCredentialLe
+ vel $ serviceAuthenticationMethod $ objectclassMap $ attributeMap $ profileTT
+ L ) X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.4 NAME 'ipatokenNotAfter' DESC 'T
+ oken expiration date' EQUALITY generalizedTimeMatch SYNTAX 1.3.6.1.4.1.1466.1
+ 15.121.1.24 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.2 NAME 'ipaNTSecurityIdentifier' DE
+ SC 'NT Security ID' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5Substring
+ sMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 
+ 'user defined' ) )
+attributeTypes: ( notBefore-oid NAME 'notBefore' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( requestError-oid NAME 'requestError' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( Clone-oid NAME 'Clone'  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 
+ SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( ownerName-oid NAME 'ownerName' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.42.2.27.1.1.14 NAME 'nisNetIdHost' DESC 'nisNetI
+ dHost' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIG
+ IN ( 'RFC2307bis' 'user defined' ) )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.3 NAME 'searchTimeLimit' DESC 'Maximu
+ m time an agent or service allows for a    search to complete' EQUALITY integ
+ erMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SI
+ NGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( transId-oid NAME 'transId' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.15953.9.1.9 NAME 'sudoNotAfter' DESC 'End of tim
+ e interval for which the entry is valid' EQUALITY generalizedTimeMatch ORDERI
+ NG generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 X-ORIGIN
+  ( 'SUDO' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.12 NAME 'ipatokenTOTPtimeStep' DE
+ SC 'TOTP time-step' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.2
+ 7 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.14 NAME 'idnsForwardPolicy' DESC 'fo
+ rward policy: only or first' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5
+ SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN ( 
+ 'IPA v2' 'user defined' ) )
+attributeTypes: ( dateOfArchival-oid NAME 'dateOfArchival' DESC 'CMS defined a
+ ttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( unrevokedCerts-oid NAME 'unrevokedCerts' DESC 'CMS defined a
+ ttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( thisUpdate-oid NAME 'thisUpdate' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.11 NAME 'objectclassMap' DESC 'Object
+  class mappings used, required, or supported by    an agent or service' EQUAL
+ ITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'RFC48
+ 76' 'user defined' ) )
+attributeTypes: ( notAfter-oid NAME 'notAfter' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.5 NAME 'ipaNTHash' DESC 'NT Hash of
+  user password' EQUALITY octetStringMatch ORDERING octetStringOrderingMatch S
+ YNTAX 1.3.6.1.4.1.1466.115.121.1.40 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user de
+ fined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.23 NAME 'ipaNTTrustedDomainSID' DES
+ C 'NT Trusted Domain Security ID' EQUALITY caseIgnoreIA5Match SUBSTR caseIgno
+ reIA5SubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIG
+ IN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( issueInfo-oid NAME 'issueInfo' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.41 NAME 'ipaRangeType' DESC 'Range 
+ type' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatch SYNTAX 
+ 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( requestFlag-oid NAME 'requestFlag' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( autoRenew-oid NAME 'autoRenew' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.34 NAME 'ipaIDRangeSize' DESC 'Size
+  of a Posix ID range' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1
+ .27 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( clientId-oid NAME 'clientId' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.7 NAME 'ipatokenSerial' DESC 'OTP
+  Token Serial number' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.12
+ 1.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.19 NAME 'ipatokenRadiusRetries' D
+ ESC 'Number of allowed Retries' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466
+ .115.121.1.27 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( crlExtensions-oid NAME 'crlExtensions' DESC 'CMS defined att
+ ribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.16 NAME 'dereferenceAliases' DESC 'Sp
+ ecifies if a service or agent either requires,    supports, or uses dereferen
+ cing of aliases.' EQUALITY booleanMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 S
+ INGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.3.27 NAME 'ipaSELinuxUserMapOrder' DES
+ C 'Available SELinux user context ordering' EQUALITY caseIgnoreMatch ORDERING
+  caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115
+ .121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( dataType-oid NAME 'dataType' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.42.2.27.1.1.13 NAME 'nisNetIdGroup' DESC 'nisNet
+ IdGroup' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-OR
+ IGIN ( 'RFC2307bis' 'user defined' ) )
+attributeTypes: ( publicKeyFormat-oid NAME 'publicKeyFormat' DESC 'CMS defined
+  attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.6 NAME 'authenticationMethod' DESC 'I
+ dentifies the types of authentication methods either    used, required, or pr
+ ovided by a service or peer' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstr
+ ingsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'RFC48
+ 76' 'user defined' ) )
+attributeTypes: ( publishingStatus-oid NAME 'publishingStatus' DESC 'CMS defin
+ ed attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.8 NAME 'ipaNTHomeDirectory' DESC 'U
+ ser Home Directory Path' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrdering
+ Match SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 S
+ INGLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( DomainManager-oid NAME 'DomainManager'  SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.7 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.11 NAME 'ipatokenTOTPclockOffset'
+  DESC 'TOTP clock offset' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.1
+ 21.1.27 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.17 NAME 'idnsPersistentSearch' DESC 
+ 'allow persistent searches' EQUALITY booleanMatch SYNTAX 1.3.6.1.4.1.1466.115
+ .121.1.7 SINGLE-VALUE X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( 1.3.6.1.4.1.1.1.1.12 NAME 'nisDomain' DESC 'NIS domain' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'RFC2307bis' 'user defined' ) )
+attributeTypes: ( requestInfo-oid NAME 'requestInfo' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( keySize-oid NAME 'keySize' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.31 NAME 'ipaSshPubKey' DESC 'SSH pu
+ blic key' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 X-OR
+ IGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( keyState-oid NAME 'keyState' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( proofOfArchival-oid NAME 'proofOfArchival' DESC 'CMS defined
+  attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( metaInfo-oid NAME 'metaInfo' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( dateOfRevocation-oid NAME 'dateOfRevocation' DESC 'CMS defin
+ ed attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( requestOwner-oid NAME 'requestOwner' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( nextRange-oid NAME 'nextRange' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( serialno-oid NAME 'serialno' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( userDN-oid NAME 'userDN' DESC 'CMS defined attribute' SYNTAX
+  1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( publicKeyData-oid NAME 'publicKeyData' DESC 'CMS defined att
+ ribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( sessionContext-oid NAME 'sessionContext' DESC 'CMS defined a
+ ttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( revokedCerts-oid NAME 'revokedCerts' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( transStatus-oid NAME 'transStatus' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.2 NAME 'ipatokenDisabled' DESC 'O
+ ptionally marks token as Disabled' EQUALITY booleanMatch SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.7 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( beginRange-oid NAME 'beginRange' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( signingAlgorithmId-oid NAME 'signingAlgorithmId' DESC 'CMS d
+ efined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined
+ ' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.13 NAME 'serviceCredentialLevel' DESC
+  'Specifies the type of credentials either used, required,    or supported by
+  a specific service' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.
+ 121.1.26 X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( duration-oid NAME 'duration' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.15953.9.1.6 NAME 'sudoRunAsUser' DESC 'User(s) i
+ mpersonated by sudo' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.1
+ 21.1.26 X-ORIGIN ( 'SUDO' 'user defined' ) )
+attributeTypes: ( SecureAdminPort-oid NAME 'SecureAdminPort'  SYNTAX 1.3.6.1.4
+ .1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.5 NAME 'followReferrals' DESC 'An age
+ nt or service does or should follow referrals' EQUALITY booleanMatch SYNTAX 1
+ .3.6.1.4.1.1466.115.121.1.7 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' 
+ ) )
+attributeTypes: ( requestId-oid NAME 'requestId' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.21 NAME 'ipaAllowToImpersonate' DES
+ C 'Principals that can be impersonated' SUP distinguishedName EQUALITY distin
+ guishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN ( 'IPA-v3' 'us
+ er defined' ) )
+attributeTypes: ( deltaSize-oid NAME 'deltaSize' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( password-oid NAME 'password' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.14 NAME 'ipatokenRadiusUserName' 
+ DESC 'Corresponding Radius username' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.
+ 4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.12 NAME 'idnsAllowTransfer' DESC 'BI
+ ND9 allow-transfer ACL element' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.
+ 1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( algorithmId-oid NAME 'algorithmId' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( dateOfModify-oid NAME 'dateOfModify' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.32 NAME 'ipaKrbPrincipalAlias' DESC
+  'IPA principal alias' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrderingMa
+ tch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SIN
+ GLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( extension-oid NAME 'extension' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( deltaNumber-oid NAME 'deltaNumber' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.5 NAME 'ipatokenVendor' DESC 'Opt
+ ional Vendor identifier' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstrings
+ Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 
+ 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.3 NAME 'ipaNTFlatName' DESC 'Flat/N
+ etbios Name' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrderingMatch SUBSTR
+  caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE 
+ X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( transOps-oid NAME 'transOps' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( nextUpdate-oid NAME 'nextUpdate' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( algorithm-oid NAME 'algorithm' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( issuerName-oid NAME 'issuerName' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( endRange-oid NAME 'endRange' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( crlCache-oid NAME 'crlCache' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.0 NAME 'defaultServerList' DESC 'List
+  of default servers' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatc
+ h SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'use
+ r defined' ) )
+attributeTypes: ( usertype-oid NAME 'usertype' DESC 'Distinguish whether the u
+ ser is administrator, agent or subsystem.' SYNTAX 1.3.6.1.4.1.1466.115.121.1.
+ 15 X-ORIGIN 'user defined' )
+attributeTypes: ( resourceACLS-oid NAME 'resourceACLS' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.13 NAME 'ipatokenOwner' DESC 'Use
+ r entry that owns this token' SUP distinguishedName EQUALITY distinguishedNam
+ eMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN ( 'IPA OTP'
+  'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.15 NAME 'idnsForwarders' DESC 'list 
+ of forwarders' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatc
+ h SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( expiredCerts-oid NAME 'expiredCerts' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.10 NAME 'credentialLevel' DESC 'Ident
+ ifies type of credentials either used, required,    or supported by an agent 
+ or service' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 
+ SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( SecurePort-oid NAME 'SecurePort'  SYNTAX 1.3.6.1.4.1.1466.11
+ 5.121.1.27 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.6 NAME 'ipaNTLogonScript' DESC 'Use
+ r Logon Script Name' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrderingMatc
+ h SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGL
+ E-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.22 NAME 'ipaAllowedTarget' DESC 'Ta
+ rget principals alowed to get a ticket for' SUP distinguishedName EQUALITY di
+ stinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN ( 'IPA-v3'
+  'user defined' ) )
+attributeTypes: ( requestSourceId-oid NAME 'requestSourceId' DESC 'CMS defined
+  attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( crlSize-oid NAME 'crlSize' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( revokedOn-oid NAME 'revokedOn' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.40 NAME 'ipaUserAuthType' DESC 'All
+ owed authentication methods' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466
+ .115.121.1.15 X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.37 NAME 'ipaKrbAuthzData' DESC 'typ
+ e of PAC preferred by a service' EQUALITY caseExactMatch SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.15 X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( revokedBy-oid NAME 'revokedBy' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.1.30 NAME 'mgrpRFC822MailMember' DESC 'm
+ grpRFC822MailMember' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.
+ 121.1.26 X-ORIGIN ( 'RFC2307bis' 'user defined' ) )
+attributeTypes: ( privateKeyData-oid NAME 'privateKeyData' DESC 'CMS defined a
+ ttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.5 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.15 NAME 'serviceAuthenticationMethod'
+  DESC 'Specifies types authentication methods either    used, required, or su
+ pported by a particular service' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSu
+ bstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN ( 'RFC4876' 'user
+  defined' ) )
+attributeTypes: ( version-oid NAME 'version' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.7 NAME 'profileTTL' DESC 'Time to liv
+ e, in seconds, before a profile is    considered stale' EQUALITY integerMatch
+  ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VA
+ LUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.9 NAME 'ipaNTHomeDirectoryDrive' DE
+ SC 'User Home Drive Letter' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrder
+ ingMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.1
+ 5 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( SecureEEClientAuthPort-oid NAME 'SecureEEClientAuthPort'  SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.8 NAME 'ipatokenOTPkey' DESC 'OTP
+  Token Key' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 SI
+ NGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.16 NAME 'ipatokenRadiusServer' DE
+ SC 'Server String Configuration' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4
+ .1.1466.115.121.1.26 X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( cmsUserGroup-oid NAME 'cmsUserGroup' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.1.1.1.29 NAME 'nisSecretkey' DESC 'nisSecretkey' EQU
+ ALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'RFC
+ 2307bis' 'user defined' ) )
+attributeTypes: ( requestType-oid NAME 'requestType' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( issuedBy-oid NAME 'issuedBy' DESC 'CMS defined attribute' SY
+ NTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.30 NAME 'ipaSELinuxUser' DESC 'An S
+ ELinux user' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrderingMatch SUBSTR
+  caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE 
+ X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( requestState-oid NAME 'requestState' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.1 NAME 'ipaExternalMember' DESC 'Ex
+ ternal Group Member Identifier' EQUALITY caseIgnoreMatch ORDERING caseIgnoreO
+ rderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN ( 'IPA v3' 'user d
+ efined' ) )
+attributeTypes: ( 1.3.6.1.4.1.15953.9.1.10 NAME 'sudoOrder' DESC 'an integer t
+ o order the sudoRole entries' EQUALITY integerMatch ORDERING integerOrderingM
+ atch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 X-ORIGIN ( 'SUDO' 'user defined' ) 
+ )
+attributeTypes: ( firstUnsaved-oid NAME 'firstUnsaved' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.2 NAME 'preferredServerList' DESC 'Li
+ st of preferred servers' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstrings
+ Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 
+ 'user defined' ) )
+attributeTypes: ( SecureAgentPort-oid NAME 'SecureAgentPort'  SYNTAX 1.3.6.1.4
+ .1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.15953.9.1.8 NAME 'sudoNotBefore' DESC 'Start of 
+ time interval for which the entry is valid' EQUALITY generalizedTimeMatch ORD
+ ERING generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 X-ORI
+ GIN ( 'SUDO' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.3 NAME 'ipatokenNotBefore' DESC '
+ Token validity date' EQUALITY generalizedTimeMatch SYNTAX 1.3.6.1.4.1.1466.11
+ 5.121.1.24 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( userstate-oid NAME 'userstate' DESC 'Distinguish whether the
+  user is administrator, agent or subsystem.' SYNTAX 1.3.6.1.4.1.1466.115.121.
+ 1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.12 NAME 'defaultSearchScope' DESC 'De
+ fault scope used when performing a search' EQUALITY caseIgnoreIA5Match SYNTAX
+  1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'user define
+ d' ) )
+attributeTypes: ( UnSecurePort-oid NAME 'UnSecurePort'  SYNTAX 1.3.6.1.4.1.146
+ 6.115.121.1.27 SINGLE-VALUE X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.15953.9.1.7 NAME 'sudoRunAsGroup' DESC 'Group(s)
+  impersonated by sudo' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115
+ .121.1.26 X-ORIGIN ( 'SUDO' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.20 NAME 'ipatokenUserMapAttribute
+ ' DESC 'Attribute to map from the user entry for RADIUS server authentication
+ ' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE 
+ X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.20 NAME 'memberPrincipal' DESC 'Pri
+ ncipal names member of a groupOfPrincipals group' EQUALITY caseIgnoreMatch SU
+ BSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 
+ ( 'IPA-v3' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.4 NAME 'ipaNTFallbackPrimaryGroup' 
+ DESC 'Fallback Group to set the Primary group Security Identifier for users w
+ ith UPGs' SUP distinguishedName EQUALITY distinguishedNameMatch SYNTAX 1.3.6.
+ 1.4.1.1466.115.121.1.12 X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( crlNumber-oid NAME 'crlNumber' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.15 NAME 'ipatokenRadiusConfigLink
+ ' DESC 'Corresponding Radius Configuration link' SUP distinguishedName EQUALI
+ TY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X
+ -ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.13 NAME 'idnsAllowSyncPTR' DESC 'per
+ mit synchronization of PTR records' EQUALITY booleanMatch SYNTAX 1.3.6.1.4.1.
+ 1466.115.121.1.7 SINGLE-VALUE X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( transName-oid NAME 'transName' DESC 'CMS defined attribute' 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.35 NAME 'ipaBaseRID' DESC 'First va
+ lue of a RID range' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTA
+ X 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user define
+ d' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.6 NAME 'ipatokenModel' DESC 'Opti
+ onal Model identifier' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMa
+ tch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'u
+ ser defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.18 NAME 'ipatokenRadiusTimeout' D
+ ESC 'Server Timeout' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.
+ 27 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.3.26 NAME 'ipaSELinuxUserMapDefault' D
+ ESC 'Default SELinux user' EQUALITY caseIgnoreMatch ORDERING caseIgnoreMatch 
+ SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-
+ VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( dateOfRecovery-oid NAME 'dateOfRecovery' DESC 'CMS defined a
+ ttribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.42.2.27.1.1.12 NAME 'nisNetIdUser' DESC 'nisNetI
+ dUser' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIG
+ IN ( 'RFC2307bis' 'user defined' ) )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.1 NAME 'defaultSearchBase' DESC 'Defa
+ ult base for searches' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.146
+ 6.115.121.1.12 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( subjectName-oid NAME 'subjectName' DESC 'CMS defined attribu
+ te' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.10 NAME 'ipatokenOTPdigits' DESC 
+ 'OTP Token Number of digits' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.11
+ 5.121.1.27 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( requestResult-oid NAME 'requestResult' DESC 'CMS defined att
+ ribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.16 NAME 'idnsZoneRefresh' DESC 'zone
+  refresh interval' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( dateOfCreate-oid NAME 'dateOfCreate' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.10 NAME 'ipaNTDomainGUID' DESC 'NT 
+ Domain GUID' EQUALITY caseIgnoreIA5Match SUBSTR caseIgnoreIA5SubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user d
+ efined' ) )
+attributeTypes: ( revInfo-oid NAME 'revInfo' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.9 NAME 'attributeMap' DESC 'Attribute
+  mappings used, required, or supported by an    agent or service' EQUALITY ca
+ seIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'RFC4876' 'u
+ ser defined' ) )
+attributeTypes: ( certStatus-oid NAME 'certStatus' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( adminMessages-oid NAME 'adminMessages' DESC 'CMS defined att
+ ribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.7 NAME 'ipaNTProfilePath' DESC 'Use
+ r Profile Path' EQUALITY caseIgnoreMatch ORDERING caseIgnoreOrderingMatch SUB
+ STR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VAL
+ UE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( crlName-oid NAME 'crlName' DESC 'CMS defined attribute' SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( status-oid NAME 'status' DESC 'CMS defined attribute' SYNTAX
+  1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( requestAgentGroup-oid NAME 'requestAgentGroup' DESC 'CMS def
+ ined attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' 
+ )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.36 NAME 'ipaSecondaryBaseRID' DESC 
+ 'First value of a secondary RID range' EQUALITY integerMatch ORDERING integer
+ OrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN ( 'I
+ PA v3' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.1 NAME 'ipatokenUniqueID' DESC 'T
+ oken Unique Identifier' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.
+ 121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.14 NAME 'serviceSearchDescriptor' DES
+ C 'Specifies search descriptors required, used, or    supported by a particul
+ ar service or agent' EQUALITY caseExactMatch SUBSTR caseExactSubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( p12Expiration-oid NAME 'p12Expiration' DESC 'CMS defined att
+ ribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( userMessages-oid NAME 'userMessages' DESC 'CMS defined attri
+ bute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 1.3.6.1.4.1.11.1.3.1.1.4 NAME 'bindTimeLimit' DESC 'Maximum 
+ time an agent or service allows for a    bind operation to complete' EQUALITY
+  integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1
+ .27 SINGLE-VALUE X-ORIGIN ( 'RFC4876' 'user defined' ) )
+attributeTypes: ( archivedBy-oid NAME 'archivedBy' DESC 'CMS defined attribute
+ ' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'user defined' )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.9 NAME 'ipatokenOTPalgorithm' DES
+ C 'OTP Token Algorithm' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.
+ 121.1.15 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.16.1.17 NAME 'ipatokenRadiusSecret' DE
+ SC 'Server Secret' EQUALITY octetStringMatch SYNTAX 1.3.6.1.4.1.1466.115.121.
+ 1.40 SINGLE-VALUE X-ORIGIN ( 'IPA OTP' 'user defined' ) )
+attributeTypes: ( 1.3.6.1.1.1.1.28 NAME 'nisPublickey' DESC 'nisPublickey' EQU
+ ALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN ( 'RFC
+ 2307bis' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.5.11 NAME 'idnsAllowQuery' DESC 'BIND9
+  allow-query ACL element' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466
+ .115.121.1.26 SINGLE-VALUE X-ORIGIN ( 'IPA v2' 'user defined' ) )
+attributeTypes: ( 2.16.840.1.113730.3.8.11.33 NAME 'ipaBaseID' DESC 'First val
+ ue of a Posix ID range' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121
+ .1.27 SINGLE-VALUE X-ORIGIN ( 'IPA v3' 'user defined' ) )
+attributeTypes: ( SubsystemName-oid NAME 'SubsystemName'  SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'user defined' )
+nsSchemaCSN: 52448a56000000000000
+

@@ -443,7 +443,7 @@ int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
     return EOK;
 }
 
-void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq)
+static void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq)
 {
     struct tevent_req *req; 
     struct sdap_sudo_refresh_state *state;
@@ -481,6 +481,7 @@ static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq)
     DEBUG(SSSDBG_TRACE_FUNC, ("Giving control back to IPA SUDO provider\n"));
 
     state->num_rules = state->ldap_rules_count;
+
 done:
     /* req from ipa_sudo_refresh_send() */
     state->error = ret;

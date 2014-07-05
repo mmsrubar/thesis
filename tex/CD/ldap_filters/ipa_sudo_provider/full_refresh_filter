@@ -1,0 +1,10 @@
+(&(objectClass=ipasudorule)
+  (ipaEnabledFlag=TRUE)
+  (|(cn=defaults)
+    (hostCategory=ALL)
+    (memberHost=FQDN)
+    (externalHost=FQDN)
+    (memberHost=DN of a HOSTGROUP)
+		...
+  )
+)

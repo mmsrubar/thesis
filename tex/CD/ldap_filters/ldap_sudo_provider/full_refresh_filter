@@ -1,0 +1,23 @@
+LDAP filter:
+---------------------------------------
+(&(objectClass=sudoRole)
+  (|(!(sudoHost=*))
+    (sudoHost=ALL)
+    (sudoHost=hostname.domain)	
+    (sudoHost=hostname)
+    (sudoHost=IPv4)
+    (sudoHost=IPv4/netmask)
+    (sudoHost=IPv6)
+    (sudoHost=IPv6/netmask)
+    (sudoHost=+*)					
+    (|(sudoHost=*\\*)
+      (sudoHost=*?*)
+      (sudoHost=*\**)
+      (sudoHost=*[*]*)
+    )
+  )
+)
+
+SYSDB filter:
+---------------------------------------
+(objectClass=sudoRule)

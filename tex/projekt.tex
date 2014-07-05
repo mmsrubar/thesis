@@ -9,7 +9,8 @@
 % pøipomínky posílejte na e-mail: bidlom AT fit.vutbr.cz
 % vim: set syntax=tex encoding=latin2:
 %============================================================================
-\documentclass[cover]{fitthesis} % odevzdani do wisu - odkazy, na ktere se da klikat
+\documentclass{fitthesis} % odevzdani do wisu - odkazy, na ktere se da klikat
+%\documentclass[print]{fitthesis} % pro tisk - na odkazy se neda klikat, bez desek
 %\documentclass[cover,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %\documentclass[english,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %      \documentclass[english]{fitthesis}
@@ -33,6 +34,20 @@
 \usepackage{rotating}
 \usepackage{tikz}
 \usepackage{float}
+\usepackage[tableposition=top]{caption}
+
+\lstnewenvironment{code}[1][]%
+  {\minipage{\linewidth} 
+   \lstset{
+ 			basicstyle=\ttfamily\footnotesize,
+	language=bash,
+	basicstyle=\normalsize\ttfamily,
+	morekeywords={*,objectClass},
+	captionpos=b,
+	emph={objectClass, cn, sudoHost},emphstyle={\bf\color{black}},
+}}
+  {\endminipage}
+
 
 
 %\hyphenation{dataExpireTimestamp}
@@ -82,27 +97,33 @@
   %bud pomoci nasledujicich parametru nebo pomoci vyhrazenych maker (viz dale)
   %===========================================================================
   %Klicova slova
-  keywords.cs={Klíèová slova v èeském jazyce.}, %klicova slova v ceskem jazyce
-  keywords.en={Klíèová slova v anglickém jazyce.}, %klicova slova v anglickem jazyce
+	keywords.cs={SUDO, nativní LDAP SUDO schéma, IPA SUDO schéma, FreeIPA, SSSD,
+	LDAP SUDO provider, IPA SUDO provider }, %klicova slova v ceskem jazyce
+  keywords.en={SUDO, native LDAP SUDO schema, IPA SUDO schema, FreeIPA, SSSD,
+	LDAP SUDO Provider, IPA SUDO Provider}, %klicova slova v anglickem jazyce
   %Abstract
   abstract.cs={
-	Smyslem této bakaláøské práce je zlep¹ení integrace mezi SUDO a SSSD se
+	Cílem této bakaláøské práce je zlep¹ení integrace mezi SUDO a SSSD se
 	zamìøením na vylep¹ení podpory SUDO pravidel ulo¾ených na serveru FreeIPA.
-	Zabývá se popisem LDAP SUDO provideru a pøiná¹í návrh a implementaci IPA SUDO
-	provideru. Navr¾ený provider eliminuje nadbyteènou re¾ii pøekládání SUDO
-	pravidel z IPA SUDO schématu do nativního LDAP SUDO schématu na stranì FreeIPA
+	Zabývá se popisem LDAP SUDO provideru a prezentuje návrh a implementaci IPA SUDO
+	providera. Navr¾ený provider eliminuje nadbyteènou re¾ii pøekládání SUDO
+	pravidel z~IPA SUDO schématu do nativního LDAP SUDO schématu na stranì FreeIPA
 	serveru.}, % abstrakt v ceskem jazyce 
-	abstract.en={
-	The purpose of this thesis is to improve integration between SUDO and SSSD
-	with a focus at improved support of SUDO rules stored on a FreeIPA server in
-	native IPA SUDO scheme. It presents documentation of LDAP SUDO provider and also
-	design and implementation of native IPA SUDO provider. Designed provider
-	eliminates unnecessary overhead of exporting SUDO rules from IPA SUDO schema
-	info native LDAP SUDO scheme on a FreeIPA server.}, % abstrakt v anglickem jazyce
+	abstract.en={ The purpose of this thesis is to improve integration between
+		SUDO and SSSD with a~focus on improved support of SUDO rules stored on an
+		FreeIPA server in the native IPA SUDO scheme. It presents documentation of
+		LDAP SUDO provider and also the design and implementation of a native IPA
+		SUDO provider. The designed provider eliminates an unnecessary overhead of
+		exporting SUDO rules from IPA SUDO schema to native LDAP SUDO scheme on an
+		FreeIPA server.
+	}, % abstrakt v anglickem jazyce
   %Prohlaseni
   declaration={Prohla¹uji, ¾e jsem tuto bakaláøskou práci vypracoval samostatnì pod vedením pana ...},
   %Podekovani (nepovinne)
-  acknowledgment={Zde je mo¾né uvést podìkování vedoucímu práce a tìm, kteøí poskytli odbornou pomoc.} % nepovinne
+	acknowledgment={Rád bych podìkoval  prof. Tomá¹i Vojnarovi za ve¹kerou
+		poskytnutou pomoc. Dále mému technickému vedoucímu, ing. Jakubu Hrozkovi za
+		trpìlivé a velice ochotné vedení. Podìkování patøí také komunitám projektù SSSD a FreeIPA
+		za trpìlivé zodpovídaní ve¹kerých dotazù a to zejména Pavlu Bøezinovi.} % nepovinne
 }
 
 %Abstrakt (cesky, anglicky)
@@ -141,7 +162,8 @@
   % Pouzita literatura
   % ----------------------------------------------
 \ifczech
-  \bibliographystyle{czechiso}
+  %\bibliographystyle{czechiso}
+  \bibliographystyle{unsrt}
 \else 
   \bibliographystyle{plain}
 %  \bibliographystyle{alpha}
