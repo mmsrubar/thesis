@@ -22,12 +22,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// FIXME: correct to include it here? or what should I include to get size_t?
-//#include <stddef.h>     
 #include "providers/ipa/ipa_common.h"
 #include "providers/ipa/ipa_hosts.h"
 #include "providers/ipa/ipa_access.h"
 #include "providers/ipa/ipa_sudo_export.h"  // just for debugging
+#include "providers/ldap/sdap_sudo.h"
 
 struct ipa_sudo_get_hostgroups_state {
 
@@ -55,12 +54,11 @@ static errno_t ipa_sudo_get_hostgroups_connect(struct tevent_req *req);
 static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq);
 static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq);
 
-struct tevent_req *
-ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem, 
-                             const char *fqdn,
-                             struct ipa_access_ctx *access_ctx)
+struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem, 
+                                                struct sdap_sudo_ctx *sudo_ctx)
 {
     struct ipa_sudo_get_hostgroups_state *state;
+    struct ipa_access_ctx *access_ctx;
     struct tevent_req *req;
     int ret;
 
@@ -70,10 +68,13 @@ ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
         return NULL;
     }
 
+    access_ctx = talloc_get_type(sudo_ctx->be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
+                                 struct ipa_access_ctx);
+ 
     state->be_ctx = access_ctx->sdap_ctx->be;
     state->conn_cache = access_ctx->sdap_ctx->conn->conn_cache;
     state->opts = access_ctx->sdap_ctx->opts;
-    state->hostname = talloc_strdup(state, fqdn);
+    state->hostname = talloc_strdup(state, sudo_ctx->ipa_hostname);
     state->host_map = access_ctx->host_map;
     state->hostgroup_map = access_ctx->hostgroup_map;
     state->host_search_bases = access_ctx->host_search_bases;
@@ -93,7 +94,7 @@ immediately:
     if (ret != EOK) {
         tevent_req_error(req, ret);
     }
-    tevent_req_post(req, state->be_ctx->ev);
+    //tevent_req_post(req, state->be_ctx->ev);
 
     return req;
 }

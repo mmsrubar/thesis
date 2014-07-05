@@ -332,7 +332,7 @@ static errno_t export_attr_value(TALLOC_CTX *mem,
 
 /* FIXME: 
  * Use ipa_sudorule_map and macros for these constants? It's much more 
- * readable and clear this way in my opinion
+ * readable and clear this way in my opinion.
  */
 static errno_t export_set_properties(TALLOC_CTX *mem,
                                      const char *attr_name, 
@@ -445,7 +445,8 @@ static errno_t export_attr_values(TALLOC_CTX *mem_sudoer,
     /* EXPORT all values of the attribute */
     for (k = 0; k < e->num_values; k++) {
 
-        ret = export_set_properties(mem_sudoer, e->name, (const char *)e->values[k].data, &prop);
+        ret = export_set_properties(mem_sudoer, e->name, 
+                                    (const char *)e->values[k].data, &prop);
         if (ret != EOK) {
             goto fail;
         }
@@ -603,7 +604,8 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
                                      int ipa_cmds_count, 
                                      const char *attr_name,
                                      const char *attr_value,
-                                     bool cmd_group)
+                                     bool cmd_group,
+                                     int *error)
 {
     const char **values = NULL;
     const char **val;
@@ -611,26 +613,39 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
     const char *tmp = NULL;
 
     static int i;
+    int ret;
 
     /* for each ipa cmd (continue where we stopped the last time) */
     for ( ; i < ipa_cmds_count; i++) {
 
         sysdb_attrs_get_string_array(ipa_cmds[i], attr_name, mem, &values);
 
-        //FIXME:
         for (val = values; val != NULL && *val != NULL; val++) {
             
             if (strcasecmp(*val, attr_value) == 0) {
                 /* searched ipa command found, returning value of sudoCmd */
-                sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &tmp);
+                ret = sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &tmp);
+                if (ret != EOK) {
+                    DEBUG(SSSDBG_CRIT_FAILURE, ("sysdb_attrs_get_string() failed\n"));
+                    *error = ret;
+                    return NULL;
+                }
 
-                i++;    /* don't start in the same entry next time */
-                sudo_cmd = talloc_strdup(mem, tmp);     // FIXME: check return val
+                /* don't start in the same entry next time */
+                i++;
+
+                sudo_cmd = talloc_strdup(mem, tmp);
+                if (sudo_cmd == NULL) {
+                    DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+                    *error = ENOMEM;
+                    return NULL;
+                }
+
                 return sudo_cmd;
             }
         }
 
-        //talloc_zfree(values);
+        talloc_zfree(values);
     }
 
     /* no more sudoCmd(s) for this group of ipa commands */
@@ -665,6 +680,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
     if (ret != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_realloc() failed\n"));
         goto fail;
+
     }
 
     /* for each allowed or denied command */
@@ -686,7 +702,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         }
 
         while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
-                                        attr_name, cmds[j], cmd_group)) != NULL)
+                                        attr_name, cmds[j], cmd_group, &ret)) != NULL)
         {
 
             if (prefix) {   /* denied cmds has to have ! prefix */

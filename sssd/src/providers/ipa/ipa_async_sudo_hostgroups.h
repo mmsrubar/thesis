@@ -2,10 +2,8 @@
 #define _IPA_ASYNC_SUDO_HOSTGROUPS_
 
 
-struct tevent_req *
-ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem, 
-                             const char *fqdn,
-                             struct ipa_access_ctx *access_ctx);
+struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem, 
+                                                struct sdap_sudo_ctx *sudo_ctx);
 
 int ipa_sudo_get_hostgroups_recv(struct tevent_req *req,
                                  TALLOC_CTX *mem_ctx,

@@ -233,5 +233,3 @@ errno_t ipa_sudo_index_commands(TALLOC_CTX *mem,
 fail:
     return ret;
 }
-
-

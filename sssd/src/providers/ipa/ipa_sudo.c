@@ -26,11 +26,9 @@
 
 #include "providers/ipa/ipa_common.h"
 #include "providers/ipa/ipa_hosts.h"
-#include "providers/ipa/ipa_access.h"
 #include "providers/ipa/ipa_sudo.h"
 #include "providers/ipa/ipa_sudo_export.h"  // for debug prit_rules 
 #include "providers/ipa/ipa_async_sudo.h"
-#include "providers/ipa/ipa_async_sudo_hostgroups.h"
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ipa/ipa_sudo_refreshes.h"
 #include "db/sysdb_sudo.h"
@@ -152,8 +150,6 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
 {
     struct sdap_id_ctx *id_ctx = ipa_id_ctx->sdap_id_ctx;
     struct sdap_sudo_ctx *sudo_ctx = NULL;
-    struct ipa_access_ctx *ipa_access_ctx;
-    struct tevent_req *req = NULL;
     const char *hostname = NULL;
     char *dot = NULL;
     int ret;
@@ -168,6 +164,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
 
     sudo_ctx->id_ctx = id_ctx;
     sudo_ctx->be_ctx = be_ctx;
+    sudo_ctx->ipa_hostname = NULL;
     *ops = &ipa_sudo_ops;
     *pvt_data = sudo_ctx;
 
@@ -188,7 +185,8 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
 
     /* if IPA hostname isn't set in sssd.conf (ipa_hostname option) then it'll
      * be get automatically by 'gethostname()' in ipa_get_options and set into 
-     * ipa_options->basic as IPA_HOSTNAME */
+     * ipa_options->basic as IPA_HOSTNAME 
+     */
     hostname = dp_opt_get_string(ipa_id_ctx->ipa_options->basic, IPA_HOSTNAME);
     if (hostname != NULL) {
 
@@ -196,95 +194,22 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
         if (dot != NULL) {
             
             DEBUG(SSSDBG_TRACE_INTERNAL, ("Found IPA hostname: %s\n", hostname));
-            sudo_ctx->ipa_hostname = talloc_strdup(sudo_ctx, hostname);
 
+            sudo_ctx->ipa_hostname = talloc_strdup(sudo_ctx, hostname);
             if (sudo_ctx->ipa_hostname == NULL) {
-                DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed, unable to "
-                                                "copy ipa hostname\n"));
+                DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
                 return ENOMEM;
             }
-
-        } else {
-            DEBUG(SSSDBG_CRIT_FAILURE, ("Machine hostname ins't FQDN, sudo "
-                                            "won't work correctly"));
         }
     }
-    else {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("No machine hostname set, sudo won't work "
-                                        "correctly"));
-    }
 
-    ipa_access_ctx = talloc_get_type(be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
-                                     struct ipa_access_ctx);
- 
-    ipa_sudo_setup_periodical_refreshes(sudo_ctx);
-
-#ifdef SKIP_HOSTGROUPS
-    /* we have the FQDN of the client so we can perform hostgroups lookup */
-    req = ipa_sudo_get_hostgroups_send(sudo_ctx, 
-                                       sudo_ctx->ipa_hostname, 
-                                       ipa_access_ctx);
-    if (req == NULL) {
-        return ENOENT;
-    }
- 
-    tevent_req_set_callback(req, ipa_sudo_get_hostinfo_finish, sudo_ctx);
-#endif
-
-    return EOK;
-}
-
-
-static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
-{
-    struct sdap_sudo_ctx *sudo_ctx;
-    struct sysdb_attrs **hostgroups;
-    struct be_ctx *be_ctx;
-    const char *group_name;
-    size_t hostgroup_count;
-    errno_t ret;
-    int dp_error;
-    int error;
-    int i;
-
-    sudo_ctx = tevent_req_callback_data(subreq, struct sdap_sudo_ctx);
-
-    ret = ipa_sudo_get_hostgroups_recv(subreq, sudo_ctx,
-                                       &dp_error, &error,
-                                       &hostgroups,
-                                       &hostgroup_count);
-    talloc_zfree(subreq);
-    if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve hostgroups information - "
-              "(host filter will be disabled) [%d]: %s\n", ret, strerror(ret)));
+    if (hostname == NULL || dot == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Machine hostname ins't FQDN, sudo "
+                                    "won't work correctly"));
         sudo_ctx->use_host_filter = false;
     }
 
-    sudo_ctx->hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
-    if (sudo_ctx->hostgroups == NULL) {
-        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_zero_array() failed\n"));
-        return;
-    }
-
-    for (i = 0; i < hostgroup_count; i++) {
-
-        ret = sysdb_attrs_get_string(hostgroups[i], "name", &group_name);
-        if (ret != EOK) {
-            DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to get common name of a "
-                        "hostgroup. Trying another hostgroup record.\n"));
-            continue;
-        }
-
-        sudo_ctx->hostgroups[i] = talloc_strdup(sudo_ctx->hostgroups, 
-                                                group_name);
-        DEBUG(SSSDBG_TRACE_FUNC, ("IPA client is member of hostgroup: %s\n",
-                                   sudo_ctx->hostgroups[i]));
-
-        //FIXME: free(group_name);
-    }
-    sudo_ctx->hostgroups[hostgroup_count] = NULL;
-
-    ipa_sudo_setup_periodical_refreshes(sudo_ctx);
+    return ipa_sudo_setup_periodical_refreshes(sudo_ctx);
 }
 
 int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
@@ -297,7 +222,7 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     time_t delay;
     int ret;
 
-    DEBUG(SSSDBG_TRACE_INTERNAL, ("Setting up periodical refresh of sudo "
+    DEBUG(SSSDBG_TRACE_INTERNAL, ("Setting up periodical refreshes of sudo "
                                   "rules using ptask scheduler\n"));
 
     /* get configured values */
@@ -308,7 +233,6 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
 
     if (smart_interval == 0 && full_interval == 0) {
         smart_default = id_ctx->opts->basic[SDAP_SUDO_SMART_REFRESH_INTERVAL].def_val.number;
-
         DEBUG(SSSDBG_MINOR_FAILURE, ("At least one periodical update has to be "
               "enabled. Setting smart refresh interval to default value (%ld).\n",
               smart_default));
@@ -335,6 +259,8 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
 
     ret = sysdb_sudo_get_last_full_refresh(id_ctx->be->domain, &last_full);
     if (ret != EOK) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to get the time of the "
+                                    "last full refresh\n"));
         return ret;
     }
 
@@ -360,17 +286,17 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     /* Schedule full refresh */
     /* If the backend is offline then this kind of refresh is disabled and when
      * we got online again ptask will fire it immediately.
+     */
     /* FIXME: timeout? */
     ret = be_ptask_create(sudo_ctx, sudo_ctx->be_ctx, full_interval, delay, 
                           1, 60, BE_PTASK_OFFLINE_DISABLE,
                           ipa_sudo_full_refresh_send, 
-                          ipa_sudo_periodical_full_refresh_recv,
+                          ipa_sudo_full_refresh_recv,
                           sudo_ctx, 
                           "full refresh of IPA sudo rules", NULL);
     if (ret != EOK) {
-        DEBUG(SSSDBG_FATAL_FAILURE,
-              ("Unable to initialize refresh periodic task\n"));
-        //goto fail;
+        DEBUG(SSSDBG_FATAL_FAILURE, ("Unable to initialize refresh "
+                                     "periodic task\n"));
     }
 
     /* Schedule smart refresh */
@@ -378,40 +304,13 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
                           smart_interval, 
                           11, 60, BE_PTASK_OFFLINE_SKIP,
                           ipa_sudo_smart_refresh_send, 
-                          ipa_sudo_periodical_smart_refresh_recv,
+                          ipa_sudo_smart_refresh_recv,
                           sudo_ctx, 
                           "smart refresh of IPA sudo rules", NULL);
     if (ret != EOK) {
-        DEBUG(SSSDBG_FATAL_FAILURE,
-              ("Unable to initialize refresh periodic task\n"));
-        //goto fail;
+        DEBUG(SSSDBG_FATAL_FAILURE, ("Unable to initialize refresh "
+                                     "periodic task\n"));
     }
-
-    return EOK;
-}
-
-errno_t ipa_sudo_periodical_full_refresh_recv(struct tevent_req *req)
-{
-    int dp_error;
-    int error;
-    int ret;
-
-    ret = ipa_sudo_full_refresh_recv(req, &dp_error, &error);
- 
-    // FIXME: return vals
-
-    return EOK;
-}
-
-errno_t ipa_sudo_periodical_smart_refresh_recv(struct tevent_req *req)
-{
-    int dp_error;
-    int error;
-    int ret;
-
-    ret = ipa_sudo_smart_refresh_recv(req, &dp_error, &error);
- 
-    // FIXME: return vals
 
     return EOK;
 }
