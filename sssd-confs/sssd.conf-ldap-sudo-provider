@@ -1,0 +1,44 @@
+[domain/example.cz]
+ldap_sudo_smart_refresh_interval = 30
+ldap_uri = ldap://ipa.example.cz
+ldap_sudo_search_base = ou=SUDOers,dc=example,dc=cz
+#ldap_sudo_search_base = cn=sudorules,cn=sudo,dc=example,dc=cz
+sudo_provider = ldap
+#sudo_provider = ipa
+ldap_sasl_mech = GSSAPI
+ldap_sasl_authid = host/client1.example.cz
+ldap_sasl_realm = EXAMPLE.CZ
+krb5_server = ipa.example.cz
+
+cache_credentials = True
+krb5_store_password_if_offline = True
+ipa_domain = example.cz
+auth_provider = ipa
+access_provider = ipa
+chpass_provider = ipa
+id_provider = ipa
+ipa_hostname = client1.example.cz
+ipa_dyndns_update = True
+ipa_server = _srv_, ipa.example.cz
+ldap_tls_cacert = /etc/ipa/ca.crt
+#entry_cache_sudo_timeout = 3600
+entry_cache_sudo_timeout = 10
+
+[sssd]
+services = nss, pam, ssh, sudo
+config_file_version = 2
+timeout = 3600
+
+domains = example.cz
+[nss]
+
+[pam]
+
+[sudo]
+
+[autofs]
+
+[ssh]
+
+[pac]
+
