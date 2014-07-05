@@ -45,7 +45,6 @@ struct sdap_sudo_refresh_state {
     int error;
     char *highest_usn;
     size_t num_rules;
-    bool ipa_provider;
 };
 
 struct sdap_sudo_load_sudoers_state {

@@ -1678,13 +1678,7 @@ libsss_ldap_common_la_SOURCES += \
     src/providers/ldap/sdap_async_sudo.c \
     src/providers/ldap/sdap_async_sudo_timer.c \
     src/providers/ldap/sdap_async_sudo_hostinfo.c \
-    src/providers/ldap/sdap_sudo.c \
-    src/providers/ipa/ipa_async_sudo.c \
-    src/providers/ipa/ipa_async_sudo_cmds.c \
-    src/providers/ipa/ipa_async_sudo_hostgroups.c \
-    src/providers/ipa/ipa_sudo_cmd.c \
-    src/providers/ipa/ipa_sudo_export.c \
-    src/providers/ipa/ipa_hosts.c
+    src/providers/ldap/sdap_sudo.c
 endif
 
 if BUILD_AUTOFS
@@ -1842,7 +1836,13 @@ endif
 
 if BUILD_SUDO
 libsss_ipa_la_SOURCES += \
-    src/providers/ipa/ipa_sudo.c
+    src/providers/ipa/ipa_sudo_refreshes.c \
+    src/providers/ipa/ipa_sudo.c \
+    src/providers/ipa/ipa_async_sudo.c \
+    src/providers/ipa/ipa_async_sudo_cmds.c \
+    src/providers/ipa/ipa_async_sudo_hostgroups.c \
+    src/providers/ipa/ipa_sudo_cmd.c \
+    src/providers/ipa/ipa_sudo_export.c
 endif
 
 if BUILD_SSH

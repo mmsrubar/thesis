@@ -3,6 +3,10 @@
 
     Async IPA module for getting sudo commands.
 
+    - this module is used by ipa_async_sudo.c to get sudo commands for 
+        donwloaded IPA SUDO rules
+    - sudo commands are dowloaded after we got the rules because commands are 
+        in separate container at IPA
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
@@ -275,24 +279,18 @@ static void ipa_sudo_load_ipa_cmds_process(struct tevent_req *subreq)
         goto fail;
     }
 
-    /*
-    print_rules("IPA sudoers:", state->rules->ipa_rules, state->rules->ipa_rules_count);
-    print_rules("IPA sudo commands:", state->rules->ipa_cmds, state->rules->ipa_cmds_count);
-    */
-
-       ret = ipa_sudo_export_cmds(state, 
-                                  state->rules->sudoers, 
-                                  state->rules->sudoers_count,
-                                  state->rules->cmds_index, 
-                                  state->rules->ipa_cmds, 
-                                  state->rules->ipa_cmds_count);
+    ret = ipa_sudo_export_cmds(state, 
+                               state->rules->sudoers, 
+                               state->rules->sudoers_count,
+                               state->rules->cmds_index, 
+                               state->rules->ipa_cmds, 
+                               state->rules->ipa_cmds_count);
     if (ret != EOK) {
         goto fail;
     }
 
-    DEBUG(SSSDBG_TRACE_FUNC, ("All IPA SUDO rules successfully exported into "
+    DEBUG(SSSDBG_TRACE_FUNC, ("All IPA sudo rules successfully exported into "
                               "native LDAP SUDO scheme.\n"));
-    //print_rules("Exported IPA sudoers:", state->rules->sudoers, state->rules->sudoers_count);
 
 fail:
     if (ret == EOK) {

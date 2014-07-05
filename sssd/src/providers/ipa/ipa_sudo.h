@@ -26,6 +26,4 @@
 #define IPA_SUDO_FULL_FILTER    "&(objectClass=%s)(ipaEnabledFlag=TRUE)(|(cn=defaults)"
 #define IPA_SUDO_CMD_FILTER     "(&(objectClass=%s)(|"
 
-                                             
-
 #endif	// _IPA_SUDO_H_

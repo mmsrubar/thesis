@@ -7,7 +7,11 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct sdap_id_conn_cache *conn_cache,
                                           const char *ldap_filter,
                                           const char *sysdb_filter);
-
+int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
+                           struct tevent_req *req,
+                           int *dp_error,
+                           int *error,
+                           char **usn,
+                           size_t *num_rules);
 
 #endif	// _IPA_ASYNC_SUDO_H_
-

@@ -29,6 +29,7 @@
 #include "providers/ipa/ipa_sudo_cmd.h"
 #include "providers/ipa/ipa_sudo.h"
 #include "providers/ipa/ipa_sudo_export.h"
+#include "db/sysdb_sudo.h"
 #include "util/util.h"
 
 enum attr_type {
@@ -168,9 +169,9 @@ done:
     return ret;
 }
 
-errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx, 
-                               const char *val,
-                               char **new_value)
+static errno_t get_upper_letter_value(TALLOC_CTX *mem_ctx, 
+                                      const char *val,
+                                      char **new_value)
 {
     errno_t ret = EOK;
 
@@ -274,10 +275,10 @@ static errno_t ipa_sudo_export_attr_name(TALLOC_CTX *mem,
     return ret;
 }
 
-errno_t ipa_sudo_export_attr_value(TALLOC_CTX *mem,
-                                   struct ipa_sudo_export *properties,
-                                   struct sysdb_ctx *sysdb,
-                                   char **new_value)
+static errno_t ipa_sudo_export_attr_value(TALLOC_CTX *mem,
+                                          struct ipa_sudo_export *properties,
+                                          struct sysdb_ctx *sysdb,
+                                          char **new_value)
 {
     errno_t ret = EOK;
     char *value;
@@ -329,10 +330,10 @@ fail:
 
 // FIXME: use ipa_sudorule_map and macros for these constants?
 // It's much more readable and clear this way in my opinion
-errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
-                                       const char *attr_name, 
-                                       const char *attr_val,
-                                       struct ipa_sudo_export **properties)
+static errno_t ipa_sudo_export_set_properties(TALLOC_CTX *mem,
+                                              const char *attr_name, 
+                                              const char *attr_val,
+                                              struct ipa_sudo_export **properties)
 {
     struct ipa_sudo_export *prop;
     errno_t ret = EOK;
@@ -422,13 +423,13 @@ fail:
     return ret;
 }
 
-errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem, 
-                                    struct sysdb_ctx *sysdb, 
-                                    struct ldb_message_element *e,
-                                    struct ipa_sudoer_cmds **cmd_index,
-                                    struct sysdb_attrs **sudoers,
-                                    const char *new_name,
-                                    struct tevent_req *req)
+static errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem, 
+                                           struct sysdb_ctx *sysdb, 
+                                           struct ldb_message_element *e,
+                                           struct ipa_sudoer_cmds **cmd_index,
+                                           struct sysdb_attrs **sudoers,
+                                           const char *new_name,
+                                           struct tevent_req *req)
 {
     struct ldb_message_element *new_el = NULL;
     struct ipa_sudo_export *prop = NULL;
@@ -454,17 +455,14 @@ errno_t ipa_sudo_export_attr_values(TALLOC_CTX *mem,
          * final sudoers yet. Because we need to export the value first but we
          * don't have downloaded the IPA SUDO commands yet.
          */
-        /* There is a bug in this func. Probably you work wrong with talloc. If I
-         * comment this func then there is no problem to free the req. But when the
-         * func is called then I get SIGABRT when I try to free the req.
-         */
         if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
             strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
 
             // FIXME: I should put cmds_index[i] as mem context here istead of
             // ipa_sudo_get_state
             //ret = ipa_sudo_index_commands(mem, *cmd_index, e->name, new_value);
-            ret = ipa_sudo_index_commands((TALLOC_CTX *)*cmd_index, *cmd_index, e->name, new_value);
+            ret = ipa_sudo_index_commands((TALLOC_CTX *)*cmd_index, 
+                                           *cmd_index, e->name, new_value);
             if (ret != EOK) {
                 goto fail;
             }
@@ -495,7 +493,6 @@ fail:
     return ret;
 }
 
-
 /* 
  * Export ipa specific attributes, copy attributes that doesn't need to be
  * exported and create command index (remeber commands for each rule so when we
@@ -584,156 +581,156 @@ fail:
     return ret;
 }
 
-
-
-#ifdef WORKING!
-/* 
- * Export ipa specific attributes, copy attributes that doesn't need to be
- * exported and create command index (remeber commands for each rule so when we
- * got the commands we don't have to iterate through all rules attrs again).
+/* If attr_name is ipaUniqueID then it'l return value of sudoCmd attribute on a
+ * first call and NULL on second call.
+ *
+ * If attr_name is DN of a commands group then it'l return sudoCmd on each call
+ * and NULL if there are no more commands.
  */
-errno_t ipa_sudo_export_sudoers(TALLOC_CTX *mem, 
-                                struct sysdb_ctx *sysdb,
-                                struct sysdb_attrs **ipa_rules, 
-                                size_t rules_count, 
-                                struct sysdb_attrs ***exported_rules,
-                                size_t *sudoers_count,
-                                struct ipa_sudoer_cmds ***index,
-                                struct tevent_req *req)
+static const char *get_sudoCmd_value(TALLOC_CTX *mem,
+                                     struct sysdb_attrs **ipa_cmds,
+                                     int ipa_cmds_count, 
+                                     const char *attr_name,
+                                     const char *attr_value,
+                                     bool cmd_group)
 {
-    struct ldb_message_element *e = NULL;
-    struct sysdb_attrs **sudoers;
-    struct ipa_sudoer_cmds **cmds_index;
-    const char *new_name = NULL;
+    const char **values = NULL;
+    const char **val;
+    const char *sudo_cmd = NULL;
+    const char *tmp = NULL;
+
+    static int i;
+
+    /* for each ipa cmd (continue where we stopped the last time) */
+    for ( ; i < ipa_cmds_count; i++) {
+
+        sysdb_attrs_get_string_array(ipa_cmds[i], attr_name, mem, &values);
+
+        //FIXME:
+        for (val = values; val != NULL && *val != NULL; val++) {
+            
+            if (strcasecmp(*val, attr_value) == 0) {
+                /* searched ipa command found, returning value of sudoCmd */
+                sysdb_attrs_get_string(ipa_cmds[i], IPA_SUDO_ATTR_CMD, &tmp);
+
+                i++;    /* don't start in the same entry next time */
+                sudo_cmd = talloc_strdup(mem, tmp);     // FIXME: check return val
+                return sudo_cmd;
+            }
+        }
+
+        //talloc_zfree(values);
+    }
+
+    /* no more sudoCmd(s) for this group of ipa commands */
+    i = 0;
+    return NULL;
+}
+
+static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers, 
+                                   struct sysdb_attrs **ipa_cmds, 
+                                   int ipa_cmds_count,
+                                   const char **cmds, 
+                                   int count, bool prefix)
+{
+    TALLOC_CTX *tmp = talloc_init(NULL);
+
+    struct ldb_message_element *el;
+    const char *attr_name = NULL;
+    const char *sudo_cmd = NULL;
+    char *p_sudo_cmd = NULL;
+    bool cmd_group = false;
     errno_t ret = EOK;
-    int i, j;
+    int j;
 
-    /* an array of exported sudoers (without commands) */
-    *sudoers_count = 0;
-    sudoers = talloc_zero_array(mem, struct sysdb_attrs *, rules_count);
-    if (sudoers == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
-        goto fail;
+    if (cmds == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("No ipa command index\n"));
+        return ENOENT;
     }
 
-    cmds_index = talloc_zero_array(mem, struct ipa_sudoer_cmds *, rules_count);
-    if (cmds_index == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
-        goto fail;
+    /* create sudoCommand attribute if there isn't yet */
+    sysdb_attrs_get_el_ext(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, true, &el);
+
+    /* for each allowed or denied command */
+    for (j = 0; j < count; j++) {
+
+        /* look up a single command or a group? */
+        if (strstr(cmds[j], IPA_SUDO_CONTAINER_CMD_GRPS) == NULL) {
+            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_ID);
+            cmd_group = false;
+        } else {
+            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_MEMBEROF);
+            cmd_group = true;
+        }
+        if (attr_name == NULL) {
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+            ret = ENOMEM;
+            goto fail;
+        }
+
+        while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
+            attr_name, cmds[j], cmd_group)) != NULL)
+        {
+
+            if (prefix) {   /* denied cmds has to have ! prefix */
+                p_sudo_cmd = talloc_asprintf_append(p_sudo_cmd, "%c%s", 
+                                                DENIED_CMD_PREFIX, sudo_cmd);
+                if (p_sudo_cmd == NULL) {
+                    DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
+                    ret = ENOMEM;
+                    goto fail;
+                }
+
+                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, p_sudo_cmd);
+            } else {
+                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, sudo_cmd);
+            }
+
+            talloc_zfree(p_sudo_cmd);
+            talloc_zfree(sudo_cmd);
+        }
     }
 
-    /* for each rule aplicable to this host */
-    for (i = 0; i < rules_count; i++) {
+fail:
+    talloc_free(tmp);
+    return ret;
+}
 
-        DEBUG(SSSDBG_TRACE_FUNC, ("Exporting IPA SUDO rule %s\n",
-                                  (char *)ipa_rules[i]->a[1].values[0].data));
+int ipa_sudo_export_cmds(TALLOC_CTX *mem,
+                         struct sysdb_attrs **sudoers,
+                         int sudoers_count,
+                         struct ipa_sudoer_cmds **index, 
+                         struct sysdb_attrs **ipa_cmds,
+                         int ipa_cmds_count)
+{
+    errno_t ret = EOK;
+    int i;
 
-        /* new sudo rule */
-        sudoers[i] = sysdb_new_attrs(sudoers);
-        /* new index of allowed and denied commands for this rules */
-        cmds_index[i] = talloc_zero(cmds_index, struct ipa_sudoer_cmds);
+    DEBUG(SSSDBG_TRACE_FUNC, ("Exporting sudo commands\n"));
 
-        /* for each attribute of the rule */
-        for (j = 0; j < ipa_rules[i]->num; j++) {
+    /* for each sudoer */
+    for (i = 0; i < sudoers_count; i++) {
 
-            /* get element -> one attribute of the rule */
-            e = &(ipa_rules[i]->a[j]);
-
-            /* EXPORT the name of the attribute */
-            // FIXME: new atttrs has to be stored under sudoers attrs!
-            ret = ipa_sudo_export_attr_name(mem, e->name, &new_name);
+        /* are there any allowed commands for this sudoer? */
+        if (index[i]->allowed_num != 0) {
+            ret = ipa_sudo_assign_command(sudoers[i], ipa_cmds, ipa_cmds_count, 
+                                          index[i]->allowed, 
+                                          index[i]->allowed_num, false);
             if (ret != EOK) {
                 goto fail;
             }
+        }
 
-            // ipa_sudo_export_attr_values
-            // =================================================================
-            struct ldb_message_element *new_el = NULL;
-            struct ipa_sudo_export *prop = NULL;
-            char *new_value = NULL;
-            int k;
-
-            /* EXPORT all values of the attribute */
-            for (k = 0; k < e->num_values; k++) {
-
-                ret = ipa_sudo_export_set_properties(sudoers[i], e->name, 
-                                                (const char *)e->values[k].data, &prop);
-                if (ret != EOK) {
-                    goto fail;
-                }
-
-               
-                ret = ipa_sudo_export_attr_value(sudoers[i], prop, sysdb, &new_value);
-                if (ret != EOK) {
-                    goto fail;
-                }
-
-                /* For commands we build cmd_index but do not copy it's values into
-                 * final sudoers yet. Because we need to export the value first but we
-                 * don't have downloaded the IPA SUDO commands yet.
-                 */
-                if (strcasecmp(e->name, IPA_SUDO_ATTR_ALLOW_CMD) == 0 ||
-                    strcasecmp(e->name, IPA_SUDO_ATTR_DENY_CMD) == 0) {
-
-                    // FIXME: I should put cmds_index[i] as mem context here istead of
-                    ret = ipa_sudo_index_commands(cmds_index, cmds_index[i], e->name, new_value);
-                    if (ret != EOK) {
-                        goto fail;
-                    }
-
-                    continue;
-                }
-
-                /* create new attribute or get the existing one based on the
-                 * new name of the attribute */
-                ret = sysdb_attrs_get_el_ext(sudoers[i], new_name, true, &new_el);
-                if (ret != EOK) {
-                    // FIXME: can't get new attribute
-                    goto fail;
-                }
-
-                /* copy exported value to the values of the new attribute */
-                ret = sysdb_attrs_add_string(sudoers[i], new_name, new_value);
-                if (ret != EOK) {
-                    // FIXME: can't get new attribute
-                    goto fail;
-                }
-
-                talloc_zfree(prop);
-                talloc_zfree(new_value);
-
-              
-            } /* EXPORT all values of the attribute */
-            // =================================================================
-
-#ifdef old
-            /* EXPORT all values of the attribute */
-            // FIXME: new atttrs has to be stored under sudoers context attrs!
-            ret = ipa_sudo_export_attr_values(mem, sysdb, e, &(cmds_index[i]), 
-                                              &(sudoers[i]), new_name, req);
-                                              
+        /* same for denied commands */
+        if (index[i]->denied_num != 0) {
+            ret = ipa_sudo_assign_command(sudoers[i], ipa_cmds, ipa_cmds_count, 
+                                          index[i]->denied, 
+                                          index[i]->denied_num, true);
             if (ret != EOK) {
                 goto fail;
             }
-#endif
-
-            talloc_zfree(new_name);
-
-        } /* for each attribute of the rule */
-
-        (*sudoers_count)++;
-
-    } /* for each rule aplicable to this host */
-
-    if (rules_count != *sudoers_count || ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("Unsuccessful export of IPA SUDO rules\n"));
-        goto fail;
+        }
     }
-
-    *exported_rules = talloc_steal(mem, sudoers);
-    *index = cmds_index;
-
 fail:
     return ret;
 }
-#endif

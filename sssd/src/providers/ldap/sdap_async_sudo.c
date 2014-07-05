@@ -483,7 +483,6 @@ static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq)
     state->num_rules = state->ldap_rules_count;
 done:
     /* req from ipa_sudo_refresh_send() */
-
     state->error = ret;
     if (ret == EOK) {
         state->dp_error = DP_ERR_OK;

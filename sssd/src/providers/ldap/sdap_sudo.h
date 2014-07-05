@@ -22,14 +22,13 @@
 #define _SDAP_SUDO_H_
 
 struct sdap_sudo_ctx {
-    bool ipa_provider;      /* is this context used by IPA SUDO provider? */
-
+    struct be_ctx *be_ctx;  // for testin ptask in ipa sudo provider
     struct sdap_id_ctx *id_ctx;
 
     char **hostnames;
     char **ip_addr;
 
-    char *hostname;             /* ipa hostname */
+    char *ipa_hostname;
     char **hostgroups;          /* ipa host groups */
 
     bool include_netgroups;
@@ -65,25 +64,14 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
                    struct bet_ops **ops,
                    void **pvt_data);
 
-/* IPA SUDO PROVIDER stuff, will be moved into ipa_sudo_refreshes.h, but there
- * are cross refrences now
- * -----------------------------------------------------------------------------
- */
 void sdap_sudo_full_refresh_done(struct tevent_req *subreq);
-struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
-                                              struct sdap_sudo_ctx *sudo_ctx);
-struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
-                                               struct sdap_sudo_ctx *sudo_ctx,
-                                               struct be_ctx *be_ctx,
-                                               struct sdap_options *opts,
-                                               struct sdap_id_conn_cache *conn_cache,
-                                               char **rules);
 int sdap_sudo_rules_refresh_recv(struct tevent_req *req,
                                 int *dp_error,
                                 int *error);
 int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx);
-/* --------------------------------------------------------------------------- */
  
+void sdap_sudo_set_usn(struct sdap_server_opts *srv_opts, char *usn);
+
 /* sdap async interface */
 struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct be_ctx *be_ctx,

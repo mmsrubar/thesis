@@ -84,7 +84,7 @@ ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
     }
 
     ret = ipa_sudo_get_hostgroups_connect(req);
-    if (ret = EAGAIN) {
+    if (ret == EAGAIN) {
         /* the backend went offline */
         return req;
     }
@@ -203,9 +203,6 @@ static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq)
         tevent_req_error(req, ret);
         return;
     }
-
-    print_rules("Host groups: ", state->hostgroups, state->hostgroup_count);
-    print_rules("Hosts: ", state->hosts, state->host_count);
 
     /* getting hostgroups is done now */
     tevent_req_done(req);
