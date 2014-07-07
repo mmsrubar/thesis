@@ -1,7 +1,7 @@
 /*
     SSSD
 
-    Get all hostgroups the IPA client is member of
+    Get all hostgroups the IPA client is member of.
 
     Authors:
         Michal Srubar <mmsrubar@gmail.com>
@@ -25,7 +25,6 @@
 #include "providers/ipa/ipa_common.h"
 #include "providers/ipa/ipa_hosts.h"
 #include "providers/ipa/ipa_access.h"
-#include "providers/ipa/ipa_sudo_export.h"  // just for debugging
 #include "providers/ldap/sdap_sudo.h"
 
 struct ipa_sudo_get_hostgroups_state {
@@ -60,7 +59,17 @@ struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
     struct ipa_sudo_get_hostgroups_state *state;
     struct ipa_access_ctx *access_ctx;
     struct tevent_req *req;
-    int ret;
+    int ret = EOK;
+
+    /* FIXME: 
+     * is it neccesary to have tevent_req_create as first call in _send func? 
+     */
+    access_ctx = talloc_get_type(sudo_ctx->be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
+                                 struct ipa_access_ctx);
+    if (access_ctx == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_get_type() failed\n"));
+        return NULL;
+    }
 
     req = tevent_req_create(mem, &state, struct ipa_sudo_get_hostgroups_state);
     if (req == NULL) {
@@ -68,19 +77,19 @@ struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
         return NULL;
     }
 
-    access_ctx = talloc_get_type(sudo_ctx->be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
-                                 struct ipa_access_ctx);
- 
-    state->be_ctx = access_ctx->sdap_ctx->be;
+    state->be_ctx = sudo_ctx->be_ctx;
     state->conn_cache = access_ctx->sdap_ctx->conn->conn_cache;
     state->opts = access_ctx->sdap_ctx->opts;
     state->hostname = talloc_strdup(state, sudo_ctx->ipa_hostname);
     state->host_map = access_ctx->host_map;
     state->hostgroup_map = access_ctx->hostgroup_map;
     state->host_search_bases = access_ctx->host_search_bases;
+    state->dp_error = DP_ERR_OK;
+    state->error = EOK;
 
     if (state->hostname == NULL) {
-        return NULL;
+        DEBUG(SSSDBG_FATAL_FAILURE, ("talloc_strdup() failed\n"));
+        ret = ENOMEM;
         goto immediately;
     }
 
@@ -93,8 +102,8 @@ struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
 immediately:
     if (ret != EOK) {
         tevent_req_error(req, ret);
+        tevent_req_post(req, state->be_ctx->ev);
     }
-    //tevent_req_post(req, state->be_ctx->ev);
 
     return req;
 }
@@ -144,7 +153,7 @@ static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq)
     struct ipa_sudo_get_hostgroups_state *state;
     struct tevent_req *req;
     int dp_error;
-    int ret;
+    int ret = EOK;
 
     /* req from ipa_sudo_get_hostgroups_send */
     req = tevent_req_callback_data(subreq, struct tevent_req);
@@ -160,8 +169,8 @@ static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq)
         tevent_req_done(req);
         return;
     } else if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE,
-              ("IPA SUDO connection failed - %s\n", strerror(ret)));
+        DEBUG(SSSDBG_CRIT_FAILURE, ("IPA SUDO connection failed - %s\n", 
+                                    strerror(ret)));
         state->error = ret;
         tevent_req_error(req, ret);
         return;
@@ -200,7 +209,7 @@ static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq)
                              &state->hostgroup_count,
                              &state->hostgroups);
     talloc_zfree(subreq);
-    if (ret) {
+    if (ret != EOK) {
         tevent_req_error(req, ret);
         return;
     }
