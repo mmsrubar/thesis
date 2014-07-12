@@ -20,6 +20,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* FIXME:
+ * If the smart refresh is called before full refresh is done then there is no
+ * USN and smart refresh will fail. Should we handle this situation or let user
+ * solve this with restart of the sssd?
+ */
 #include "providers/ipa/ipa_common.h"
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ldap/sdap.h"
@@ -40,6 +45,7 @@ struct ipa_sudo_full_refresh_state {
     int error;
 };
 
+static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq);
 void ipa_sudo_full_refresh_step(struct tevent_req *subreq);
 void ipa_sudo_full_refresh_done(struct tevent_req *subreq);
 
@@ -180,13 +186,64 @@ done:
     return filter;
 }
 
+/* issue a full refresh of sudo rules */
+struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
+                                              struct tevent_context *ev,
+                                              struct be_ctx *be_ctx,
+                                              struct be_ptask *be_ptask,
+                                              void *pvt)
+{
+    struct ipa_sudo_full_refresh_state *state = NULL;
+    struct sdap_sudo_ctx *sudo_ctx = NULL;
+    struct sdap_id_ctx *id_ctx = NULL;
+    struct tevent_req *subreq = NULL;
+    struct tevent_req *req = NULL;
+
+    sudo_ctx = talloc_get_type(pvt, struct sdap_sudo_ctx);
+    id_ctx = sudo_ctx->id_ctx;
+
+    req = tevent_req_create(mem_ctx, &state, struct ipa_sudo_full_refresh_state);
+    if (req == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("tevent_req_create() failed\n"));
+        return NULL;
+    }
+
+    sudo_ctx->full_refresh_in_progress = true;
+
+    state->sudo_ctx = sudo_ctx;
+    state->id_ctx = id_ctx;
+    state->sysdb = id_ctx->be->domain->sysdb;
+    state->domain = id_ctx->be->domain;
+
+
+    /* get the hostgroups first */
+    if (sudo_ctx->ipa_hostname == NULL) {
+        /* if the hostname of the client isn't FQDN then we can't get th
+         * hostgroups */
+        DEBUG(SSSDBG_MINOR_FAILURE, ("Hostname isn't FQDN - unable to get "
+                                     "hostgroups - (sudo won't work correctly)\n"));
+        ipa_sudo_full_refresh_step(req);
+        return req;
+    }
+
+    subreq = ipa_sudo_get_hostgroups_send(sudo_ctx, sudo_ctx);
+    if (subreq == NULL) {
+        DEBUG(SSSDBG_MINOR_FAILURE, ("Unable to get hostgroups - (sudo won't "
+                                     "work correctly)\n"));
+        ipa_sudo_full_refresh_step(req);
+        return req;
+    }
+ 
+    tevent_req_set_callback(subreq, ipa_sudo_get_hostinfo_finish, req);
+    return req;
+}
+
 static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
 {
     struct ipa_sudo_full_refresh_state *state;
     struct sdap_sudo_ctx *sudo_ctx;
     struct tevent_req *req;
     struct sysdb_attrs **hostgroups;
-    struct be_ctx *be_ctx;
     const char *group_name;
     size_t hostgroup_count;
     errno_t ret;
@@ -204,10 +261,10 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
                                        &hostgroups,
                                        &hostgroup_count);
     talloc_zfree(subreq);
-    if (ret != EOK) {
+    if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("Unable to retrieve hostgroups information - "
-              "(host filter will be disabled) [%d]: %s\n", ret, strerror(ret)));
-        sudo_ctx->use_host_filter = false;
+                                    "(sudo won't work correctly)\n"));
+        ipa_sudo_full_refresh_step(req);
     }
 
     sudo_ctx->hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
@@ -232,57 +289,7 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
     }
 
     sudo_ctx->hostgroups[hostgroup_count] = NULL;
-
     ipa_sudo_full_refresh_step(req);
-}
-
-
-/* issue a full refresh of sudo rules */
-struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
-                                              struct tevent_context *ev,
-                                              struct be_ctx *be_ctx,
-                                              struct be_ptask *be_ptask,
-                                              void *pvt)
-{
-    struct ipa_sudo_full_refresh_state *state = NULL;
-    struct sdap_sudo_ctx *sudo_ctx = NULL;
-    struct sdap_id_ctx *id_ctx = NULL;
-    struct tevent_req *subreq = NULL;
-    struct tevent_req *req = NULL;
-    int ret;
-
-    sudo_ctx = talloc_get_type(pvt, struct sdap_sudo_ctx);
-    id_ctx = sudo_ctx->id_ctx;
-
-    req = tevent_req_create(mem_ctx, &state, struct ipa_sudo_full_refresh_state);
-    if (req == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("tevent_req_create() failed\n"));
-        return NULL;
-    }
-
-    sudo_ctx->full_refresh_in_progress = true;
-
-    state->sudo_ctx = sudo_ctx;
-    state->id_ctx = id_ctx;
-    state->sysdb = id_ctx->be->domain->sysdb;
-    state->domain = id_ctx->be->domain;
-
-
-    /* get the hostgroups first */
-    if (sudo_ctx->ipa_hostname == NULL) {
-        /* if the hostname of the client isn't FQDN then we can't get th
-         * hostgroups */
-        ipa_sudo_full_refresh_step(req);
-        return req;
-    }
-
-    subreq = ipa_sudo_get_hostgroups_send(sudo_ctx, sudo_ctx);
-    if (subreq == NULL) {
-        return ENOENT;  //FIXME
-    }
- 
-    tevent_req_set_callback(subreq, ipa_sudo_get_hostinfo_finish, req);
-    return req;
 }
 
 void ipa_sudo_full_refresh_step(struct tevent_req *req)
@@ -347,7 +354,7 @@ void ipa_sudo_full_refresh_step(struct tevent_req *req)
     talloc_free(ldap_full_filter);
     talloc_free(sysdb_filter);
 
-    return req;
+    return;
 
 immediately:
     if (ret == EOK) {
@@ -356,8 +363,6 @@ immediately:
         tevent_req_error(req, ret);
     }
     tevent_req_post(req, id_ctx->be->ev);
-
-    return req;
 }
 
 void ipa_sudo_full_refresh_done(struct tevent_req *subreq)
@@ -407,22 +412,26 @@ done:
     tevent_req_done(req);
 }
 
-
-int ipa_sudo_full_refresh_recv(struct tevent_req *req)
+int ipa_sudo_full_refresh_recv(struct tevent_req *req,
+                               int *dp_error,
+                               int *error)
 {
     struct ipa_sudo_full_refresh_state *state = NULL;
     state = tevent_req_data(req, struct ipa_sudo_full_refresh_state);
 
     TEVENT_REQ_RETURN_ON_ERROR(req);
 
-    /*
     *dp_error = state->dp_error;
     *error = state->error;
-    */
 
     return EOK;
 }
 
+int ipa_sudo_full_refresh_ptask_recv(struct tevent_req *req)
+{
+    TEVENT_REQ_RETURN_ON_ERROR(req);
+    return EOK;
+}
 
 /* issue a smart refresh of IPA SUDO rules */
 struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
@@ -568,7 +577,10 @@ int ipa_sudo_smart_refresh_recv(struct tevent_req *req)
     struct ipa_sudo_smart_refresh_state *state = NULL;
     state = tevent_req_data(req, struct ipa_sudo_smart_refresh_state);
 
+    // FIXME
     TEVENT_REQ_RETURN_ON_ERROR(req);
+
+    return EOK;
 }
 
 /* issue a refresh of specific sudo rules */
@@ -587,7 +599,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
     char *ldap_rules_filter = NULL;
     char *sysdb_filter = NULL;
     char *safe_rule = NULL;
-    int ret;
+    int ret = EOK;
     int i;
 
     if (rules == NULL) {
@@ -680,7 +692,6 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
 
     tevent_req_set_callback(subreq, ipa_sudo_rules_refresh_done, req);
 
-    ret = EOK;
 immediately:
     talloc_free(tmp_ctx);
 
@@ -728,3 +739,17 @@ done:
     tevent_req_done(req);
 }
 
+int ipa_sudo_rules_refresh_recv(struct tevent_req *req,
+                                int *dp_error,
+                                int *error)
+{
+    struct ipa_sudo_rules_refresh_state *state = NULL;
+    state = tevent_req_data(req, struct ipa_sudo_rules_refresh_state);
+
+    TEVENT_REQ_RETURN_ON_ERROR(req);
+
+    *dp_error = state->dp_error;
+    *error = state->error;
+
+    return EOK;
+}
