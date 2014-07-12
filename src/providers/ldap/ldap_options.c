@@ -394,6 +394,26 @@ int ldap_get_sudo_options(TALLOC_CTX *memctx,
         return ret;
     }
 
+    /* attrs map for IPA SUDO Provider */
+    ret = sdap_get_map(opts, cdb, conf_path,
+                       ipa_sudorule_map,
+                       SDAP_OPTS_IPA_SUDO,
+                       &opts->ipa_sudorule_map);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_OP_FAILURE, "Could not get IPA SUDO attribute map\n");
+        return ret;
+    }
+
+    /* attrs map for IPA SUDO commands */
+    ret = sdap_get_map(opts, cdb, conf_path,
+                       ipa_sudocmds_map,
+                       SDAP_OPTS_SUDO_CMD,
+                       &opts->ipa_sudocmds_map);
+    if (ret != EOK) {
+        DEBUG(SSSDBG_OP_FAILURE, "Could not get IPA SUDO commnads attribute map\n");
+        return ret;
+    }
+
     /* host filter */
     *use_host_filter = dp_opt_get_bool(opts->basic, SDAP_SUDO_USE_HOST_FILTER);
     *include_netgroups = dp_opt_get_bool(opts->basic, SDAP_SUDO_INCLUDE_NETGROUPS);

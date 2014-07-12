@@ -330,6 +330,37 @@ struct sdap_attr_map native_sudorule_map[] = {
     SDAP_ATTR_MAP_TERMINATOR
 };
 
+struct sdap_attr_map ipa_sudorule_map[] = {
+    { "ipa_sudorule_object_class", "ipasudorule", "ipasudorule", NULL },
+    { "ldap_sudorule_name", "cn", SYSDB_SUDO_CACHE_AT_CN, NULL },
+    { "ldap_sudorule_usercategory", "userCategory", "userCategory", NULL },
+    { "ldap_sudorule_memberuser", "memberUser", "memberUser", NULL },
+    { "ldap_sudorule_externaluser", "externalUser", SYSDB_SUDO_CACHE_AT_USER, NULL },
+    { "ldap_sudorule_hostcategory", "hostCategory", "hostCategory", NULL },
+    { "ldap_sudorule_memberhost", "memberHost", "memberHost", NULL },
+    { "ldap_sudorule_externalhost", "externalHost", SYSDB_SUDO_CACHE_AT_HOST, NULL },
+    { "ldap_sudorule_cmdcategory", "cmdCategory", "cmdCategory", NULL },
+    { "ldap_sudorule_memberallowcmd", "memberAllowCmd", "memberAllowCmd", NULL },
+    { "ldap_sudorule_memberdenycmd", "memberDenyCmd", "memberDenyCmd", NULL },
+    { "ldap_sudorule_ipasudoopt", "ipaSudoOpt", SYSDB_SUDO_CACHE_AT_OPTION, NULL },
+    { "ldap_sudorule_ipasudorunasusercategory", "ipaSudoRunAsUserCategory", "ipaSudoRunAsUserCategory", NULL },
+    { "ldap_sudorule_ipasudorunas", "ipaSudoRunAs", "ipaSudoRunAs", NULL },
+    { "ldap_sudorule_ipasudorunasextuser", "ipaSudoRunAsExtUser", SYSDB_SUDO_CACHE_AT_RUNASUSER, NULL },
+    { "ldap_sudorule_ipasudorunasgroupcategory", "ipaSudoRunAsGroupCategory", "ipaSudoRunAsGroupCategory", NULL },
+    { "ldap_sudorule_ipasudorunasgroup", "ipaSudoRunAsGroup", "ipaSudoRunAsGroup", NULL },
+    { "ldap_sudorule_ipasudorunasextgroup", "ipaSudoRunAsExtGroup", SYSDB_SUDO_CACHE_AT_RUNASGROUP, NULL },
+    { "ldap_sudorule_entry_usn", "entryUSN", SYSDB_USN, NULL },
+    SDAP_ATTR_MAP_TERMINATOR
+};
+
+struct sdap_attr_map ipa_sudocmds_map[] = {
+    { "ipa_sudocmd_object_class", "ipasudocmd", "ipasudocmd", NULL },
+    { "ipa_sudocmd_ipauniqueid", "ipaUniqueID", "ipaUniqueID", NULL },
+    { "ipa_sudocmd_command", "sudoCmd", "sudoCmd", NULL },
+    { "ipa_sudocmd_memberof", "memberOf", "memberOf", NULL },
+    SDAP_ATTR_MAP_TERMINATOR
+};
+
 struct sdap_attr_map service_map[] = {
     { "ldap_service_object_class", "ipService", SYSDB_SVC_CLASS, NULL },
     { "ldap_service_name", "cn", SYSDB_NAME, NULL },

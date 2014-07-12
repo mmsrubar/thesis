@@ -22,10 +22,15 @@
 #define _SDAP_SUDO_H_
 
 struct sdap_sudo_ctx {
+    struct be_ctx *be_ctx;
     struct sdap_id_ctx *id_ctx;
 
     char **hostnames;
     char **ip_addr;
+
+    char *ipa_hostname;
+    char **hostgroups;  /* ipa host groups */
+
     bool include_netgroups;
     bool include_regexp;
     bool use_host_filter;
@@ -35,6 +40,28 @@ struct sdap_sudo_ctx {
     int full_refresh_attempts;
     struct be_cb *first_refresh_online_cb;
     struct tevent_req *first_refresh_timer;
+};
+
+struct sdap_sudo_refresh_state {
+    struct be_ctx *be_ctx;
+    struct sdap_options *opts;
+    struct sdap_id_op *sdap_op;
+    struct sdap_id_conn_cache *sdap_conn_cache;
+    struct sysdb_ctx *sysdb;
+    struct sss_domain_info *domain;
+    struct tevent_req *req;     /* req from sdap_sudo_refresh_send */
+    struct tevent_req *load_req;     /* req from sdap_sudo_load_sudoers_send */
+
+    const char *ldap_filter;    /* search */
+    const char *sysdb_filter;   /* delete */
+
+    struct sysdb_attrs **ldap_rules; /* search result will be stored here */
+    size_t ldap_rules_count;         /* search result will be stored here */
+
+    int dp_error;
+    int error;
+    char *highest_usn;
+    size_t num_rules;
 };
 
 enum sdap_sudo_refresh_type {
@@ -49,6 +76,7 @@ int sdap_sudo_init(struct be_ctx *be_ctx,
                    struct sdap_id_ctx *id_ctx,
                    struct bet_ops **ops,
                    void **pvt_data);
+void sdap_sudo_set_usn(struct sdap_server_opts *srv_opts, char *usn);
 
 /* sdap async interface */
 struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
@@ -58,15 +86,38 @@ struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           const char *ldap_filter,
                                           const char *sysdb_filter);
 
+int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
+                                       TALLOC_CTX *mem_ctx,
+                                       size_t *rules_count,
+                                       struct sysdb_attrs ***rules);
+
 int sdap_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
                            struct tevent_req *req,
                            int *dp_error,
                            int *error,
                            char **usn,
-                           size_t *num_rules);
+                           size_t *num_rules,
+                           struct sysdb_attrs ***rules);
+
+
+/* sysdb */ 
+int sdap_sudo_purge_sudoers(struct sss_domain_info *dom,
+                            const char *filter,
+                            struct sdap_attr_map *map,
+                            size_t rules_count,
+                            struct sysdb_attrs **rules);
+
+int sdap_sudo_store_sudoers(TALLOC_CTX *mem_ctx,
+                            struct sss_domain_info *domain,
+                            struct sdap_options *opts,
+                            size_t rules_count,
+                            struct sysdb_attrs **rules,
+                            int cache_timeout,
+                            time_t now,
+                            char **_usn);
+
 
 /* timer */
-
 typedef struct tevent_req * (*sdap_sudo_timer_fn_t)(TALLOC_CTX *mem_ctx,
                                                     struct sdap_sudo_ctx *sudo_ctx);
 

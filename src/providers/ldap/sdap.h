@@ -332,6 +332,39 @@ enum sdap_sudorule_attrs {
     SDAP_OPTS_SUDO  /* attrs counter */
 };
 
+enum ipa_sudorule_attrs {
+    SDAP_OC_IPA_SUDORULE = 0,
+    SDAP_AT_IPA_SUDO_NAME,
+    SDAP_AT_IPA_SUDO_USER_CAT,
+    SDAP_AT_IPA_SUDO_MEM_USER,
+    SDAP_AT_IPA_SUDO_EXT_USER,
+    SDAP_AT_IPA_SUDO_HOST_CAT,
+    SDAP_AT_IPA_SUDO_MEM_HOST,
+    SDAP_AT_IPA_SUDO_EXT_HOST,
+    SDAP_AT_IPA_SUDO_CMD_CAT,
+    SDAP_AT_IPA_SUDO_MEM_ALLOW_CMD,
+    SDAP_AT_IPA_SUDO_MEM_DENY_CMD,
+    SDAP_AT_IPA_SUDO_OPT,
+    SDAP_AT_IPA_SUDO_RUN_AS_USER_CAT,
+    SDAP_AT_IPA_SUDO_RUN_AS,
+    SDAP_AT_IPA_SUDO_RUN_AS_EXT_USER,
+    SDAP_AT_IPA_SUDO_RUN_AS_GROUP_CAT,
+    SDAP_AT_IPA_SUDO_RUN_AS_GROUP,
+    SDAP_AT_IPA_SUDO_RUN_AS_EXT_GROUP,
+    SDAP_AT_IPA_SUDO_USN,
+
+    SDAP_OPTS_IPA_SUDO  /* attrs counter */
+};
+
+enum sdap_sudocmds_attrs {
+    SDAP_OC_SUDO_CMD = 0,
+    SDAP_OC_SUDO_CMD_CMD,
+    SDAP_OC_SUDO_CMD_MEMBEROF,
+    SDAP_OC_SUDO_CMD_IPAUNIQUEID,
+
+    SDAP_OPTS_SUDO_CMD  /* attrs counter */
+};
+
 enum sdap_service_attrs {
     SDAP_OC_SERVICE = 0,
     SDAP_AT_SERVICE_NAME,
@@ -424,6 +457,8 @@ struct sdap_options {
 
     /* FIXME - should this go to a special struct to avoid mixing with name-service-switch maps? */
     struct sdap_attr_map *sudorule_map;
+    struct sdap_attr_map *ipa_sudorule_map;         /* map for IPA SUDO scheme */
+    struct sdap_attr_map *ipa_sudocmds_map;         /* map for IPA SUDO commands */
     struct sdap_attr_map *autofs_mobject_map;
     struct sdap_attr_map *autofs_entry_map;
 

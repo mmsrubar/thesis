@@ -288,7 +288,7 @@ static int sdap_sudo_setup_periodical_refresh(struct sdap_sudo_ctx *sudo_ctx)
     return EOK;
 }
 
-static void sdap_sudo_set_usn(struct sdap_server_opts *srv_opts, char *usn)
+void sdap_sudo_set_usn(struct sdap_server_opts *srv_opts, char *usn)
 {
     unsigned int usn_number;
     char *endptr = NULL;
@@ -621,7 +621,7 @@ static void sdap_sudo_full_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct sdap_sudo_full_refresh_state);
 
     ret = sdap_sudo_refresh_recv(state, subreq, &state->dp_error,
-                                 &state->error, &highest_usn, NULL);
+                                 &state->error, &highest_usn, NULL, NULL);
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         goto done;
@@ -795,7 +795,7 @@ static void sdap_sudo_rules_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct sdap_sudo_rules_refresh_state);
 
     ret = sdap_sudo_refresh_recv(state, subreq, &state->dp_error, &state->error,
-                                 &highest_usn, &downloaded_rules_num);
+                                 &highest_usn, &downloaded_rules_num, NULL);
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         goto done;
@@ -938,7 +938,7 @@ static void sdap_sudo_smart_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct sdap_sudo_smart_refresh_state);
 
     ret = sdap_sudo_refresh_recv(state, subreq, &dp_error, &error,
-                                 &highest_usn, NULL);
+                                 &highest_usn, NULL, NULL);
     if (ret != EOK || dp_error != DP_ERR_OK || error != EOK) {
         goto done;
     }
@@ -969,7 +969,7 @@ static int sdap_sudo_smart_refresh_recv(struct tevent_req *req,
     TEVENT_REQ_RETURN_ON_ERROR(req);
 
     return sdap_sudo_refresh_recv(state, state->subreq, dp_error, error,
-                                  NULL, NULL);
+                                  NULL, NULL, NULL);
 }
 
 static void sdap_sudo_full_refresh_online_cb(void *pvt)
