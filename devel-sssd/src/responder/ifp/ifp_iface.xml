@@ -1,0 +1,104 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.freedesktop.sssd.infopipe">
+        <annotation value="infopipe_iface" name="org.freedesktop.DBus.GLib.CSymbol"/>
+
+        <method name="Ping">
+            <!-- manual argument parsing, raw handler -->
+            <annotation name="org.freedesktop.sssd.RawHandler" value="true"/>
+        </method>
+
+        <!-- SSSD components -->
+
+        <method name="ListComponents">
+            <arg name="components" type="ao" direction="out"/>
+        </method>
+
+        <method name="ListResponders">
+            <arg name="responders" type="ao" direction="out"/>
+        </method>
+
+        <method name="ListBackends">
+            <arg name="backends" type="ao" direction="out"/>
+        </method>
+
+        <method name="FindMonitor">
+            <arg name="monitor" type="o" direction="out"/>
+        </method>
+
+        <method name="FindResponderByName">
+            <arg name="name" type="s" direction="in" />
+            <arg name="responder" type="o" direction="out"/>
+        </method>
+
+        <method name="FindBackendByName">
+            <arg name="name" type="s" direction="in" />
+            <arg name="backend" type="o" direction="out"/>
+        </method>
+
+        <method name="GetUserAttr">
+            <arg name="user" type="s" direction="in" />
+            <arg name="attr" type="as" direction="in" />
+            <arg name="values" type="a{sv}" direction="out"/>
+            <annotation name="org.freedesktop.sssd.RawHandler" value="true"/>
+        </method>
+
+        <method name="GetUserGroups">
+            <arg name="user" type="s" direction="in" />
+            <arg name="values" type="as" direction="out"/>
+        </method>
+
+        <method name="FindDomainByName">
+            <arg name="name" type="s" direction="in" />
+            <arg name="domain" type="o" direction="out"/>
+        </method>
+
+        <method name="ListDomains">
+            <arg name="domain" type="ao" direction="out"/>
+        </method>
+
+    </interface>
+
+    <interface name="org.freedesktop.sssd.infopipe.Components">
+        <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="infopipe_component"/>
+
+        <method name="Enable" />
+        <method name="Disable" />
+        <method name="ChangeDebugLevel">
+            <arg name="new_level" type="u" direction="in" />
+        </method>
+
+        <method name="ChangeDebugLevelTemporarily">
+            <arg name="new_level" type="u" direction="in" />
+        </method>
+
+        <property name="name" type="s" access="read" />
+        <property name="debug_level" type="u" access="read" />
+        <property name="enabled" type="b" access="read" />
+        <property name="type" type="s" access="read" />
+
+        <!-- FIXME: This should be part of Components.Backends interface, onece
+             SSSD supports multiple interfaces per object path. -->
+        <property name="providers" type="as" access="read" />
+    </interface>
+
+    <interface name="org.freedesktop.sssd.infopipe.Domains">
+        <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="infopipe_domain"/>
+
+        <property name="name" type="s" access="read"/>
+        <property name="provider" type="s" access="read"/>
+        <property name="primary_servers" type="as" access="read"/>
+        <property name="backup_servers" type="as" access="read"/>
+        <property name="min_id" type="u" access="read"/>
+        <property name="max_id" type="u" access="read"/>
+        <property name="realm" type="s" access="read"/>
+        <property name="forest" type="s" access="read"/>
+        <property name="login_format" type="s" access="read"/>
+        <property name="fully_qualified_name_format" type="s" access="read"/>
+        <property name="enumerable" type="b" access="read"/>
+        <property name="use_fully_qualified_names" type="b" access="read"/>
+        <property name="subdomain" type="b" access="read"/>
+        <property name="parent_domain" type="o" access="read"/>
+    </interface>
+</node>
