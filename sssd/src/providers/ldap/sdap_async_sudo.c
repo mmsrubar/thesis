@@ -35,6 +35,20 @@
 #include "providers/ldap/sdap_async_sudo.h"
 #include "db/sysdb_sudo.h"
 
+struct sdap_sudo_load_sudoers_state {
+    struct tevent_context *ev;
+    struct sdap_options *opts;
+    struct sdap_handle *sh;
+    struct sysdb_attrs **ldap_rules; /* search result will be stored here */
+    size_t ldap_rules_count;         /* search result will be stored here */
+
+    const char **attrs;
+    const char *filter;
+    size_t base_iter;
+    struct sdap_search_base **search_bases;
+    int timeout;
+};
+
 static int sdap_sudo_refresh_retry(struct tevent_req *req);
 
 static void sdap_sudo_refresh_connect_done(struct tevent_req *subreq);
@@ -43,14 +57,21 @@ static struct tevent_req * sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
-                                                       const char *ldap_filter,
-                                                       struct tevent_req *sdap_req);
+                                                       const char *ldap_filter);
 static void sdap_sudo_refresh_load_done_ldap(struct tevent_req *subreq);
 static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq);
 
 static errno_t sdap_sudo_load_sudoers_next_base(struct tevent_req *req);
 
 static void sdap_sudo_load_sudoers_process(struct tevent_req *subreq);
+
+static int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
+                                       TALLOC_CTX *mem_ctx,
+                                       size_t *rules_count,
+                                       struct sysdb_attrs ***rules);
+
+
+static void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq);
 
 
 struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
@@ -86,7 +107,6 @@ struct tevent_req *sdap_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     state->dp_error = DP_ERR_OK;
     state->error = EOK;
     state->highest_usn = NULL;
-    state->req = req;
 
     if (state->ldap_filter == NULL) {
         ret = ENOMEM;
@@ -141,7 +161,7 @@ int sdap_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
         *num_rules = state->num_rules;
     }
 
-    if (rules != NULL && rules_count != NULL) {
+    if (rules != NULL) {
         *rules_count = state->ldap_rules_count;
         *rules = talloc_steal(mem_ctx, state->ldap_rules);
     }
@@ -240,15 +260,11 @@ static struct tevent_req *sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
                                                        struct tevent_context *ev,
                                                        struct sdap_options *opts,
                                                        struct sdap_handle *sh,
-                                                       const char *ldap_filter,
-                                                       struct tevent_req *sdap_req)
+                                                       const char *ldap_filter)
 {
     struct tevent_req *req;
     struct sdap_sudo_load_sudoers_state *state;
-    struct sdap_sudo_refresh_state *refresh_state;
     int ret;
-
-    refresh_state = tevent_req_data(sdap_req, struct sdap_sudo_refresh_state);
 
     req = tevent_req_create(mem_ctx, &state, struct sdap_sudo_load_sudoers_state);
     if (!req) {
@@ -260,13 +276,10 @@ static struct tevent_req *sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
     state->sh = sh;
     state->base_iter = 0;
     state->search_bases = opts->sdom->sudo_search_bases;
-    state->req = sdap_req;
     state->filter = ldap_filter;
     state->timeout = dp_opt_get_int(opts->basic, SDAP_SEARCH_TIMEOUT);
     state->ldap_rules = NULL;
     state->ldap_rules_count = 0;
-    state->refresh_state = refresh_state;
-    state->refresh_state->load_req = req;
 
     if (!state->search_bases) {
         DEBUG(SSSDBG_CRIT_FAILURE,
@@ -274,7 +287,6 @@ static struct tevent_req *sdap_sudo_load_sudoers_send(TALLOC_CTX *mem_ctx,
         ret = EINVAL;
         goto done;
     }
-
     /* create attrs from map */
     if (state->opts->schema_type == SDAP_SCHEMA_IPA_V1) {
         /* req from ipa_sudo_refresh_send() */
@@ -562,7 +574,6 @@ done:
             DEBUG(SSSDBG_OP_FAILURE, ("Could not cancel transaction\n"));
         }
     }
-
 
     /* finish sdap_sudo_refresh_send() */
     state->error = ret;

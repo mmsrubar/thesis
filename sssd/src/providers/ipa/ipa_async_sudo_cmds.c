@@ -28,12 +28,9 @@
 
 #include "db/sysdb_sudo.h"
 #include "providers/ldap/sdap_async.h"
-#include "providers/ldap/sdap_async_sudo.h"
 #include "providers/ldap/sdap.h"
-#include "providers/ipa/ipa_async_sudo.h"
 #include "providers/ipa/ipa_common.h"
 #include "providers/ipa/ipa_sudo_export.h"
-#include "providers/ipa/ipa_sudo_cmd.h"
 #include "providers/ipa/ipa_sudo.h"
 
 static errno_t ipa_sudo_get_cmds_retry(struct tevent_req *req);

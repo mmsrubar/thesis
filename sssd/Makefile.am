@@ -1390,10 +1390,10 @@ dyndns_tests_LDADD = \
     $(SSSD_INTERNAL_LTLIBS) \
     libsss_test_common.la
 
+     #src/providers/ipa/ipa_async_sudo_cmds.c \
 ipa_sudo_export_tests_SOURCES = \
      src/tests/cmocka/test_ipa_sudo_export.c \
      src/providers/ipa/ipa_async_sudo.c \
-     src/providers/ipa/ipa_async_sudo_cmds.c \
      src/providers/ipa/ipa_sudo_cmd.c \
      src/providers/ipa/ipa_sudo_export.c \
      src/providers/ldap/sdap_async_sudo.c \
@@ -1836,8 +1836,8 @@ endif
 
 if BUILD_SUDO
 libsss_ipa_la_SOURCES += \
-    src/providers/ipa/ipa_sudo_refreshes.c \
     src/providers/ipa/ipa_sudo.c \
+    src/providers/ipa/ipa_sudo_refreshes.c \
     src/providers/ipa/ipa_async_sudo.c \
     src/providers/ipa/ipa_async_sudo_cmds.c \
     src/providers/ipa/ipa_async_sudo_hostgroups.c \

@@ -30,15 +30,10 @@
 #include "providers/ldap/sdap_sudo_cache.h"
 #include "db/sysdb_sudo.h"
 
-/* FIXME: just for testing purposes */
-#include "providers/ipa/ipa_async_sudo.h"
-#include "providers/ipa/ipa_common.h"   // for ipa sudorule map attributes
-
 #define SUDO_MAX_FIRST_REFRESH_DELAY 16
 
 static struct tevent_req *sdap_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
                                                       struct sdap_sudo_ctx *sudo_ctx);
-
 
 static int sdap_sudo_full_refresh_recv(struct tevent_req *req,
                                        int *dp_error,
