@@ -155,14 +155,14 @@ int ipa_sudo_get_cmds_recv(struct tevent_req *req,
                            size_t *reply_count,
                            struct sysdb_attrs ***reply)
 {
-    struct ipa_sudo_get_cmds_state *ipa_state;
+    struct ipa_sudo_get_cmds_state *state;
 
-    ipa_state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
+    state = tevent_req_data(req, struct ipa_sudo_get_cmds_state);
 
     TEVENT_REQ_RETURN_ON_ERROR(req);
 
-    *reply_count = ipa_state->rules->sudoers_count;
-    *reply = talloc_steal(mem_ctx, ipa_state->rules->sudoers);
+    *reply_count = state->rules->sudoers_count;
+    *reply = talloc_steal(mem_ctx, state->rules->sudoers);
 
     return EOK;
 }

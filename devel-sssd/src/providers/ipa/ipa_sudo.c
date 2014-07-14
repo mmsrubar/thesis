@@ -25,33 +25,23 @@
 */
 
 #include "providers/ipa/ipa_common.h"
-#include "providers/ipa/ipa_hosts.h"
-#include "providers/ipa/ipa_sudo.h"
-#include "providers/ipa/ipa_sudo_export.h"  // for debug prit_rules 
-#include "providers/ipa/ipa_async_sudo.h"
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ipa/ipa_sudo_refreshes.h"
-#include "db/sysdb_sudo.h"
 #include "providers/dp_ptask.h"
+#include "db/sysdb_sudo.h"
 
 void ipa_sudo_handler(struct be_req *be_req);
 static void ipa_sudo_shutdown(struct be_req *req);
-int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx);
+static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx);
 
 struct bet_ops ipa_sudo_ops = {
     .handler = ipa_sudo_handler,
     .finalize = ipa_sudo_shutdown
 };
 
-void ipa_sudo_handler_done(struct be_req *req, int dp_err,
-                           int error, const char *errstr)
-{
-    return be_req_terminate(req, dp_err, error, errstr);
-}
-
 static void ipa_sudo_shutdown(struct be_req *req)
 {
-    ipa_sudo_handler_done(req, DP_ERR_OK, EOK, NULL);
+    sdap_handler_done(req, DP_ERR_OK, EOK, NULL);
 }
 
 static void ipa_sudo_reply(struct tevent_req *req)
@@ -80,11 +70,11 @@ static void ipa_sudo_reply(struct tevent_req *req)
 
     talloc_zfree(req);
     if (ret != EOK) {
-        ipa_sudo_handler_done(be_req, DP_ERR_FATAL, ret, strerror(ret));
+        sdap_handler_done(be_req, DP_ERR_FATAL, ret, strerror(ret));
         return;
     }
 
-    ipa_sudo_handler_done(be_req, dp_error, error, strerror(error));
+    sdap_handler_done(be_req, dp_error, error, strerror(error));
 }
 
 void ipa_sudo_handler(struct be_req *be_req)
@@ -99,26 +89,24 @@ void ipa_sudo_handler(struct be_req *be_req)
     sudo_ctx = talloc_get_type(be_ctx->bet_info[BET_SUDO].pvt_bet_data,
                                struct sdap_sudo_ctx);
     id_ctx = sudo_ctx->id_ctx;
-
     sudo_req = talloc_get_type(be_req_get_data(be_req), struct be_sudo_req);
 
     switch (sudo_req->type) {
     case BE_REQ_SUDO_FULL:
-        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a full refresh of IPA SUDO rules\n");
+        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a full refresh of IPA sudo rules\n");
         req = ipa_sudo_full_refresh_send(sudo_ctx, id_ctx->be->ev, id_ctx->be,
                                          NULL, sudo_ctx);
         break;
     case BE_REQ_SUDO_RULES:
         DEBUG(SSSDBG_TRACE_FUNC, "Issuing a refresh of specific "
-                                  "IPA SUDO rules\n");
+                                 "IPA sudo rules\n");
         req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
                                           id_ctx->opts, 
                                           id_ctx->conn->conn_cache,
                                           sudo_req->rules);
         break;
     default:
-        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",
-                                    sudo_req->type);
+        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",sudo_req->type);
         ret = EINVAL;
         goto fail;
     }
@@ -131,7 +119,6 @@ void ipa_sudo_handler(struct be_req *be_req)
     }
 
     tevent_req_set_callback(req, ipa_sudo_reply, be_req);
-
     return;
 
 fail:
@@ -149,7 +136,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     char *dot = NULL;
     int ret;
 
-    DEBUG(SSSDBG_TRACE_INTERNAL, "Initializing sudo IPA back end\n");
+    DEBUG(SSSDBG_TRACE_INTERNAL, "Initializing IPA sudo back end\n");
 
     sudo_ctx = talloc_zero(be_ctx, struct sdap_sudo_ctx);
     if (sudo_ctx == NULL) {
@@ -160,14 +147,12 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     sudo_ctx->id_ctx = id_ctx;
     sudo_ctx->be_ctx = be_ctx;
     sudo_ctx->ipa_hostname = NULL;
-    sudo_ctx->hostgroups = NULL;
+    sudo_ctx->ipa_hostgroups = NULL;
+    /* no full refresh done yet so we don't have current usn values available */
+    sudo_ctx->full_refresh_done = false;
 
     *ops = &ipa_sudo_ops;
     *pvt_data = sudo_ctx;
-
-    /* we didn't do any full refresh now,
-     * so we don't have current usn values available */
-    sudo_ctx->full_refresh_done = false;
 
     ret = ldap_get_sudo_options(id_ctx, be_ctx->cdb,
                                 be_ctx->conf_path, id_ctx->opts,
@@ -175,7 +160,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
                                 &sudo_ctx->include_regexp,
                                 &sudo_ctx->include_netgroups);
     if (ret != EOK) {
-        DEBUG(SSSDBG_OP_FAILURE, "Cannot get SUDO options [%d]: %s\n",
+        DEBUG(SSSDBG_OP_FAILURE, "Cannot get sudo options [%d]: %s\n",
                                   ret, strerror(ret));
         return ret;
     }
@@ -209,7 +194,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     return ipa_sudo_setup_periodical_refreshes(sudo_ctx);
 }
 
-int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
+static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
 {
     struct sdap_id_ctx *id_ctx = sudo_ctx->id_ctx;
     time_t smart_default;
@@ -262,31 +247,25 @@ int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     }
 
     if (last_full == 0) {
-        /* If this is the first startup, we need to kick off
-         * an refresh immediately, to close a window where
-         * clients requesting sudo information won't get an
-         * immediate reply with no entries
+        /* If this is the first startup, we need to kick off sh immediately, 
+         * to close a window where clients requesting sudo information won't 
+         * get an immediate reply with no entries.
          */
         delay = 0;
     } else {
-        /* At least one update has previously run,
-         * so clients will get cached data.
-         * We will delay the refresh so we don't slow
-         * down the startup process if this is happening
-         * during system boot.
+        /* At least one update has previously run, so clients will get cached 
+         * data. We will delay the refresh so we don't slow down the startup 
+         * process if this is happening during system boot.
          */
-
-        /* delay at least by 10s */
         delay = 10;
     }
 
-    /* Schedule full refresh */
-    /* If the backend is offline then this kind of refresh is disabled and when
+    /* Schedule full refresh
+     * If the backend is offline then this kind of refresh is disabled and when
      * we got online again ptask will fire it immediately.
      */
-    /* FIXME: timeout? */
     ret = be_ptask_create(sudo_ctx, sudo_ctx->be_ctx, full_interval, delay, 
-                          1, 60, BE_PTASK_OFFLINE_DISABLE,
+                          1, 60, BE_PTASK_OFFLINE_DISABLE, /* FIXME: timeout? */
                           ipa_sudo_full_refresh_send, 
                           ipa_sudo_full_refresh_ptask_recv,
                           sudo_ctx, 

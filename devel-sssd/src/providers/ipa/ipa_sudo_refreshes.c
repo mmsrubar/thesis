@@ -20,11 +20,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* FIXME:
- * If the smart refresh is called before full refresh is done then there is no
- * USN and smart refresh will fail. Should we handle this situation or let user
- * solve this with restart of the sssd?
- */
 #include "providers/ipa/ipa_common.h"
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ldap/sdap.h"
@@ -35,7 +30,6 @@
 #include "providers/dp_backend.h"
 #include "db/sysdb_sudo.h"
 
-
 struct ipa_sudo_full_refresh_state {
     struct sdap_sudo_ctx *sudo_ctx;
     struct sdap_id_ctx *id_ctx;
@@ -45,16 +39,11 @@ struct ipa_sudo_full_refresh_state {
     int error;
 };
 
-static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq);
-void ipa_sudo_full_refresh_step(struct tevent_req *subreq);
-void ipa_sudo_full_refresh_done(struct tevent_req *subreq);
-
 struct ipa_sudo_smart_refresh_state {
     struct tevent_req *subreq;
     struct sdap_id_ctx *id_ctx;
     struct sysdb_ctx *sysdb;
 };
-static void ipa_sudo_smart_refresh_done(struct tevent_req *subreq);
 
 struct ipa_sudo_rules_refresh_state {
     struct sdap_id_ctx *id_ctx;
@@ -62,6 +51,11 @@ struct ipa_sudo_rules_refresh_state {
     int dp_error;
     int error;
 };
+
+static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq);
+static void ipa_sudo_full_refresh_step(struct tevent_req *subreq);
+static void ipa_sudo_full_refresh_done(struct tevent_req *subreq);
+static void ipa_sudo_smart_refresh_done(struct tevent_req *subreq);
 static void ipa_sudo_rules_refresh_done(struct tevent_req *subreq);
 
 /* returns IPA LDAP host filter in the following format:
@@ -163,7 +157,7 @@ static char *ipa_sudo_get_filter(TALLOC_CTX *mem_ctx,
                                              sudo_ctx->id_ctx->opts->sdom->basedn,
                                              sudo_ctx->ipa_hostname,
                                              sudo_ctx->ip_addr,
-                                             sudo_ctx->hostgroups);
+                                             sudo_ctx->ipa_hostgroups);
     if (host_filter == NULL) {
         goto done;
     }
@@ -266,8 +260,8 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
         ipa_sudo_full_refresh_step(req);
     }
 
-    sudo_ctx->hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
-    if (sudo_ctx->hostgroups == NULL) {
+    sudo_ctx->ipa_hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
+    if (sudo_ctx->ipa_hostgroups == NULL) {
         DEBUG(SSSDBG_FATAL_FAILURE, "talloc_zero_array() failed\n");
         return;
     }
@@ -281,15 +275,15 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
             continue;
         }
 
-        sudo_ctx->hostgroups[i] = talloc_strdup(sudo_ctx->hostgroups, 
+        sudo_ctx->ipa_hostgroups[i] = talloc_strdup(sudo_ctx->ipa_hostgroups, 
                                                 group_name);
     }
 
-    sudo_ctx->hostgroups[hostgroup_count] = NULL;
+    sudo_ctx->ipa_hostgroups[hostgroup_count] = NULL;
     ipa_sudo_full_refresh_step(req);
 }
 
-void ipa_sudo_full_refresh_step(struct tevent_req *req)
+static void ipa_sudo_full_refresh_step(struct tevent_req *req)
 {
     struct ipa_sudo_full_refresh_state *state;
     struct tevent_req *subreq;
@@ -362,7 +356,7 @@ immediately:
     tevent_req_post(req, id_ctx->be->ev);
 }
 
-void ipa_sudo_full_refresh_done(struct tevent_req *subreq)
+static void ipa_sudo_full_refresh_done(struct tevent_req *subreq)
 {
     struct tevent_req *req = NULL;
     struct ipa_sudo_full_refresh_state *state = NULL;

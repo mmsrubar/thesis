@@ -1,7 +1,7 @@
 /*
     SSSD
 
-    IPA Provider Initialization functions
+    IPA SUDO Provider
 
     Authors:
         MIchal Šrubař <mmsrubar@gmail.com>
@@ -33,7 +33,7 @@
 #include "providers/ldap/sdap_sudo.h"
 #include "providers/ldap/sdap_sudo_cache.h"
 #include "providers/ipa/ipa_async_sudo_cmds.h"
-#include "providers/ipa/ipa_sudo_export.h"   // for print_rules
+#include "providers/ipa/ipa_sudo_export.h"   // FIXME: because of print_rules
 #include "db/sysdb_sudo.h"
 
 static void ipa_sudo_sudoers_process(struct tevent_req *subreq);
@@ -77,8 +77,6 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     state->sdap_conn_cache = conn_cache;
     state->sysdb = be_ctx->domain->sysdb;
     state->domain = be_ctx->domain;
-    state->req = NULL;
-    state->load_req = NULL;
     state->ldap_filter = talloc_strdup(state, ldap_filter);
     state->sysdb_filter = talloc_strdup(state, sysdb_filter);
     state->dp_error = DP_ERR_OK;
@@ -184,9 +182,9 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
         return;
     }
 
-    /* if there are no rules at IPA then we're done */
     if (ipa_rules == NULL && ipa_rules_count == 0) {
-        tevent_req_done(req);
+        ipa_sudo_load_sudoers_finish(req, state, NULL, 0);
+        //tevent_req_done(req);
         return;
     }
 
@@ -231,11 +229,12 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     /* FIXME: degub */
     print_rules("Exported IPA sudoer entry:", attrs, count);
 
-    /* FIXME: multiple search bases not supported yet, is it even possible to
-     * use multiple search bases with IPA, should we support it?
+    /* FIXME:
+     * Multiple search bases are handlel automatically by LDAP SUDO Provider but
+     * is it even possible to have multiple search bases with IPA?
      */
 
-    /* add exported rules to result (because of multiple search bases) */
+    /* add exported rules to result */
     if (count > 0) {
         state->ldap_rules = talloc_realloc(state, state->ldap_rules,
                                            struct sysdb_attrs *,
@@ -253,9 +252,8 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
         state->ldap_rules_count += count;
     }
 
-    /* now I need to purge sysdb and store exported sudoers */
-    ipa_sudo_load_sudoers_finish(req, state, 
-                                 state->ldap_rules, 
+    /* now we need to purge sysdb and store exported sudoers */
+    ipa_sudo_load_sudoers_finish(req, state, state->ldap_rules, 
                                  state->ldap_rules_count);
 }
 

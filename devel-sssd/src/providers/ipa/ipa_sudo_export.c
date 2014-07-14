@@ -249,10 +249,9 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
     errno_t ret = EOK;
     int i;
 
-    /* no ipa sudo rules -> nothing to build the new filter from, this situation
-     * should not occure because if there are no sudo rules at IPA then this
-     * request shouldn't even be created */
-    if (rules == NULL || count == 0) {
+    /* no ipa sudo rules -> nothing to build the new filter from this should 
+     * never happen */
+    if (rules == NULL && count == 0) {
         DEBUG(SSSDBG_CRIT_FAILURE, "no IPA sudo rules\n");
         return EINVAL;
     }
