@@ -8,6 +8,7 @@
     - sudo commands are dowloaded after we got the rules because commands are 
         in separate container at IPA
     Authors:
+
         Michal Šrubař <mmsrubar@gmail.com>
 
     Copyright (C) 2014 Michal Šrubař
@@ -82,13 +83,11 @@ struct tevent_req *ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     state->sysdb = be_ctx->domain->sysdb;
     state->ev = be_ctx->ev;
     state->conn_cache = conn_cache;
-
     state->filter = NULL;
     state->basedn = talloc_strdup(state, IPA_SUDO_CMDS_BASEDN);
     state->attrs = NULL;
     state->scope = LDAP_SCOPE_SUBTREE;
     state->timeout = dp_opt_get_int(opts->basic, SDAP_SEARCH_TIMEOUT);
-
     state->dp_error = DP_ERR_OK;
     state->error = EOK;
 
@@ -314,5 +313,3 @@ fail:
         tevent_req_error(req, ret);
     }
 }
-
-

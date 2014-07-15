@@ -44,13 +44,12 @@ enum attr_type {
 
 struct ipa_sudo_export {
     enum attr_type type;
-    
     const char *orig_name;
     const char *orig_value;
 };
 
 
-/* tmp func ... */
+/* FIXME: tmp func ... */
 void print_rules(const char *title, struct sysdb_attrs **rules, int count)
 {
     int i, j, k;
@@ -227,11 +226,11 @@ fail:
 }
 
 /* 
- * Build LDAP filter that will match all only neceary sudo command for
- * downloaded ipa sudo rules in IPA SUDO schema.
+ * Build LDAP filter that will match only neceary sudo commands for
+ * downloaded ipa sudo rules.
  *
  * If it fails, we can't get ipa sudo commands => we don't have complete
- * sudoers so we can't store rules into sysdb!
+ * sudoers so we can't store them into sysdb!
  *
  * FIXME: 
  * optimalization: this could be done in first iteration through the sudo rules
@@ -249,15 +248,14 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
     errno_t ret = EOK;
     int i;
 
-    /* no ipa sudo rules -> nothing to build the new filter from this should 
-     * never happen */
+    /* no ipa sudo rules -> nothing to build the new filter from */
     if (rules == NULL && count == 0) {
         DEBUG(SSSDBG_CRIT_FAILURE, "no IPA sudo rules\n");
         return EINVAL;
     }
 
     DEBUG(SSSDBG_TRACE_FUNC, "Building LDAP filter out of IPA sudo rules to "
-                              "get sudo commands for those rules\n");
+                             "get sudo commands for those rules\n");
 
     filter = talloc_asprintf(tmp, IPA_SUDO_CMD_FILTER, "ipasudocmd");
     if (filter == NULL) {
@@ -269,8 +267,7 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
     /* for each downloaded ipa sudo rules */
     for (i = 0; i < count; i++) {
 
-        /* get values of a memberAllowCmd attr if any and put them into the
-         * LDAP filter */
+        /* get values of a memberAllowCmd attr if any */
         if (sysdb_attrs_get_string_array(rules[i], IPA_SUDO_ATTR_ALLOW_CMD, 
                                          tmp, &attr_vals) == EOK) {
             ret = get_cmd_filter(tmp, sysdb, attr_vals, &cmds_filter);
@@ -302,7 +299,7 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
     /* no ipa commands needed by these ipa sudo rules */
     if (cmds_filter == NULL) {
         DEBUG(SSSDBG_TRACE_FUNC, "No sudo commands needed by downloaded IPA "
-                                  "sudo rules\n");
+                                 "sudo rules\n");
         ret = ENOENT;
     }
 
@@ -834,8 +831,7 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
                     return NULL;
                 }
 
-                /* don't start in the same entry next time */
-                i++;
+                i++;    /* don't start in the same entry next time */
 
                 sudo_cmd = talloc_strdup(mem, tmp);
                 if (sudo_cmd == NULL) {

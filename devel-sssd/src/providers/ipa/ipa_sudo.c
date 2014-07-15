@@ -31,99 +31,15 @@
 #include "db/sysdb_sudo.h"
 
 void ipa_sudo_handler(struct be_req *be_req);
+static void ipa_sudo_reply(struct tevent_req *req);
 static void ipa_sudo_shutdown(struct be_req *req);
+
 static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx);
 
 struct bet_ops ipa_sudo_ops = {
     .handler = ipa_sudo_handler,
     .finalize = ipa_sudo_shutdown
 };
-
-static void ipa_sudo_shutdown(struct be_req *req)
-{
-    sdap_handler_done(req, DP_ERR_OK, EOK, NULL);
-}
-
-static void ipa_sudo_reply(struct tevent_req *req)
-{
-    struct be_req *be_req = NULL;
-    struct be_sudo_req *sudo_req = NULL;
-    int dp_error = DP_ERR_OK;
-    int error = EOK;
-    int ret = EOK;
-
-    be_req = tevent_req_callback_data(req, struct be_req);
-    sudo_req = talloc_get_type(be_req_get_data(be_req), struct be_sudo_req);
-
-    switch (sudo_req->type) {
-    case BE_REQ_SUDO_FULL:
-        ret = ipa_sudo_full_refresh_recv(req, &dp_error, &error);
-        break;
-    case BE_REQ_SUDO_RULES:
-        ret = ipa_sudo_rules_refresh_recv(req, &dp_error, &error);
-        break;
-    default:
-        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",
-                                    sudo_req->type);
-        ret = EINVAL;
-    }
-
-    talloc_zfree(req);
-    if (ret != EOK) {
-        sdap_handler_done(be_req, DP_ERR_FATAL, ret, strerror(ret));
-        return;
-    }
-
-    sdap_handler_done(be_req, dp_error, error, strerror(error));
-}
-
-void ipa_sudo_handler(struct be_req *be_req)
-{
-    struct be_ctx *be_ctx = be_req_get_be_ctx(be_req);
-    struct tevent_req *req = NULL;
-    struct be_sudo_req *sudo_req = NULL;
-    struct sdap_sudo_ctx *sudo_ctx = NULL;
-    struct sdap_id_ctx *id_ctx = NULL;
-    int ret = EOK;
-
-    sudo_ctx = talloc_get_type(be_ctx->bet_info[BET_SUDO].pvt_bet_data,
-                               struct sdap_sudo_ctx);
-    id_ctx = sudo_ctx->id_ctx;
-    sudo_req = talloc_get_type(be_req_get_data(be_req), struct be_sudo_req);
-
-    switch (sudo_req->type) {
-    case BE_REQ_SUDO_FULL:
-        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a full refresh of IPA sudo rules\n");
-        req = ipa_sudo_full_refresh_send(sudo_ctx, id_ctx->be->ev, id_ctx->be,
-                                         NULL, sudo_ctx);
-        break;
-    case BE_REQ_SUDO_RULES:
-        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a refresh of specific "
-                                 "IPA sudo rules\n");
-        req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
-                                          id_ctx->opts, 
-                                          id_ctx->conn->conn_cache,
-                                          sudo_req->rules);
-        break;
-    default:
-        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",sudo_req->type);
-        ret = EINVAL;
-        goto fail;
-    }
-
-    if (req == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "Unable to send request: %d\n",
-                                    sudo_req->type);
-        ret = ENOMEM;
-        goto fail;
-    }
-
-    tevent_req_set_callback(req, ipa_sudo_reply, be_req);
-    return;
-
-fail:
-    sdap_handler_done(be_req, DP_ERR_FATAL, ret, NULL);
-}
 
 int ipa_sudo_init(struct be_ctx *be_ctx,
                   struct ipa_id_ctx *ipa_id_ctx,
@@ -267,15 +183,17 @@ static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     ret = be_ptask_create(sudo_ctx, sudo_ctx->be_ctx, full_interval, delay, 
                           1, 60, BE_PTASK_OFFLINE_DISABLE, /* FIXME: timeout? */
                           ipa_sudo_full_refresh_send, 
-                          ipa_sudo_full_refresh_ptask_recv,
+                          ipa_sudo_full_refresh_recv,
                           sudo_ctx, 
                           "full refresh of IPA sudo rules", NULL);
     if (ret != EOK) {
-        DEBUG(SSSDBG_FATAL_FAILURE, "Unable to initialize refresh "
-                                    "periodic task\n");
+        DEBUG(SSSDBG_FATAL_FAILURE, "Unable to initialize periodic full "
+                                    "refresh of IPA sudo rules\n");
     }
 
-    /* Schedule smart refresh */
+    /* Schedule smart refresh 
+     * If backend is offline then this kind of refresh is just skipped.
+     */
     ret = be_ptask_create(sudo_ctx, sudo_ctx->be_ctx, smart_interval, 
                           smart_interval, 
                           11, 60, BE_PTASK_OFFLINE_SKIP,
@@ -284,9 +202,95 @@ static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
                           sudo_ctx, 
                           "smart refresh of IPA sudo rules", NULL);
     if (ret != EOK) {
-        DEBUG(SSSDBG_FATAL_FAILURE, "Unable to initialize refresh "
-                                    "periodic task\n");
+        DEBUG(SSSDBG_FATAL_FAILURE, "Unable to initialize periodic smart "
+                                    "refresh of IPA sudo rules\n");
     }
 
     return EOK;
+}
+
+void ipa_sudo_handler(struct be_req *be_req)
+{
+    struct be_ctx *be_ctx = be_req_get_be_ctx(be_req);
+    struct tevent_req *req = NULL;
+    struct be_sudo_req *sudo_req = NULL;
+    struct sdap_sudo_ctx *sudo_ctx = NULL;
+    struct sdap_id_ctx *id_ctx = NULL;
+    int ret = EOK;
+
+    sudo_ctx = talloc_get_type(be_ctx->bet_info[BET_SUDO].pvt_bet_data,
+                               struct sdap_sudo_ctx);
+    id_ctx = sudo_ctx->id_ctx;
+    sudo_req = talloc_get_type(be_req_get_data(be_req), struct be_sudo_req);
+
+    switch (sudo_req->type) {
+    case BE_REQ_SUDO_FULL:
+        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a full refresh of IPA sudo rules\n");
+        req = ipa_sudo_full_refresh_send(sudo_ctx, id_ctx->be->ev, id_ctx->be,
+                                         NULL, sudo_ctx);
+        break;
+    case BE_REQ_SUDO_RULES:
+        DEBUG(SSSDBG_TRACE_FUNC, "Issuing a refresh of specific "
+                                 "IPA sudo rules\n");
+        req = ipa_sudo_rules_refresh_send(be_req, sudo_ctx, id_ctx->be,
+                                          id_ctx->opts, 
+                                          id_ctx->conn->conn_cache,
+                                          sudo_req->rules);
+        break;
+    default:
+        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",sudo_req->type);
+        ret = EINVAL;
+        goto fail;
+    }
+
+    if (req == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, "Unable to send request: %d\n",
+                                    sudo_req->type);
+        ret = ENOMEM;
+        goto fail;
+    }
+
+    tevent_req_set_callback(req, ipa_sudo_reply, be_req);
+    return;
+
+fail:
+    sdap_handler_done(be_req, DP_ERR_FATAL, ret, NULL);
+}
+
+static void ipa_sudo_reply(struct tevent_req *req)
+{
+    struct be_req *be_req = NULL;
+    struct be_sudo_req *sudo_req = NULL;
+    int dp_error = DP_ERR_OK;
+    int error = EOK;
+    int ret = EOK;
+
+    be_req = tevent_req_callback_data(req, struct be_req);
+    sudo_req = talloc_get_type(be_req_get_data(be_req), struct be_sudo_req);
+
+    switch (sudo_req->type) {
+    case BE_REQ_SUDO_FULL:
+        ret = ipa_sudo_full_refresh_recv(req, &dp_error, &error);
+        break;
+    case BE_REQ_SUDO_RULES:
+        ret = ipa_sudo_rules_refresh_recv(req, &dp_error, &error);
+        break;
+    default:
+        DEBUG(SSSDBG_CRIT_FAILURE, "Invalid request type: %d\n",
+                                    sudo_req->type);
+        ret = EINVAL;
+    }
+
+    talloc_zfree(req);
+    if (ret != EOK) {
+        sdap_handler_done(be_req, DP_ERR_FATAL, ret, strerror(ret));
+        return;
+    }
+
+    sdap_handler_done(be_req, dp_error, error, strerror(error));
+}
+
+static void ipa_sudo_shutdown(struct be_req *req)
+{
+    sdap_handler_done(req, DP_ERR_OK, EOK, NULL);
 }

@@ -1,7 +1,7 @@
 /*
     SSSD
 
-    Get all hostgroups the IPA client is member of.
+    Get list of hostgroups the IPA client is member of.
 
     Authors:
         Michal Srubar <mmsrubar@gmail.com>
@@ -61,11 +61,8 @@ struct tevent_req *ipa_sudo_get_hostgroups_send(TALLOC_CTX *mem,
     struct tevent_req *req;
     int ret = EOK;
 
-    DEBUG(SSSDBG_TRACE_FUNC, "Refresh information about hostgroups first\n");
+    DEBUG(SSSDBG_TRACE_FUNC, "Refreshing information about hostgroups\n");
 
-    /* FIXME: 
-     * is it neccesary to have tevent_req_create as first call in _send func? 
-     */
     access_ctx = talloc_get_type(sudo_ctx->be_ctx->bet_info[BET_ACCESS].pvt_bet_data,
                                  struct ipa_access_ctx);
     if (access_ctx == NULL) {

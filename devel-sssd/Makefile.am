@@ -194,6 +194,7 @@ if HAVE_CMOCKA
         sbus-internal-tests \
         sss_sifp-tests \
         test_search_bases \
+				ipa_sudo_export-tests \
         sdap-tests \
         $(NULL)
 
@@ -1641,6 +1642,32 @@ sbus_internal_tests_LDADD = \
     libsss_debug.la \
     libsss_test_common.la
 
+ipa_sudo_export_tests_SOURCES = \
+     src/tests/cmocka/test_ipa_sudo_export.c \
+     src/providers/ipa/ipa_async_sudo.c \
+     src/providers/ipa/ipa_async_sudo_cmds.c \
+     src/providers/ldap/sdap_async_sudo.c \
+     src/providers/ipa/ipa_sudo_export.c \
+     src/providers/ldap/sdap_sudo_cache.c
+ipa_sudo_export_tests_CFLAGS = \
+    $(AM_CFLAGS)
+ipa_sudo_export_tests_LDFLAGS = \
+    -Wl,-wrap,be_is_offline  \
+    -Wl,-wrap,sdap_id_op_create \
+		-Wl,-wrap,sdap_id_op_connect_send \
+		-Wl,-wrap,sdap_id_op_connect_recv \
+		-Wl,-wrap,sdap_id_op_handle \
+		-Wl,-wrap,sdap_get_generic_send \
+		-Wl,-wrap,sdap_get_generic_recv \
+		-Wl,-wrap,dp_opt_get_int \
+		-Wl,-wrap,_dp_opt_get_int \
+		-Wl,-wrap,build_attrs_from_map \
+		-Wl,-wrap,sdap_get_id_specific_filter
+ipa_sudo_export_tests_LDADD = \
+    $(SSSD_INTERNAL_LTLIBS) \
+    $(CMOCKA_LIBS) \
+    libsss_test_common.la
+
 test_find_uid_SOURCES = \
     src/tests/cmocka/test_find_uid.c \
     src/util/find_uid.c \
@@ -2278,10 +2305,10 @@ if BUILD_SUDO
 libsss_ipa_la_SOURCES += \
     src/providers/ipa/ipa_sudo.c \
     src/providers/ipa/ipa_sudo_refreshes.c \
+    src/providers/ipa/ipa_sudo_export.c \
     src/providers/ipa/ipa_async_sudo.c \
     src/providers/ipa/ipa_async_sudo_cmds.c \
-    src/providers/ipa/ipa_async_sudo_hostgroups.c \
-    src/providers/ipa/ipa_sudo_export.c
+    src/providers/ipa/ipa_async_sudo_hostgroups.c
 endif
 
 if BUILD_SSH

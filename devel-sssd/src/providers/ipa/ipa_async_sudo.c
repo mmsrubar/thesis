@@ -104,6 +104,8 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     DEBUG(SSSDBG_TRACE_FUNC, ("Giving control to LDAP SUDO provider to "
                               "download IPA sudo rules\n"));
 
+    /* LDAP SUDO Provider won't be saving anything to sysdb so it doesn't need
+     * the sysdb filter */
     subreq = sdap_sudo_refresh_send(state,
                                     state->be_ctx,
                                     state->opts,
@@ -184,7 +186,6 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
 
     if (ipa_rules == NULL && ipa_rules_count == 0) {
         ipa_sudo_load_sudoers_finish(req, state, NULL, 0);
-        //tevent_req_done(req);
         return;
     }
 
