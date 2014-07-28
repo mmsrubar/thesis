@@ -447,9 +447,10 @@ int sdap_sudo_load_sudoers_recv(struct tevent_req *req,
 
 static void sdap_sudo_refresh_load_done_ex(struct tevent_req *subreq)
 {
-    struct tevent_req *req; /* req from sdap_sudo_refresh_send() */
+    struct tevent_req *req; 
     struct sdap_sudo_refresh_state *state;
  
+    /* req from sdap_sudo_refresh_send() */
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct sdap_sudo_refresh_state);
 
@@ -485,7 +486,7 @@ static void sdap_sudo_refresh_load_done_ipa(struct tevent_req *subreq)
     state->num_rules = state->ldap_rules_count;
 
 done:
-    /* req from ipa_sudo_refresh_send() */
+    /* req from ipa_sudo_refresh_send continue in ipa_sudo_sudoers_process */
     state->error = ret;
     if (ret == EOK) {
         state->dp_error = DP_ERR_OK;
@@ -495,7 +496,6 @@ done:
         tevent_req_error(req, ret);
     }
 }
-
 
 static void sdap_sudo_refresh_load_done_ldap(struct tevent_req *subreq)
 {
