@@ -12,6 +12,7 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
                            int *dp_error,
                            int *error,
                            char **usn,
-                           size_t *num_rules);
+                           size_t *num_rules,
+                           struct sysdb_attrs ***rules);
 
 #endif	// _IPA_ASYNC_SUDO_H_

@@ -366,7 +366,7 @@ static void ipa_sudo_full_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct ipa_sudo_full_refresh_state);
 
     ret = ipa_sudo_refresh_recv(state, subreq, &state->dp_error,
-                                 &state->error, &highest_usn, NULL);
+                                &state->error, &highest_usn, NULL, NULL);
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         goto done;
@@ -537,7 +537,7 @@ static void ipa_sudo_smart_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct ipa_sudo_smart_refresh_state);
 
     ret = ipa_sudo_refresh_recv(state, subreq, &dp_error, &error,
-                                 &highest_usn, NULL);
+                                 &highest_usn, NULL, NULL);
     if (ret != EOK || dp_error != DP_ERR_OK || error != EOK) {
         goto done;
     }
@@ -694,7 +694,7 @@ static void ipa_sudo_rules_refresh_done(struct tevent_req *subreq)
     state = tevent_req_data(req, struct ipa_sudo_rules_refresh_state);
 
     ret = ipa_sudo_refresh_recv(state, subreq, &state->dp_error, &state->error,
-                                 &highest_usn, &downloaded_rules_num);
+                                 &highest_usn, &downloaded_rules_num, NULL);
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
         goto done;

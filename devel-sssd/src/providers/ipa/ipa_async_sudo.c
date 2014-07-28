@@ -86,15 +86,15 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
     state->ldap_rules = NULL;
     state->ldap_rules_count = 0;
 
-    /* if we don't have a search filter, this request is meaningless although
-     * sysdb filter can be NULL for smart refresh */
+    /* if we don't have a LDAP search filter then this request is meaningless 
+     * although sysdb filter can be NULL for smart refresh */
     if (state->ldap_filter == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = EINVAL;
         goto immediately;
     }
 
-    /* sysdb_filter can be NULL at SMART REFRESH */
+    /* sysdb filter can be NULL at SMART REFRESH */
     if (sysdb_filter != NULL && state->sysdb_filter == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_strdup() failed\n"));
         ret = ENOMEM;
@@ -116,8 +116,8 @@ struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
         goto immediately;
     }
 
-    /* we'll receive SUDO rules in IPA schema. We need to export those rules 
-     * into native LDAP SUDO schema before we can store them into sysdb. */
+    /* We'll receive sudo rules in IPA schema. We need to export those rules 
+     * into native LDAP sudo schema before we can store them into sysdb. */
     tevent_req_set_callback(subreq, ipa_sudo_sudoers_process, req);
 
     /* asynchronous processing */
@@ -139,7 +139,8 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
                            int *dp_error,
                            int *error,
                            char **usn,
-                           size_t *num_rules)
+                           size_t *num_rules,
+                           struct sysdb_attrs ***rules)
 {
     struct sdap_sudo_refresh_state *state;
 
@@ -158,6 +159,10 @@ int ipa_sudo_refresh_recv(TALLOC_CTX *mem_ctx,
         *num_rules = state->num_rules;
     }
 
+    if (rules != NULL) {
+        *rules = talloc_steal(mem_ctx, state->ldap_rules);
+    }
+
     return EOK;
 }
 
@@ -166,7 +171,7 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
 {
     struct tevent_req *req;
     struct sdap_sudo_refresh_state *state;
-    struct sysdb_attrs **ipa_rules = NULL;
+    struct sysdb_attrs **ipa_rules;
     size_t ipa_rules_count;
     int ret = EOK;
 
@@ -189,7 +194,7 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
         return;
     }
 
-    print_rules("IPA sudoer entry:", ipa_rules, ipa_rules_count);
+    print_rules("IPA sudoer from LDAP SUDO Provider:", ipa_rules, ipa_rules_count);
 
     subreq = ipa_sudo_get_cmds_send(state,
                                     ipa_rules, 
@@ -207,7 +212,6 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
 
 static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
 {
-
     struct tevent_req *req;
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **attrs = NULL;

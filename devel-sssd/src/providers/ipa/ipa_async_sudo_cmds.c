@@ -128,8 +128,8 @@ struct tevent_req *ipa_sudo_get_cmds_send(TALLOC_CTX *mem,
     if (ret != EOK) {
         goto immediately;
     } else if (ret == EOK && cmds_ret == ENOENT) {
-        /* ipa sudoers exported and if building cmds filter returned ENOENT 
-         * then we don't need to download any ipa sudo commands */
+        /* ipa sudoers exported and there is no need to download any ipa 
+         * sudo commands */
         goto immediately;
     }
 
