@@ -308,7 +308,6 @@ static void ipa_sudo_load_sudoers_finish(struct tevent_req *req,
 
     DEBUG(SSSDBG_TRACE_FUNC, ("Sudoers is successfully stored in cache\n"));
 
-    //ret = EOK;
     state->num_rules = count;
 
 done:

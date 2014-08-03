@@ -1,12 +1,12 @@
 /*
     SSSD
 
-    Get list of hostgroups the IPA client is member of.
+    Get list of hostgroups that the IPA client is member of.
 
     Authors:
-        Michal Srubar <mmsrubar@gmail.com>
+        Michal Šrubař <mmsrubar@gmail.com>
 
-    Copyright (C) 2014 Michal Srubar
+    Copyright (C) 2014 Michal Šrubař
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

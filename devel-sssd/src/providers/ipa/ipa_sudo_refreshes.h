@@ -1,3 +1,26 @@
+/*
+    SSSD
+
+    Authors:
+        MIchal Šrubař <mmsrubar@gmail.com>
+
+    Copyright (C) 2014 MIchal Šrubař
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+
 #ifndef _IPA_SUDO_REFRESHES_H_
 #define _IPA_SUDO_REFRESHES_H_
 
@@ -6,8 +29,6 @@ struct tevent_req *ipa_sudo_full_refresh_send(TALLOC_CTX *mem_ctx,
                                               struct be_ctx *be_ctx,
                                               struct be_ptask *be_ptask,
                                               void *pvt);
-/* Ptask needs different prototype of a recv func than ipa_sudo_reply. That's the
- * reason why we have two recv func. */
 int ipa_sudo_full_refresh_ptask_recv(struct tevent_req *req);
 int ipa_sudo_full_refresh_recv(struct tevent_req *req,
                                int *dp_error,

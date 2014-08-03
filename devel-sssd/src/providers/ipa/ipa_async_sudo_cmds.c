@@ -1,12 +1,8 @@
 /*
     SSSD
 
-    Async IPA module for getting sudo commands.
+    Async IPA SUDO module which downloads sudo commands for IPA sudo rules.
 
-    - this module is used by ipa_async_sudo.c to get sudo commands for 
-        donwloaded IPA SUDO rules
-    - sudo commands are dowloaded after we got the rules because commands are 
-        in separate container at IPA
     Authors:
 
         Michal Šrubař <mmsrubar@gmail.com>

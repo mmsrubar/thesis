@@ -1,5 +1,11 @@
 /*
     SSSD
+		This module prepares parameters for refresh of sudo rules. Parameters as
+		LDAP or SYSDB filters are set based on a kind of refresh. There are three 
+		kind of refreshes:
+			1) FULL Refersh
+			2) SMART Refersh
+			3) RULES Refersh
 
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
@@ -402,7 +408,9 @@ done:
     tevent_req_done(req);
 }
 
-/* FIXME: this isn't exactly a prototype of a ptask recv func */
+/* Full refresh can be perform by ptask or as request from SUDO responder. 
+ * Prototype of a ptask recv func is different than recv func in sudo reply 
+ * so full refresh request has to have two recv functions */
 int ipa_sudo_full_refresh_recv(struct tevent_req *req,
                                int *dp_error,
                                int *error)
@@ -415,6 +423,12 @@ int ipa_sudo_full_refresh_recv(struct tevent_req *req,
     *dp_error = state->dp_error;
     *error = state->error;
 
+    return EOK;
+}
+
+int ipa_sudo_full_refresh_ptask_recv(struct tevent_req *req)
+{
+    TEVENT_REQ_RETURN_ON_ERROR(req);
     return EOK;
 }
 

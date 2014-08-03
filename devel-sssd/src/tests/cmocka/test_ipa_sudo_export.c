@@ -2,7 +2,7 @@
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
-    Copyright (C) 2014 Red Hat
+    Copyright (C) 2014 Michal Šrubař
 
     SSSD tests: Dynamic tests of exporting IPA SUDO rules from IPA SUDO scheme 
     into native LDAP SUDO scheme.

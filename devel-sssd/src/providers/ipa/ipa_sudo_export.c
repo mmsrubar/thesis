@@ -1,6 +1,8 @@
 /*
     SSSD
 
+		Export of IPA SUDO rules into native LDAP scheme.
+
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 

@@ -1,7 +1,7 @@
 /*
     SSSD
 
-    IPA Provider Initialization functions
+    IPA Provider Initialization functions.
 
     Authors:
         Lukas Slebodnik <lslebodn@redhat.com>
@@ -183,7 +183,7 @@ static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     ret = be_ptask_create(sudo_ctx, sudo_ctx->be_ctx, full_interval, delay, 
                           1, 60, BE_PTASK_OFFLINE_DISABLE, /* FIXME: timeout? */
                           ipa_sudo_full_refresh_send, 
-                          ipa_sudo_full_refresh_recv,
+                          ipa_sudo_full_refresh_ptask_recv,
                           sudo_ctx, 
                           "full refresh of IPA sudo rules", NULL);
     if (ret != EOK) {
