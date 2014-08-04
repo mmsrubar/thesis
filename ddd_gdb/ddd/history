@@ -1,0 +1,8 @@
+file /home/base/thesis/devel-sssd/i686/.libs/ipa_sudo_export-tests
+cont
+b test_multiple_options_send
+run
+cont
+next
+quit
+

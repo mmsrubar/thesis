@@ -1,0 +1,7 @@
+file /home/base/thesis/devel-sssd/i686/.libs/ipa_sudo_export-tests
+cont
+run
+kill
+run
+quit
+

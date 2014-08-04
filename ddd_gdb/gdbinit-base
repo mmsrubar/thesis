@@ -1,0 +1,35 @@
+file ~/thesis/devel-sssd/i686/.libs/ipa_sudo_export-tests
+
+#b setup_sudo_env
+#b test_simple_rule_send
+
+# IPA SUDO PROVIDER
+# =================
+#b ipa_sudo_refresh_send
+
+  # LDAP SUDO PROVIDER
+  # ==================
+  #b sdap_sudo_refresh_send
+  #b sdap_sudo_load_sudoers_send
+  #b sdap_sudo_load_sudoers_next_base
+  #b sdap_sudo_load_sudoers_process
+  #b sdap_sudo_refresh_load_done_ex
+  #b sdap_sudo_refresh_load_done_ipa
+
+#b ipa_sudo_sudoers_process
+
+  # IPA SUDO CMDS
+  # =============
+    #b ipa_sudo_get_cmds_send
+    #b ipa_sudo_get_cmds_connect_done
+    #b ipa_sudo_cmds_process
+
+#b ipa_sudo_get_cmds_done
+#b ipa_sudo_load_sudoers_finish
+
+b test_more_ipa_rules_send
+b test_successful_export_done
+#b compare_sudoers
+#b setup_sudo_env_teardown
+
+run
