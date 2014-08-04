@@ -1,0 +1,72 @@
+file /sbin/sssd
+set args -i -d 0xbff0 --debug-timestamps=0
+show args
+set breakpoint pending on
+set follow-fork-mode child
+set print elements 0
+
+# break in backend init and follow the backed
+break be_process_init
+commands
+set follow-fork-mode parent
+continue
+end
+
+# SUDO INIT
+# =========
+#b ipa_sudo_init
+#b ipa_sudo_setup_periodical_refreshes
+
+	# SUDO REFRESHES
+	# ==============
+	#b ipa_sudo_full_refresh_send
+	#b ipa_sudo_get_hostgroups_send
+
+		# SUDO HOSTGROUPS
+		# ===============
+		#b ipa_sudo_get_hostgroups_connect
+		#b ipa_sudo_get_hostgroups_connect_done
+		#b ipa_sudo_get_hostgroups_done
+
+	#b ipa_sudo_get_hostinfo_finish
+	#b ipa_sudo_full_refresh_step
+
+#b ipa_sudo_setup_periodical_refreshes
+
+	# IPA SUDO PROVIDER
+	# =================
+	#b ipa_sudo_refresh_send
+
+		# LDAP SUDO PROVIDER
+		# ==================
+		#b sdap_sudo_refresh_send
+		#b sdap_sudo_load_sudoers_process
+		#b sdap_sudo_refresh_load_done_ipa
+
+	#b ipa_sudo_sudoers_process
+	#b build_cmds_filter
+
+		# IPA SUDO PROVIDER CMDS
+		# ======================
+		#b ipa_sudo_get_cmds_send
+		
+	#b ipa_sudo_get_cmds_done
+	#b sdap_sudo_store_sudoers
+
+		# SDAP SUDO CACHE
+		# ===============
+		#b sdap_save_native_sudorule
+		#b sdap_sudo_get_usn
+
+#b ipa_sudo_full_refresh_recv
+
+b ipa_sudo_rules_refresh_done
+
+#b ipa_sudo_smart_refresh_send
+#b sdap_parse_entry
+#graph display (struct sysdb_attrs[8]) *ipa_cmds
+b ipa_sudo_handler
+b ipa_sudo_reply
+b be_sudo_handler
+
+run
