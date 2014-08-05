@@ -194,7 +194,7 @@ if HAVE_CMOCKA
         sbus-internal-tests \
         sss_sifp-tests \
         test_search_bases \
-				ipa_sudo_export-tests \
+				ipa-sudo-export-tests \
         sdap-tests \
         $(NULL)
 
@@ -1648,7 +1648,7 @@ ipa_sudo_export_tests_SOURCES = \
      src/providers/ipa/ipa_async_sudo_cmds.c \
      src/providers/ldap/sdap_async_sudo.c \
      src/providers/ipa/ipa_sudo_export.c \
-     src/providers/ldap/sdap_sudo_cache.c
+     src/providers/ldap/sdap_sudo_cache.c \
 		 src/util/debug.c
 ipa_sudo_export_tests_CFLAGS = \
     $(AM_CFLAGS)
@@ -1668,6 +1668,7 @@ ipa_sudo_export_tests_LDFLAGS = \
 ipa_sudo_export_tests_LDADD = \
     $(SSSD_INTERNAL_LTLIBS) \
     $(CMOCKA_LIBS) \
+    libsss_debug.la \
     libsss_test_common.la
 
 test_find_uid_SOURCES = \

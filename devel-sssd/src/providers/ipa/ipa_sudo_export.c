@@ -192,6 +192,7 @@ static errno_t get_cmd_filter(TALLOC_CTX *mem,
 {
     TALLOC_CTX *tmp = NULL;
     char *cmds_filter = *filter;
+    char *ipauniqueid;
     const char *val;
     const char *type;
     int ret = EOK;
@@ -207,13 +208,14 @@ static errno_t get_cmd_filter(TALLOC_CTX *mem,
         if (strstr(*values, IPA_SUDO_CONTAINER_CMDS) != NULL) {
 
             ret = get_third_rdn_value(tmp, sysdb, *values, IPA_SUDO_ATTR_ID, 
-                            "cn", "sudocmds", "cn", "sudo", &val);
+                            "cn", "sudocmds", "cn", "sudo", &ipauniqueid);
             if (ret != EOK) {
                 DEBUG(SSSDBG_MINOR_FAILURE, "Couldn't parse out the "
                                              "ipaUniqueID out of the DN\n");
                 ret = ENOMEM;
                 goto fail;
             }
+            val = ipauniqueid; 
             type = IPA_SUDO_ATTR_ID;
         } 
         /* DN of commands group */
@@ -247,9 +249,6 @@ fail:
  *
  * If it fails, we can't get ipa sudo commands => we don't have complete
  * sudoers so we can't store them into sysdb!
- *
- * FIXME: 
- * optimalization: this could be done in first iteration through the sudo rules
  */
 errno_t build_cmds_filter(TALLOC_CTX *mem,
                           struct sysdb_ctx *sysdb,

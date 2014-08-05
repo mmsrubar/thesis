@@ -332,7 +332,7 @@ enum sdap_sudorule_attrs {
     SDAP_OPTS_SUDO  /* attrs counter */
 };
 
-enum ipa_sudorule_attrs {
+enum sdap_ipa_sudorule_attrs {
     SDAP_OC_IPA_SUDORULE = 0,
     SDAP_AT_IPA_SUDO_NAME,
     SDAP_AT_IPA_SUDO_USER_CAT,
@@ -356,7 +356,7 @@ enum ipa_sudorule_attrs {
     SDAP_OPTS_IPA_SUDO  /* attrs counter */
 };
 
-enum sdap_sudocmds_attrs {
+enum sdap_ipa_sudocmds_attrs {
     SDAP_OC_SUDO_CMD = 0,
     SDAP_OC_SUDO_CMD_CMD,
     SDAP_OC_SUDO_CMD_MEMBEROF,
