@@ -75,12 +75,12 @@ struct sudo_rule {
 };
 
 
-// FIXME: put real entries into scheme file and rules from file?
+// FIXME: put real entries into .ldif a file and read them from the file?
 
 struct sudo_rule ipa_cmd1[] = {
     {"sudoCmd", "/sbin/blkid"},
     {"ipaUniqueID", "fdfcaf84-5a87-11e3-b71d-080027eec4b0"},
-    {"memberOf", "cn=network,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
@@ -93,7 +93,7 @@ struct sudo_rule ipa_cmd2[] = {
 struct sudo_rule ipa_cmd3[] = {
     {"sudoCmd", "/sbin/fdisk"},
     {"ipaUniqueID", "c484ca28-c019-11e3-84b4-0800274dc10b"},
-    {"memberOf", "cn=dics,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
@@ -128,28 +128,28 @@ struct sudo_rule ipa_cmd7[] = {
 struct sudo_rule ipa_cmd8[] = {
     {"sudoCmd", "/sbin/groupadd"},
     {"ipaUniqueID", "d9c991ea-c79c-11e3-ac02-0800274dc10b"},
-    {"memberOf", "cn=group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
 struct sudo_rule ipa_cmd9[] = {
     {"sudoCmd", "/sbin/groupdel"},
     {"ipaUniqueID", "fcbf4276-c79c-11e3-b1f1-0800274dc10b"},
-    {"memberOf", "cn=group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
 struct sudo_rule ipa_cmd10[] = {
     {"sudoCmd", "/sbin/groupmems"},
     {"ipaUniqueID", "1708d444-c79d-11e3-ac02-0800274dc10b"},
-    {"memberOf", "cn=group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
 struct sudo_rule ipa_cmd11[] = {
     {"sudoCmd", "/sbin/groupmod"},
     {"ipaUniqueID", "26b070b4-c79d-11e3-b620-0800274dc10b"},
-    {"memberOf", "cn=group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
@@ -159,7 +159,6 @@ struct sudo_rule ipa_cmd12[] = {
     {"memberOf", "cn=network,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
-
 
 /* 1st IPA sudo rule -------------------------------------------------------- */
 /* TODO: cn has to be first string in ldap rules! */
@@ -206,7 +205,7 @@ struct sudo_rule ldap_rule2[] = {
 struct sudo_rule ipa_rule3[] = {
     {"cn", "test3"},
     {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
-    {"memberDenyCmd", "cn=group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"memberDenyCmd", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {"memberDenyCmd", "ipaUniqueID=fdfcaf84-5a87-11e3-b71d-080027eec4b0,cn=sudocmds,cn=sudo,dc=example,dc=cz"},
     {"memberAllowCmd", "cn=user,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {"memberAllowCmd", "ipaUniqueID=6f545188-6630-11e3-92be-0800274dc10b,cn=sudocmds,cn=sudo,dc=example,dc=cz"},
@@ -219,16 +218,16 @@ struct sudo_rule ldap_rule3[] = {
 	{"cn", "test3"},
 	{"sudoUser", "admin"},
 	{"sudoHost", "client1.example.cz"},
-	{"sudoCommand", "/bin/cat /etc/shadow"},
-	{"sudoCommand", "/sbin/unix_update"},
-	{"sudoCommand", "/sbin/useradd"},
-	{"sudoCommand", "/sbin/userdel"},
-	{"sudoCommand", "/sbin/usermod"},
 	{"sudoCommand", "!/sbin/blkid"},
 	{"sudoCommand", "!/sbin/groupadd"},
 	{"sudoCommand", "!/sbin/groupdel"},
 	{"sudoCommand", "!/sbin/groupmems"},
 	{"sudoCommand", "!/sbin/groupmod"},
+	{"sudoCommand", "/bin/cat /etc/shadow"},
+	{"sudoCommand", "/sbin/unix_update"},
+	{"sudoCommand", "/sbin/useradd"},
+	{"sudoCommand", "/sbin/userdel"},
+	{"sudoCommand", "/sbin/usermod"},
     {"entryUSN", "8040"},
     {NULL, NULL}
 };
@@ -260,6 +259,50 @@ struct sudo_rule ldap_rule4[] = {
     {NULL, NULL}
 };
 
+/* IPA sudo rule 
+ * command /sbin/blkid is twice in rule, once as a single commands and then as a
+ * part of a command group but after the export it has to be in sudoCommand
+ * attr just once, otherwise LDAP SUDO provider would save such rule!
+ */
+struct sudo_rule ipa_rule5[] = {
+    {"cn", "test5"},
+    {"memberHost", "fqdn=client1.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
+    {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
+    {"memberAllowCmd", "ipaUniqueID=c484ca28-c019-11e3-84b4-0800274dc10b,cn=sudocmds,cn=sudo,dc=example,dc=cz"},
+    {"memberAllowCmd", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"entryUSN", "43240"},
+    {NULL, NULL}
+};
+
+struct sudo_rule ldap_rule5[] = {
+    {"cn", "test5"},
+    {"sudoUser", "admin"},
+    {"sudoCommand", "/sbin/fdisk"},
+    {"sudoCommand", "/sbin/blkid"},
+    {"sudoHost", "client1.example.cz"},
+    {"entryUSN", "43240"},
+    {NULL, NULL}
+};
+
+struct sudo_rule ipa_rule6[] = {
+    {"cn", "test6"},
+    {"memberHost", "fqdn=client15.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
+    {"memberUser", "uid=ivan,cn=users,cn=accounts,dc=example,dc=cz"},
+    {"memberAllowCmd", "ipaUniqueID=c484ca28-c019-11e3-84b4-0800274dc10b,cn=sudocmds,cn=sudo,dc=example,dc=cz"},
+    {"memberAllowCmd", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
+    {"entryUSN", "43240"},
+    {NULL, NULL}
+};
+
+struct sudo_rule ldap_rule6[] = {
+    {"cn", "test6"},
+    {"sudoUser", "ivan"},
+    {"sudoCommand", "/sbin/fdisk"},
+    {"sudoCommand", "/sbin/blkid"},
+    {"sudoHost", "client115.example.cz"},
+    {"entryUSN", "43240"},
+    {NULL, NULL}
+};
 
 /* WHAT TO TEST ? */
 /* =================
@@ -269,6 +312,60 @@ struct sudo_rule ldap_rule4[] = {
  *
  */
 
+static void debug_printf(const char *format, ...)
+                SSS_ATTRIBUTE_PRINTF(1, 2);
+
+static void debug_printf(const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+
+    vfprintf(stderr, format, ap);
+
+    va_end(ap);
+}
+
+/* simple #undef WITH_JOURNALD didn't work :-( */
+void __wrap_debug_fn(const char *file,
+              long line,
+              const char *function,
+              int level,
+              const char *format, ...)
+{
+    va_list ap;
+    struct timeval tv;
+    struct tm *tm;
+    char datetime[20];
+    int year;
+
+    if (debug_timestamps) {
+        gettimeofday(&tv, NULL);
+        tm = localtime(&tv.tv_sec);
+        year = tm->tm_year + 1900;
+        /* get date time without year */
+        memcpy(datetime, ctime(&tv.tv_sec), 19);
+        datetime[19] = '\0';
+        if (debug_microseconds) {
+            debug_printf("(%s:%.6ld %d) [%s] [%s] (%#.4x): ",
+                         datetime, tv.tv_usec,
+                         year, debug_prg_name,
+                         function, level);
+        } else {
+            debug_printf("(%s %d) [%s] [%s] (%#.4x): ",
+                         datetime, year,
+                         debug_prg_name, function, level);
+        }
+    } else {
+        debug_printf("[%s] [%s] (%#.4x): ",
+                     debug_prg_name, function, level);
+    }
+
+    va_start(ap, format);
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+    fflush(stderr);
+}
 
 bool __wrap_be_is_offline(struct be_ctx *ctx)
 {
@@ -577,10 +674,10 @@ int compare_sudoers(TALLOC_CTX *mem, struct sudo_ctx *sudo_ctx)
             assert_true(found); 
             found = false;
 
+            /* check next attribute */
             k++;
             attr = sudo_ctx->ldap[i][k].attr;
             val = sudo_ctx->ldap[i][k].val;
-
        }
     }
 
@@ -687,6 +784,7 @@ void setup_sudo_env(void **state) {
     // FIXME: na sysdb se odkazuji dvakrat, jak z domeny tak z kontextu sudo
     // ...!
     sudo_ctx->be_ctx->domain->sysdb = sudo_ctx->test_ctx->sysdb;
+    sudo_ctx->be_ctx->domain->sudo_timeout = 60;
 
     sudo_ctx->be_ctx->ev = sudo_ctx->test_ctx->ev;
     sudo_ctx->be_ctx->domain->sysdb = sudo_ctx->test_ctx->sysdb;
@@ -805,13 +903,13 @@ void test_more_ipa_rules_send(void **state)
  
     sudo_ctx = *state;
 
-    create_ldap_sudoers(sudo_ctx, sudo_ctx, 4, ldap_rule1, ldap_rule2, 
-                        ldap_rule3, ldap_rule4); 
     create_ipa_sudoers(sudo_ctx, sudo_ctx, 4, ipa_rule1, ipa_rule2, 
                         ipa_rule3, ipa_rule4); 
-    create_ipa_sudo_cmds(sudo_ctx, sudo_ctx, 12, ipa_cmd1, ipa_cmd2, ipa_cmd3,
-                        ipa_cmd4, ipa_cmd5, ipa_cmd6, ipa_cmd7, ipa_cmd8, 
-                        ipa_cmd9, ipa_cmd10,ipa_cmd11, ipa_cmd12);
+    create_ipa_sudo_cmds(sudo_ctx, sudo_ctx, 11, ipa_cmd1, ipa_cmd8, ipa_cmd9, 
+                         ipa_cmd10, ipa_cmd11, ipa_cmd4, ipa_cmd5, ipa_cmd6, 
+                         ipa_cmd7, ipa_cmd2, ipa_cmd3);
+    create_ldap_sudoers(sudo_ctx, sudo_ctx, 4, ldap_rule1, ldap_rule2, 
+                        ldap_rule3, ldap_rule4);
 
     /* return IPA sudo rules for LDAP SUDO Provider */
     will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_count);
@@ -921,6 +1019,105 @@ void test_multiple_options_send(void **state)
     test_ev_loop(sudo_ctx->test_ctx);
 }
 
+void test_none_sudo_rules_send(void **state)
+{
+    struct tevent_req *req;
+    struct sudo_ctx *sudo_ctx;
+
+    sudo_ctx = *state;
+
+    /* create LDAP sudoers */
+    create_ldap_sudoers(sudo_ctx, sudo_ctx, 0);
+    create_ipa_sudoers(sudo_ctx, sudo_ctx, 0);
+
+    /* return IPA sudo rules for LDAP SUDO Provider */
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_count);
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_sudoers);
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, sudo_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, sudo_ctx->test_ctx->ev);
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_refresh_send(sudo_ctx, 
+                                sudo_ctx->be_ctx, 
+                                sudo_ctx->opts,
+                                NULL, "", "");
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_successful_export_done, sudo_ctx);
+    test_ev_loop(sudo_ctx->test_ctx);
+}
+
+/* if there are rules that has same commands that they don't need to be in the
+ * LDAP filter multiple times */
+void test_cmd_filter(void **state)
+{
+    struct tevent_req *req;
+    struct sudo_ctx *sudo_ctx;
+    const char *filter;
+    const char *correct_filter;
+    int cmds_ret;
+
+    sudo_ctx = *state;
+
+    /* create LDAP sudoers */
+    create_ipa_sudoers(sudo_ctx, sudo_ctx, 2, ipa_rule5, ipa_rule6);
+    correct_filter = "(&(objectClass=ipasudocmd)"
+                     "(|(ipaUniqueID=c484ca28-c019-11e3-84b4-0800274dc10b)"
+                     "(memberOf=cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz)))";
+
+    cmds_ret = build_cmds_filter(sudo_ctx, 
+                                 sudo_ctx->test_ctx->sysdb, 
+                                 sudo_ctx->ipa_sudoers, 
+                                 sudo_ctx->ipa_count, 
+                                 &filter);
+
+    assert_int_equal(cmds_ret, EOK);
+    assert_string_equal(filter, correct_filter);
+}
+
+
+/* there is IPA SUDO rules but count of ipa rules is zero */
+void test_fail1_send(void **state)
+{
+    struct tevent_req *req;
+    struct sudo_ctx *sudo_ctx;
+
+    sudo_ctx = *state;
+
+    /* create LDAP sudoers */
+    create_ldap_sudoers(sudo_ctx, sudo_ctx, 1, ldap_rule5);
+    create_ipa_sudoers(sudo_ctx, sudo_ctx, 1, ipa_rule5);
+    create_ipa_sudo_cmds(sudo_ctx, sudo_ctx, 2, ipa_cmd1, ipa_cmd3);
+
+    /* return IPA sudo rules for LDAP SUDO Provider */
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_count);
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_sudoers);
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, sudo_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, sudo_ctx->test_ctx->ev);
+
+    /* return IPA sudo cmds for IPA SUDO Provider */
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap_sdap_id_op_connect_send, sudo_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, sudo_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->cmds_count);
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->cmds);
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_refresh_send(sudo_ctx, 
+                                sudo_ctx->be_ctx, 
+                                sudo_ctx->opts,
+                                NULL, "", "");
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_successful_export_done, sudo_ctx);
+    test_ev_loop(sudo_ctx->test_ctx);
+}
+
 static void test_successful_export_done(struct tevent_req *subreq)
 {
 
@@ -938,7 +1135,6 @@ static void test_successful_export_done(struct tevent_req *subreq)
                                 &state->error, NULL, &count, &attrs);
     talloc_zfree(subreq);
 
-    assert_int_equal(ret, EOK);
     assert_int_equal(state->dp_error, DP_ERR_OK);
     assert_int_equal(state->error, EOK);
 
@@ -949,61 +1145,7 @@ static void test_successful_export_done(struct tevent_req *subreq)
     ctx->test_ctx->error = EOK;
 }
 
-#ifdef TESTS
-/* */
-static void test_build_commands_filter_fail_send(void **state)
-{
-    struct tevent_req *req;
-    struct sudo_test *test_ctx;
- 
-    test_ctx = *state;
-
-    will_return(__wrap_be_is_offline, false);
-    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
-    will_return(__wrap_sdap_id_op_connect_send, test_ctx->test_ctx->ev);
-    will_return(__wrap_sdap_get_generic_send, test_ctx->test_ctx->ev);
-
-    struct be_ctx *be_ctx = talloc_zero(test_ctx, struct be_ctx);
-    be_ctx->domain = talloc_zero(be_ctx, struct sss_domain_info);
-    be_ctx->ev = test_ctx->test_ctx->ev;
-    be_ctx->domain->sysdb = test_ctx->state->refresh_state->sysdb;
-
-    req = ipa_sudo_get_cmds_send(test_ctx, NULL, 0, 
-                                 be_ctx, NULL, test_ctx->state->opts);
-    assert_non_null(req);
-
-    tevent_req_set_callback(req, test_build_commands_filter_fail_done, test_ctx);
-
-    test_ev_loop(test_ctx->test_ctx);
-}
-
-void test_build_commands_filter_fail_done(struct tevent_req *subreq)
-{
-    struct sudo_test *ctx; 
-    struct ipa_sudo_get_cmds_state *state;
-    int ret;
-
-    /* req from ipa_sudo_load_sudoers_send() */
-    ctx = tevent_req_callback_data(subreq, struct sudo_test);
-    state = tevent_req_data(subreq, struct ipa_sudo_get_cmds_state);
-
-    /* get EXPORTED sudoers */
-    ret = ipa_sudo_get_cmds_recv(subreq, state, NULL, NULL);
-
-    assert_int_equal(ret, EINVAL);
-
-    /* end tevent loop */
-    ctx->test_ctx->done = true;
-    ctx->test_ctx->error = EOK;
-}
-
-
-
-
-
-
-#endif
-
+// FIXME!
 void setup_sudo_env_teardown(void **state)
 {
     //printf("environment teardown function\n");
@@ -1020,6 +1162,8 @@ int main(int argc, const char *argv[])
                                  */
                                  
      
+        /* FIXME: create sysdb only once and purge it before every test */
+
         /* test export of IPA sudo rules into native LDAP sudo scheme */
         unit_test_setup_teardown(test_simple_rule_send,
                                  setup_sudo_env,
@@ -1034,6 +1178,15 @@ int main(int argc, const char *argv[])
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
         unit_test_setup_teardown(test_multiple_options_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_none_sudo_rules_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_fail1_send,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_cmd_filter,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
     };

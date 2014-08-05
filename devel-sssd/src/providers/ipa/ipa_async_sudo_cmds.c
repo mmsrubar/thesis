@@ -299,7 +299,7 @@ static void ipa_sudo_cmds_process(struct tevent_req *subreq)
     }
 
     DEBUG(SSSDBG_TRACE_FUNC, "All IPA sudo rules successfully exported into "
-                             "the native LDAP SUDO scheme.\n");
+                             "the native LDAP SUDO scheme\n");
 
 fail:
     if (ret == EOK) {

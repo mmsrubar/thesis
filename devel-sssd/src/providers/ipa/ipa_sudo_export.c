@@ -169,8 +169,21 @@ done:
     return ret;
 }
 
-/* Take values of a memberAllowCmd or memberDenyCmd attribute and return 
- * these values as LDAP filter.
+/* Take values of all memberAllowCmd or memberDenyCmd attributes (the function
+ * is called twice, once for allowed cmds and once for denied) of a single
+ * rule and add this values into the LDAP filter that will be used to look up 
+ * IPA sudo commands.
+ *
+ * If the value of member{Allow,Deny}Cmd is DN of a single command than use the
+ * IPAUNIQUEID value. Otherwise the value is DN of a group of commands. In this
+ * case use entire DN.
+ *
+ * For example:
+ * memberAllowCmd: ipaUniqueID=9e03c1d0,cn=sudorules,cn=sudo,$DC 
+ *  -> add (memberOf=9e03c1d0)
+ * memberAllowCmd: cn=user,cn=sudocmdgroups,cn=sudo,$DC 
+ *  -> add (memberOf=cn=user,cn=sudocmdgroups,cn=sudo,$DC
+ *
  */
 static errno_t get_cmd_filter(TALLOC_CTX *mem, 
                                   struct sysdb_ctx *sysdb,
@@ -178,14 +191,13 @@ static errno_t get_cmd_filter(TALLOC_CTX *mem,
                                   char **filter)
 {
     TALLOC_CTX *tmp = NULL;
-    char *ipa_unique_id = NULL;
     char *cmds_filter = *filter;
+    const char *val;
+    const char *type;
     int ret = EOK;
 
     /* FIXME: 
-     * check if the cmd isn't already in a filter because the length of 
-     * the filter is limited and also lenght of the filter is limited!
-     * - potencial security bug!
+     * the lenght of the LDAP filter is limited!
      */
 
     /* for all values (ipaUniquedID or DN of a cmds group) */
@@ -195,28 +207,30 @@ static errno_t get_cmd_filter(TALLOC_CTX *mem,
         if (strstr(*values, IPA_SUDO_CONTAINER_CMDS) != NULL) {
 
             ret = get_third_rdn_value(tmp, sysdb, *values, IPA_SUDO_ATTR_ID, 
-                            "cn", "sudocmds", "cn", "sudo", &ipa_unique_id);
+                            "cn", "sudocmds", "cn", "sudo", &val);
             if (ret != EOK) {
                 DEBUG(SSSDBG_MINOR_FAILURE, "Couldn't parse out the "
                                              "ipaUniqueID out of the DN\n");
                 ret = ENOMEM;
                 goto fail;
             }
-
-            cmds_filter = talloc_asprintf_append_buffer(
-                    cmds_filter, "(ipaUniqueID=%s)", ipa_unique_id);
+            type = IPA_SUDO_ATTR_ID;
         } 
         /* DN of commands group */
         else if (strstr(*values, IPA_SUDO_CONTAINER_CMD_GRPS) != NULL) { 
-            cmds_filter = talloc_asprintf_append_buffer(cmds_filter, 
-                                   "(%s=%s)", IPA_SUDO_ATTR_MEMBEROF, *values);
+            val = *values;
+            type = IPA_SUDO_ATTR_MEMBEROF;
         }
 
-        if (cmds_filter == NULL) {
-            DEBUG(SSSDBG_MINOR_FAILURE, "talloc_asprintf_append_buffer() "
-                                         "failed\n");
-            ret = ENOMEM;
-            goto fail;
+        /* if cmds_filter is NULL then there no attrs in the filter yet but if
+         * the command already is in filter then don't add it again. */
+        if (cmds_filter == NULL || strstr(cmds_filter, val) == NULL) {
+            if ((cmds_filter = talloc_asprintf_append_buffer(cmds_filter, "(%s=%s)", 
+                                type, val)) == NULL) {
+                DEBUG(SSSDBG_MINOR_FAILURE, "talloc_asprintf_append_buffer() failed\n");
+                ret = ENOMEM;
+                goto fail;
+            }
         }
     }
 
@@ -229,7 +243,7 @@ fail:
 
 /* 
  * Build LDAP filter that will match only neceary sudo commands for
- * downloaded ipa sudo rules.
+ * all downloaded ipa sudo rules.
  *
  * If it fails, we can't get ipa sudo commands => we don't have complete
  * sudoers so we can't store them into sysdb!
@@ -266,7 +280,7 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
         goto fail;
     }
 
-    /* for each downloaded ipa sudo rules */
+    /* for each downloaded ipa sudo rule */
     for (i = 0; i < count; i++) {
 
         /* get values of a memberAllowCmd attr if any */
@@ -817,10 +831,16 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
     static int i;
     int ret;
 
-    /* for each ipa cmd (continue where we stopped the last time) */
+    *error = EOK;
+
+    /* for each IPA sudo cmd (continue where we stopped the last time) */
     for ( ; i < ipa_cmds_count; i++) {
 
-        sysdb_attrs_get_string_array(ipa_cmds[i], attr_name, mem, &values);
+        ret = sysdb_attrs_get_string_array(ipa_cmds[i], attr_name, mem, &values);
+        if (ret != EOK && ret != ENOENT) {
+            *error = ret;
+            return NULL;
+        }
 
         for (val = values; val != NULL && *val != NULL; val++) {
             
@@ -854,6 +874,9 @@ static const char *get_sudoCmd_value(TALLOC_CTX *mem,
     return NULL;
 }
 
+/* Takes single sudo rule and exports all its allowed OR denied (it's called
+ * twice) IPA sudo commands.
+ */
 static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers, 
                                    struct sysdb_attrs **ipa_cmds, 
                                    int ipa_cmds_count,
@@ -862,11 +885,12 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
 {
     TALLOC_CTX *tmp = talloc_init(NULL);
 
-    struct ldb_message_element *el;
     const char *attr_name = NULL;
     const char *sudo_cmd = NULL;
     char *p_sudo_cmd = NULL;
     bool cmd_group = false;
+    const char **exported_cmds = NULL;
+    bool cmd_exists = false;
     errno_t ret = EOK;
     int j;
 
@@ -876,24 +900,18 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         goto fail;
     }
 
-    /* create sudoCommand attribute if there isn't yet */
-    ret = sysdb_attrs_get_el_ext(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, true, &el);
-    if (ret != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_realloc() failed\n");
-        goto fail;
-
-    }
-
-    /* for each allowed or denied command */
+    /* for each allowed or denied IPA sudo command */
     for (j = 0; j < count; j++) {
 
         /* look up a single command or a group? */
         if (strstr(cmds[j], IPA_SUDO_CONTAINER_CMD_GRPS) == NULL) {
             attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_ID);
             cmd_group = false;
+            DEBUG(SSSDBG_TRACE_FUNC, "Exporting cmd ipauniqueid=%s\n", cmds[j]);
         } else {
             attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_MEMBEROF);
             cmd_group = true;
+            DEBUG(SSSDBG_TRACE_FUNC, "Exporting cmd group: %s\n", cmds[j]);
         }
 
         if (attr_name == NULL) {
@@ -905,6 +923,42 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
                                         attr_name, cmds[j], cmd_group, &ret)) != NULL)
         {
+            /* if the attribute 'sudoCommand' in not already in the rule then
+             * it'll be created automatically in sysdb_attrs_add_string().
+             * Problem is that the sysdb_func() doesn't not check if the value
+             * it adding isn't already in the attribute. There can be a case
+             * where rule has same command, e.g '/sbin/blkid', as allowed and
+             * also as allowed in command group. Then there would be two same
+             * values in 'sudoCommand' attribute:
+             *
+             * sudoCommands:    /sbin/blkid
+             * sudoCommands:    /sbin/blkid
+             *
+             * and that would fail when LDAP SUDO Provider would try to save it
+             * into sysdb. That's the reason why we has to check if the exported
+             * commands isn't already exported.
+             */
+            ret = sysdb_attrs_get_string_array(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, 
+                                               tmp, &exported_cmds);
+            if (ret == EOK) {
+                while (*exported_cmds != NULL) {
+                    if (strcmp(*exported_cmds, sudo_cmd) == 0) {
+                        cmd_exists = true;
+                        break;
+                    }
+
+                    exported_cmds++;    /* go to another value */
+                }
+
+                if (cmd_exists) {
+                    /* sudo command is already in sucoCommands attribute, don't
+                     * add it again */
+                    cmd_exists = false;
+                    continue;
+                }
+            } else if (ret != EOK && ret != ENOENT) {
+                goto fail;
+            }
 
             if (prefix) {   /* denied cmds has to have ! prefix */
                 p_sudo_cmd = talloc_asprintf_append(p_sudo_cmd, "%c%s", 
@@ -915,13 +969,28 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
                     goto fail;
                 }
 
-                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, p_sudo_cmd);
+                ret = sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, 
+                                             p_sudo_cmd);
+                if (ret != EOK) {
+                    goto fail;
+                }
+                DEBUG(SSSDBG_TRACE_FUNC, "Exported denied sudo cmd: %s\n", p_sudo_cmd);
+
             } else {
-                sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, sudo_cmd);
+                ret = sysdb_attrs_add_string(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, 
+                                             sudo_cmd);
+                if (ret != EOK) {
+                    goto fail;
+                }
+                DEBUG(SSSDBG_TRACE_FUNC, "Exported allowed sudo cmd: %s\n", sudo_cmd);
             }
 
             talloc_zfree(p_sudo_cmd);
             talloc_zfree(sudo_cmd);
+        } /* while end */
+
+        if (ret != EOK) {
+            goto fail;
         }
     }
 
@@ -930,6 +999,26 @@ fail:
     return ret;
 }
 
+/* EXPORT IPA SUDO COMMANDS
+ * There are two arrays. First with already exported sudoers but without
+ * commands (sudoers) and ther there is index. Both arrays has same length and
+ * they are indexed by same index:
+ *
+ * ---------------
+ * | sudoers[0]   |  ...
+ * | (sudo rule1) |
+ *  --------------
+ *       |
+ *  ----------------------------------------------------
+ * | index[0]                                           |
+ * | - number of allowe denided cmds for sudo rule1     |   ...
+ * | - ipauniqueid or DN of a cmd group for each IPA    |
+ * |   SUDO cmd of the sudo rule1                       |
+ *  ----------------------------------------------------
+ *
+ * Apropriate IPA sudo commands are downloaded. To finish the export we just
+ * need to assign the correct sudo commands to the rules.
+ */
 int export_sudoers_cmds(TALLOC_CTX *mem,
                         struct sysdb_attrs **sudoers,
                         int sudoers_count,
@@ -938,14 +1027,27 @@ int export_sudoers_cmds(TALLOC_CTX *mem,
                         int ipa_cmds_count)
 {
     errno_t ret = EOK;
-    int i;
+    const char *rule_name;
+    int i;  /* i can be index to both sudoers and index arrays */
 
     DEBUG(SSSDBG_TRACE_FUNC, "Exporting IPA sudo commands\n");
 
     /* for each sudoer */
     for (i = 0; i < sudoers_count; i++) {
 
-        /* are there any allowed commands for this sudoer? */
+        ret = sysdb_attrs_get_string(sudoers[i], SYSDB_SUDO_CACHE_AT_CN, &rule_name);
+        if (ret != EOK) {
+            DEBUG(SSSDBG_MINOR_FAILURE, "sysdb_attrs_get_string() failed\n");
+            goto fail;
+        } else {
+            DEBUG(SSSDBG_TRACE_FUNC, "Sudo rule cn=%s has %d allowed and %d "
+                                     "denied cmds that needs to be exported\n",
+                                      rule_name, index[i]->allowed_num, 
+                                      index[i]->denied_num);
+        }
+
+        /* are there any allowed IPA sudo commands for this sudoer that need to
+         * be exported? */
         if (index[i]->allowed_num != 0) {
             ret = ipa_sudo_assign_command(sudoers[i], ipa_cmds, ipa_cmds_count, 
                                           index[i]->allowed, 

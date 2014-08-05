@@ -1649,10 +1649,12 @@ ipa_sudo_export_tests_SOURCES = \
      src/providers/ldap/sdap_async_sudo.c \
      src/providers/ipa/ipa_sudo_export.c \
      src/providers/ldap/sdap_sudo_cache.c
+		 src/util/debug.c
 ipa_sudo_export_tests_CFLAGS = \
     $(AM_CFLAGS)
 ipa_sudo_export_tests_LDFLAGS = \
-    -Wl,-wrap,be_is_offline  \
+    -Wl,-wrap,debug_fn \
+    -Wl,-wrap,be_is_offline \
     -Wl,-wrap,sdap_id_op_create \
 		-Wl,-wrap,sdap_id_op_connect_send \
 		-Wl,-wrap,sdap_id_op_connect_recv \
