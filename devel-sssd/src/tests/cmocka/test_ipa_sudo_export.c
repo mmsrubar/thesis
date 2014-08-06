@@ -1,4 +1,8 @@
 /*
+    SSSD
+
+        UNIT tests for export of IPA SUDO rules. 
+
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
 
@@ -51,6 +55,7 @@
 #define TEST_CONF_FILE "tests_conf.ldb"
 
 static void test_successful_export_done(struct tevent_req *subreq);
+static void test_fail_export_done(struct tevent_req *subreq);
 void test_build_commands_filter_fail_done(struct tevent_req *subreq);
 
 struct sudo_ctx {
@@ -303,6 +308,17 @@ struct sudo_rule ldap_rule6[] = {
     {"entryUSN", "43240"},
     {NULL, NULL}
 };
+
+/* IPA SUDO rule with ilegal LDAP attribute */
+struct sudo_rule ipa_rule7[] = {
+    {"cn", "test7"},
+    {"memberHost", "fqdn=client15.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
+    {"memberUser", "uid=ivan,cn=users,cn=accounts,dc=example,dc=cz"},
+    {"ilegalAttr", "value"},
+    {"entryUSN", "43240"},
+    {NULL, NULL}
+};
+
 
 /* WHAT TO TEST ? */
 /* =================
@@ -1062,7 +1078,7 @@ void test_cmd_filter(void **state)
     sudo_ctx = *state;
 
     /* create LDAP sudoers */
-    create_ipa_sudoers(sudo_ctx, sudo_ctx, 2, ipa_rule5, ipa_rule6);
+    create_ipa_sudoers(sudo_ctx, sudo_ctx, 1, ipa_rule5, ipa_rule6);
     correct_filter = "(&(objectClass=ipasudocmd)"
                      "(|(ipaUniqueID=c484ca28-c019-11e3-84b4-0800274dc10b)"
                      "(memberOf=cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz)))";
@@ -1077,15 +1093,21 @@ void test_cmd_filter(void **state)
     assert_string_equal(filter, correct_filter);
 }
 
-
-/* there is IPA SUDO rules but count of ipa rules is zero */
-void test_fail1_send(void **state)
+/* Test a rule that contains two same sudo commands (first specified as single
+ * ipa sudo command and second is member of ipa sudo commands group). There has
+ * to be just one instance of this sudo command otherwise the rule won't be
+ * saved into sysdb. 
+ */
+void test_two_commands(void **state)
 {
     struct tevent_req *req;
     struct sudo_ctx *sudo_ctx;
 
     sudo_ctx = *state;
 
+    // FIXME: even if I force the tests to fail chmake won't cache that
+    //assert_non_null(NULL);
+    
     /* create LDAP sudoers */
     create_ldap_sudoers(sudo_ctx, sudo_ctx, 1, ldap_rule5);
     create_ipa_sudoers(sudo_ctx, sudo_ctx, 1, ipa_rule5);
@@ -1118,9 +1140,68 @@ void test_fail1_send(void **state)
     test_ev_loop(sudo_ctx->test_ctx);
 }
 
+
+void test_fail_invalid_attr(void **state)
+{
+    struct tevent_req *req;
+    struct sudo_ctx *sudo_ctx;
+
+    sudo_ctx = *state;
+
+    /* create LDAP sudoers */
+    create_ipa_sudoers(sudo_ctx, sudo_ctx, 1, ipa_rule7);
+
+    /* return IPA sudo rules for LDAP SUDO Provider */
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_count);
+    will_return(__wrap_sdap_get_generic_recv, sudo_ctx->ipa_sudoers);
+    will_return(__wrap_be_is_offline, false);
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+    will_return(__wrap_sdap_id_op_connect_send, sudo_ctx->test_ctx->ev);
+    will_return(__wrap_sdap_get_generic_send, sudo_ctx->test_ctx->ev);
+
+    /* return IPA sudo cmds for IPA SUDO Provider */
+    will_return(__wrap__dp_opt_get_int, 30);     /* timeout = 30s */
+
+    /* we don't need search filters because we won't send any requests */
+    req = ipa_sudo_refresh_send(sudo_ctx, 
+                                sudo_ctx->be_ctx, 
+                                sudo_ctx->opts,
+                                NULL, "", "");
+    assert_non_null(req);
+
+    tevent_req_set_callback(req, test_fail_export_done, sudo_ctx);
+    test_ev_loop(sudo_ctx->test_ctx);
+}
+
 static void test_successful_export_done(struct tevent_req *subreq)
 {
+    struct sudo_ctx *ctx; 
+    struct sdap_sudo_refresh_state *state;
+    struct sysdb_attrs **attrs = NULL;
+    size_t count;
+    int ret;
 
+    /* req from ipa_sudo_refresh_send() */
+    ctx = tevent_req_callback_data(subreq, struct sudo_ctx);
+    state = tevent_req_data(subreq, struct sdap_sudo_refresh_state);
+
+    ret = ipa_sudo_refresh_recv(state, subreq, &state->dp_error,
+                                &state->error, NULL, &count, &attrs);
+    assert_int_equal(ret, EOK);
+    talloc_zfree(subreq);
+
+    assert_int_equal(state->dp_error, DP_ERR_OK);
+    assert_int_equal(state->error, EOK);
+
+    compare_sudoers(ctx, ctx);
+
+    /* end tevent loop */
+    ctx->test_ctx->done = true;
+    ctx->test_ctx->error = EOK;
+}
+
+static void test_fail_export_done(struct tevent_req *subreq)
+{
     struct sudo_ctx *ctx; 
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **attrs = NULL;
@@ -1134,11 +1215,7 @@ static void test_successful_export_done(struct tevent_req *subreq)
     ret = ipa_sudo_refresh_recv(state, subreq, &state->dp_error,
                                 &state->error, NULL, &count, &attrs);
     talloc_zfree(subreq);
-
-    assert_int_equal(state->dp_error, DP_ERR_OK);
-    assert_int_equal(state->error, EOK);
-
-    compare_sudoers(ctx, ctx);
+    assert_int_not_equal(ret, EOK);
 
     /* end tevent loop */
     ctx->test_ctx->done = true;
@@ -1154,15 +1231,8 @@ void setup_sudo_env_teardown(void **state)
 
 int main(int argc, const char *argv[])
 {
+    /* FIXME: create sysdb only once and purge it before every test */
     const UnitTest tests[] = {
-        /*
-        unit_test_setup_teardown(test_build_commands_filter_fail_send,
-                                 setup_sudo_env,
-                                 setup_sudo_env_teardown),
-                                 */
-                                 
-     
-        /* FIXME: create sysdb only once and purge it before every test */
 
         /* test export of IPA sudo rules into native LDAP sudo scheme */
         unit_test_setup_teardown(test_simple_rule_send,
@@ -1183,16 +1253,17 @@ int main(int argc, const char *argv[])
         unit_test_setup_teardown(test_none_sudo_rules_send,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
-        unit_test_setup_teardown(test_fail1_send,
+        unit_test_setup_teardown(test_two_commands,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
         unit_test_setup_teardown(test_cmd_filter,
                                  setup_sudo_env,
                                  setup_sudo_env_teardown),
+        unit_test_setup_teardown(test_fail_invalid_attr,
+                                 setup_sudo_env,
+                                 setup_sudo_env_teardown),
     };
 
-    //TODO:
-    // - two ipa rules which uses the same ipa commands
     run_tests(tests);
     return 0;
 }
