@@ -47,7 +47,7 @@ struct sudo_rules {
     struct sysdb_attrs **ipa_cmds;
     size_t ipa_cmds_count;
 
-    /* commands index is an array created from ipa sudo rules which the length 
+    /* commands index is an array created from ipa sudo rules which length 
      * is the same as number of ipa_rules 
      *
      * +----------------------------------------+-------------------------+
