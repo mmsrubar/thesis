@@ -89,6 +89,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
     filter = talloc_asprintf_append_buffer(filter, "(%s=ALL)",
                                            map[SDAP_AT_IPA_SUDO_HOST_CAT].name);
     if (filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
         goto done;
     }
 
@@ -96,6 +97,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
     filter = talloc_asprintf_append_buffer(filter, IPA_HOST_FILTER,
                                            hostnames, basedn);
     if (filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
         goto done;
     }
 
@@ -104,6 +106,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
                                            map[SDAP_AT_IPA_SUDO_EXT_HOST].name,
                                            hostnames);
     if (filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
         goto done;
     }
 
@@ -114,6 +117,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
             filter = talloc_asprintf_append_buffer(filter, IPA_HOST_GROUP_FILTER,
                                                    hostgroups[i], basedn);
             if (filter == NULL) {
+                DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
                 goto done;
             }
         }
@@ -128,6 +132,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
                                                    map[SDAP_AT_IPA_SUDO_EXT_HOST].name,
                                                    ip_addr[i]);
             if (filter == NULL) {
+                DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
                 goto done;
             }
         }
@@ -246,9 +251,9 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
     struct tevent_req *req;
     const char *group_name;
     size_t hostgroup_count;
-    errno_t ret;
-    int dp_error;
-    int error;
+    errno_t ret = EOK;
+    int dp_error = DP_ERR_OK;
+    int error = EOK;
     int i;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
@@ -260,31 +265,36 @@ static void ipa_sudo_get_hostinfo_finish(struct tevent_req *subreq)
                                        &hostgroups, &hostgroup_count);
     talloc_zfree(subreq);
     if (ret != EOK || state->dp_error != DP_ERR_OK || state->error != EOK) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "Unable to retrieve hostgroups information - "
+        DEBUG(SSSDBG_MINOR_FAILURE, "Unable to retrieve hostgroups information - "
                                     "(sudo won't work correctly)\n");
-        ipa_sudo_full_refresh_step(req);
+        goto done;
     }
 
     sudo_ctx->ipa_hostgroups = talloc_zero_array(sudo_ctx, char *, hostgroup_count+1);
     if (sudo_ctx->ipa_hostgroups == NULL) {
         DEBUG(SSSDBG_FATAL_FAILURE, "talloc_zero_array() failed\n");
-        return;
+        goto done;
     }
 
     for (i = 0; i < hostgroup_count; i++) {
 
         ret = sysdb_attrs_get_string(hostgroups[i], "name", &group_name);
         if (ret != EOK) {
-            DEBUG(SSSDBG_CRIT_FAILURE, "Unable to get common name of a "
+            DEBUG(SSSDBG_MINOR_FAILURE, "Unable to get common name of a "
                         "hostgroup. Trying another hostgroup record.\n");
             continue;
         }
 
         sudo_ctx->ipa_hostgroups[i] = talloc_strdup(sudo_ctx->ipa_hostgroups, 
                                                 group_name);
+        if (sudo_ctx->ipa_hostgroups[i] == NULL) {
+            DEBUG(SSSDBG_FATAL_FAILURE, "talloc_strdup() failed\n");
+        }
     }
 
     sudo_ctx->ipa_hostgroups[hostgroup_count] = NULL;
+
+done:
     ipa_sudo_full_refresh_step(req);
 }
 
@@ -307,6 +317,7 @@ static void ipa_sudo_full_refresh_step(struct tevent_req *req)
     ldap_filter = talloc_asprintf(state, IPA_SUDO_FULL_FILTER,
                     sudo_ctx->id_ctx->opts->ipa_sudorule_map[SDAP_OC_SUDORULE].name);
     if (ldap_filter == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, "talloc_asprintf() failed\n");
         ret = ENOMEM;
         goto immediately;
     }
@@ -321,6 +332,7 @@ static void ipa_sudo_full_refresh_step(struct tevent_req *req)
     /* close the filter */
     ldap_full_filter = talloc_strdup_append_buffer(ldap_full_filter, ")");
     if (ldap_full_filter == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, "talloc_strdup_append_buffer() failed\n");
         ret = ENOMEM;
         goto immediately;
     }
@@ -329,6 +341,7 @@ static void ipa_sudo_full_refresh_step(struct tevent_req *req)
     sysdb_filter = talloc_asprintf(state, "(%s=%s)",
                                    SYSDB_OBJECTCLASS, SYSDB_SUDO_CACHE_OC);
     if (sysdb_filter == NULL) {
+        DEBUG(SSSDBG_FATAL_FAILURE, "talloc_asprintf() failed\n");
         ret = ENOMEM;
         goto immediately;
     }
