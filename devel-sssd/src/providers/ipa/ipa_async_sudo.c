@@ -43,7 +43,6 @@ static void ipa_sudo_load_sudoers_finish(struct tevent_req *req,
                                          struct sysdb_attrs **rules,
                                          size_t count);
 
-
 struct tevent_req *ipa_sudo_refresh_send(TALLOC_CTX *mem_ctx,
                                           struct be_ctx *be_ctx,
                                           struct sdap_options *opts,
@@ -194,6 +193,7 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
         return;
     }
 
+    // FIXME: debug
     print_rules("IPA sudoer from LDAP SUDO Provider:", ipa_rules, ipa_rules_count);
 
     subreq = ipa_sudo_get_cmds_send(state,
