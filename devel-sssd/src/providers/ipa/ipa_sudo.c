@@ -50,7 +50,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     struct sdap_sudo_ctx *sudo_ctx = NULL;
     const char *hostname = NULL;
     char *dot = NULL;
-    int ret;
+    int ret = EOK;
 
     DEBUG(SSSDBG_TRACE_INTERNAL, "Initializing IPA sudo back end\n");
 
@@ -118,7 +118,7 @@ static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     time_t full_interval;
     time_t last_full;
     time_t delay;
-    int ret;
+    int ret = EOK;
 
     DEBUG(SSSDBG_TRACE_INTERNAL, "Setting up periodical refreshes of sudo "
                                  "rules using ptask scheduler\n");
@@ -163,9 +163,9 @@ static int ipa_sudo_setup_periodical_refreshes(struct sdap_sudo_ctx *sudo_ctx)
     }
 
     if (last_full == 0) {
-        /* If this is the first startup, we need to kick off sh immediately, 
-         * to close a window where clients requesting sudo information won't 
-         * get an immediate reply with no entries.
+        /* If this is the first startup, we need to kick off refresh 
+         * immediately, to close a window where clients requesting sudo 
+         * information won't get an immediate reply with no entries.
          */
         delay = 0;
     } else {
