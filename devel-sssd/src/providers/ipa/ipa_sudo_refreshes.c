@@ -1,11 +1,12 @@
 /*
     SSSD
-		This module prepares parameters for refresh of sudo rules. Parameters as
-		LDAP or SYSDB filters are set based on a kind of refresh. There are three 
-		kind of refreshes:
-			1) FULL Refersh
-			2) SMART Refersh
-			3) RULES Refersh
+    
+    This module prepares parameters for refresh of IPA sudo rules. Parameters
+    as LDAP or SYSDB filters are set based on a kind of refresh. There are 
+    currently three kinds of refreshes:
+      1) FULL Refersh
+      2) SMART Refersh
+      3) RULES Refersh
 
     Authors:
         Michal Šrubař <mmsrubar@gmail.com>
@@ -76,7 +77,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
 {
     TALLOC_CTX *tmp_ctx = NULL;
     char *filter = NULL;
-    int i;
+    int i = 0;
 
     tmp_ctx = talloc_new(NULL);
     if (tmp_ctx == NULL) {
@@ -91,8 +92,7 @@ static char *ipa_sudo_build_host_filter(TALLOC_CTX *mem_ctx,
         goto done;
     }
 
-    /* we specify the host by FQDN */
-    /* ipa host */
+    /* we specify the IPA host by FQDN */
     filter = talloc_asprintf_append_buffer(filter, IPA_HOST_FILTER,
                                            hostnames, basedn);
     if (filter == NULL) {
