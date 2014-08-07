@@ -151,7 +151,7 @@ static void ipa_sudo_get_hostgroups_connect_done(struct tevent_req *subreq)
 {
     struct ipa_sudo_get_hostgroups_state *state;
     struct tevent_req *req;
-    int dp_error;
+    int dp_error =DP_ERR_OK;
     int ret = EOK;
 
     /* req from ipa_sudo_get_hostgroups_send */
@@ -197,7 +197,7 @@ static void ipa_sudo_get_hostgroups_done(struct tevent_req *subreq)
 {
     struct ipa_sudo_get_hostgroups_state *state;
     struct tevent_req *req;
-    errno_t ret;
+    errno_t ret = EOK;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct ipa_sudo_get_hostgroups_state);
