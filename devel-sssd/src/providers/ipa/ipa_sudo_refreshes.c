@@ -158,7 +158,8 @@ static char *ipa_sudo_get_filter(TALLOC_CTX *mem_ctx,
         return talloc_strdup(mem_ctx, rule_filter);
     }
 
-    if ((tmp_ctx = talloc_new(NULL)) == NULL) {
+    tmp_ctx = talloc_new(NULL);
+    if (tmp_ctx == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, "talloc_new() failed\n");
         return NULL;
     }
@@ -174,10 +175,6 @@ static char *ipa_sudo_get_filter(TALLOC_CTX *mem_ctx,
 
     filter = talloc_asprintf(tmp_ctx, "(%s%s)",
                                  rule_filter, host_filter);
-    if (filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprint() failed\n");
-        goto done;
-    }
  
     //FIXME: 
     /*
@@ -382,7 +379,7 @@ static void ipa_sudo_full_refresh_done(struct tevent_req *subreq)
     struct tevent_req *req = NULL;
     struct ipa_sudo_full_refresh_state *state = NULL;
     char *highest_usn = NULL;
-    int ret = EOK;
+    int ret;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct ipa_sudo_full_refresh_state);
@@ -425,7 +422,7 @@ done:
 }
 
 /* Full refresh can be perform by ptask or as request from SUDO responder. 
- * Prototype of a ptask recv func is different from recv func in sudo reply 
+ * Prototype of a ptask recv func is different than recv func in sudo reply 
  * so full refresh request has to have two recv functions */
 int ipa_sudo_full_refresh_recv(struct tevent_req *req,
                                int *dp_error,
@@ -464,7 +461,7 @@ struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     struct ipa_sudo_smart_refresh_state *state = NULL;
     char *ldap_filter = NULL;
     char *ldap_smart_filter = NULL;
-    const char *usn = NULL;
+    const char *usn;
     int ret = EOK;
 
     sudo_ctx = talloc_get_type(pvt, struct sdap_sudo_ctx);
@@ -503,7 +500,6 @@ struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
                                       map[SDAP_OC_SUDORULE].name);
     }
     if (ldap_filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
@@ -517,12 +513,12 @@ struct tevent_req *ipa_sudo_smart_refresh_send(TALLOC_CTX *mem_ctx,
     /* close the filter */
     ldap_smart_filter = talloc_asprintf_append_buffer(ldap_smart_filter, ")");
     if (ldap_smart_filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf_append_buffer() failed\n"));
         goto immediately;
     }
 
-    /* Do not remove any rules that are already in the sysdb 
-     * sysdb_filter = NULL; */
+    /* Do not remove any rules that are already in the sysdb
+     * sysdb_filter = NULL;
+     */
 
     DEBUG(SSSDBG_TRACE_FUNC, "Issuing a smart refresh of IPA sudo rules "
                              "(USN > %s)\n", (usn == NULL ? "0" : usn));
@@ -560,9 +556,9 @@ static void ipa_sudo_smart_refresh_done(struct tevent_req *subreq)
     struct tevent_req *req = NULL;
     struct ipa_sudo_smart_refresh_state *state = NULL;
     char *highest_usn = NULL;
-    int dp_error = DP_ERR_OK;
-    int error = EOK;
-    int ret = EOK;
+    int dp_error;
+    int error;
+    int ret;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct ipa_sudo_smart_refresh_state);
@@ -615,7 +611,6 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
     int i;
 
     if (rules == NULL) {
-        DEBUG(SSSDBG_TRACE_FUNC, "No sudo rules to refresh\n");
         return NULL;
     }
 
@@ -633,11 +628,6 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
 
     ldap_filter = talloc_zero(tmp_ctx, char);
     sysdb_filter = talloc_zero(tmp_ctx, char);
-    if (ldap_filter == NULL || sysdb_filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_zero() failed\n");
-        ret = NULL;
-        goto immediately;
-    }
 
     /* Download only selected rules from IPA and remove all selected rules from
      * cache */
@@ -652,7 +642,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                      opts->ipa_sudorule_map[SDAP_AT_SUDO_NAME].name,
                                      safe_rule);
         if (ldap_filter == NULL) {
-            DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf_append_buffer() failed\n"));
             ret = ENOMEM;
             goto immediately;
         }
@@ -661,7 +651,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                                      SYSDB_SUDO_CACHE_AT_CN,
                                                      safe_rule);
         if (sysdb_filter == NULL) {
-            DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf_append_buffer() failed\n");
+            DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf_append_buffer() failed\n"));
             ret = ENOMEM;
             goto immediately;
         }
@@ -674,7 +664,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                   opts->ipa_sudorule_map[SDAP_OC_IPA_SUDORULE].name,
                                   ldap_filter);
     if (ldap_filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf() failed\n");
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
@@ -689,7 +679,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
     /* close the filter */
     ldap_rules_filter = talloc_asprintf_append_buffer(ldap_rules_filter, ")");
     if (ldap_rules_filter == NULL) {
-        DEBUG(SSSDBG_CRIT_FAILURE, "talloc_asprintf() failed\n");
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf_append_buffer() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
@@ -699,6 +689,7 @@ struct tevent_req *ipa_sudo_rules_refresh_send(TALLOC_CTX *mem_ctx,
                                    SYSDB_OBJECTCLASS, SYSDB_SUDO_CACHE_OC,
                                    sysdb_filter);
     if (sysdb_filter == NULL) {
+        DEBUG(SSSDBG_CRIT_FAILURE, ("talloc_asprintf() failed\n"));
         ret = ENOMEM;
         goto immediately;
     }
@@ -729,8 +720,8 @@ static void ipa_sudo_rules_refresh_done(struct tevent_req *subreq)
     struct tevent_req *req = NULL;
     struct ipa_sudo_rules_refresh_state *state = NULL;
     char *highest_usn = NULL;
-    size_t downloaded_rules_num = 0;
-    int ret = EOK;
+    size_t downloaded_rules_num;
+    int ret;
 
     req = tevent_req_callback_data(subreq, struct tevent_req);
     state = tevent_req_data(req, struct ipa_sudo_rules_refresh_state);
