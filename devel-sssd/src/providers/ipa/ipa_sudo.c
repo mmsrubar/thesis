@@ -82,7 +82,7 @@ int ipa_sudo_init(struct be_ctx *be_ctx,
     }
 
     /* if IPA hostname isn't set in sssd.conf (ipa_hostname option) then it'll
-     * be get automatically by 'gethostname()' in ipa_get_options and set into 
+     * be get automatically by gethostname() in ipa_get_options() and set into 
      * ipa_options->basic as IPA_HOSTNAME 
      */
     hostname = dp_opt_get_string(ipa_id_ctx->ipa_options->basic, IPA_HOSTNAME);
