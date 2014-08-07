@@ -1,7 +1,7 @@
 /*
     SSSD
 
-    IPA Provider Initialization functions.
+    IPA SUDO Provider Initialization functions.
 
     Authors:
         Lukas Slebodnik <lslebodn@redhat.com>
