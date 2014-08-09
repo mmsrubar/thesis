@@ -755,10 +755,10 @@ errno_t export_sudoers(TALLOC_CTX *mem,
         goto fail;
     }
 
-    /* for each rule aplicable to this host */
+    /* for each IPA sudo rule aplicable to this host */
     for (i = 0; i < ipa_rules_count; i++) {
 
-        DEBUG(SSSDBG_TRACE_FUNC, "Exporting IPA SUDO rule %s\n",
+        DEBUG(SSSDBG_TRACE_FUNC, "Exporting IPA SUDO rule cn=%s\n",
                                   (char *)ipa_rules[i]->a[1].values[0].data);
 
         /* new sudo rule */
@@ -1040,7 +1040,7 @@ int export_sudoers_cmds(TALLOC_CTX *mem,
             goto fail;
         } else {
             DEBUG(SSSDBG_TRACE_FUNC, "Sudo rule cn=%s has %d allowed and %d "
-                                     "denied cmds that needs to be exported\n",
+                                     "denied cmds which needs to be exported\n",
                                       rule_name, index[i]->allowed_num, 
                                       index[i]->denied_num);
         }
