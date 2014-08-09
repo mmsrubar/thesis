@@ -194,7 +194,7 @@ static void ipa_sudo_sudoers_process(struct tevent_req *subreq)
     }
 
     // FIXME: debug
-    print_rules("IPA sudoer from LDAP SUDO Provider:", ipa_rules, ipa_rules_count);
+    //print_rules("IPA sudoer from LDAP SUDO Provider:", ipa_rules, ipa_rules_count);
 
     subreq = ipa_sudo_get_cmds_send(state,
                                     ipa_rules, 
@@ -232,7 +232,7 @@ static void ipa_sudo_get_cmds_done(struct tevent_req *subreq)
     }
 
     /* FIXME: degub */
-    print_rules("Exported IPA sudoer entry:", attrs, count);
+    //print_rules("Exported IPA sudoer entry:", attrs, count);
 
     /* FIXME:
      * Multiple search bases are handlel automatically by LDAP SUDO Provider but
