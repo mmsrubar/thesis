@@ -4,7 +4,7 @@
         UNIT tests for export of IPA SUDO rules. 
 
     Authors:
-        Michal Šrubař <mmsrubar@gmail.com>
+        Michal Šrubař <xsruba03@stud.fit.vutbr.cz>
 
     Copyright (C) 2014 Michal Šrubař
 
@@ -1226,7 +1226,9 @@ static void test_fail_export_done(struct tevent_req *subreq)
 void setup_sudo_env_teardown(void **state)
 {
     //printf("environment teardown function\n");
-    //talloc_free(sudo_ctx); FIXME: SIGARBR :-(
+    //
+    struct sudo_ctx *sudo_ctx = *state;
+    talloc_free(sudo_ctx); //FIXME: SIGARBR :-(
 }
 
 int main(int argc, const char *argv[])

@@ -4,7 +4,7 @@
     Get list of hostgroups that the IPA client is member of.
 
     Authors:
-        Michal Šrubař <mmsrubar@gmail.com>
+        Michal Šrubař <xsruba03@stud.fit.vutbr.cz>
 
     Copyright (C) 2014 Michal Šrubař
 

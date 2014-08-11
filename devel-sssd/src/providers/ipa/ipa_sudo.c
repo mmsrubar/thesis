@@ -5,7 +5,7 @@
 
     Authors:
         Lukas Slebodnik <lslebodn@redhat.com>
-        MIchal Šrubař <mmsrubar@gmail.com>
+        MIchal Šrubař <xsruba03@stud.fit.vutbr.cz>
 
     Copyright (C) 2013 Red Hat
     Copyright (C) 2014 MIchal Šrubař

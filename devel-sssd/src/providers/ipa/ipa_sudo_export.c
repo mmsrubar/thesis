@@ -4,7 +4,7 @@
 		Export of IPA SUDO rules into native LDAP scheme.
 
     Authors:
-        Michal Šrubař <mmsrubar@gmail.com>
+        Michal Šrubař <xsruba03@stud.fit.vutbr.cz>
 
     Copyright (C) 2014 Michal Šrubař
 

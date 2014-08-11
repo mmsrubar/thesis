@@ -2,7 +2,7 @@
     SSSD
 
     Authors:
-        MIchal Šrubař <mmsrubar@gmail.com>
+        MIchal Šrubař <xsruba03@stud.fit.vutbr.cz>
 
     Copyright (C) 2014 MIchal Šrubař
 
