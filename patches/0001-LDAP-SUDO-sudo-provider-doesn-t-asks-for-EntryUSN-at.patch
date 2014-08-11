@@ -1,0 +1,27 @@
+From ef6f090e8dfc42912d2fd40522c66511da4eff09 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michal=20=C5=A0ruba=C5=99?= <xsruba03@stud.fit.vutbr.cz>
+Date: Mon, 11 Aug 2014 12:09:01 +0200
+Subject: [PATCH] LDAP SUDO: 	sudo provider doesn't asks for 'EntryUSN'
+ attribute when it 		downloads the rules because sudorule_map is
+ missing this 		attribute. We forget to add the SDAP_AT_SUDO_RUNAS
+ into 		sdap_sudorule_attrs when we added support for sudoRunAs.
+
+---
+ src/providers/ldap/sdap.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/providers/ldap/sdap.h b/src/providers/ldap/sdap.h
+index e5d9729014265c8ad2d72f0e5c4d321b9621cbc9..6bab0e1c1ce520ba248cc6634349493d82b31233 100644
+--- a/src/providers/ldap/sdap.h
++++ b/src/providers/ldap/sdap.h
+@@ -319,6 +319,7 @@ enum sdap_sudorule_attrs {
+     SDAP_AT_SUDO_HOST,
+     SDAP_AT_SUDO_USER,
+     SDAP_AT_SUDO_OPTION,
++    SDAP_AT_SUDO_RUNAS,
+     SDAP_AT_SUDO_RUNASUSER,
+     SDAP_AT_SUDO_RUNASGROUP,
+     SDAP_AT_SUDO_NOTBEFORE,
+-- 
+1.9.3
+
