@@ -187,6 +187,7 @@ if HAVE_CMOCKA
         nestedgroups-tests \
         test_sss_idmap \
         test_ipa_idmap \
+				test_ipa_sudo_export \
         test_utils \
         ad_common_tests \
         dp_opt_tests \
@@ -194,7 +195,7 @@ if HAVE_CMOCKA
         sbus-internal-tests \
         sss_sifp-tests \
         test_search_bases \
-				ipa-sudo-export-tests \
+				#ipa-sudo-export-tests \
         sdap-tests \
         $(NULL)
 
@@ -1642,7 +1643,7 @@ sbus_internal_tests_LDADD = \
     libsss_debug.la \
     libsss_test_common.la
 
-ipa_sudo_export_tests_SOURCES = \
+test_ipa_sudo_export_SOURCES = \
      src/tests/cmocka/test_ipa_sudo_export.c \
      src/providers/ipa/ipa_async_sudo.c \
      src/providers/ipa/ipa_async_sudo_cmds.c \
@@ -1650,9 +1651,9 @@ ipa_sudo_export_tests_SOURCES = \
      src/providers/ipa/ipa_sudo_export.c \
      src/providers/ldap/sdap_sudo_cache.c \
 		 src/util/debug.c
-ipa_sudo_export_tests_CFLAGS = \
+test_ipa_sudo_export_CFLAGS = \
     $(AM_CFLAGS)
-ipa_sudo_export_tests_LDFLAGS = \
+test_ipa_sudo_export_LDFLAGS = \
     -Wl,-wrap,debug_fn \
     -Wl,-wrap,be_is_offline \
     -Wl,-wrap,sdap_id_op_create \
@@ -1665,7 +1666,7 @@ ipa_sudo_export_tests_LDFLAGS = \
 		-Wl,-wrap,_dp_opt_get_int \
 		-Wl,-wrap,build_attrs_from_map \
 		-Wl,-wrap,sdap_get_id_specific_filter
-ipa_sudo_export_tests_LDADD = \
+test_ipa_sudo_export_LDADD = \
     $(SSSD_INTERNAL_LTLIBS) \
     $(CMOCKA_LIBS) \
     libsss_debug.la \

@@ -81,7 +81,7 @@ void print_rules(const char *title, struct sysdb_attrs **rules, int count)
 
 /*
  * Get a third value out of a given RDN
- * ipaUniqueID=6f74dc10b,cn=sudocmds,cn=sudo,$DC    =>  6f74dc10b
+ * ipaUniqueID=6f74dc10b,cn=sudocmds,cn=sudo,$DC    => 6f74dc10b
  * uid=admin,cn=users,cn=accounts,dc=example,dc=cz  => admin
  */
 static errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx, 
@@ -94,17 +94,14 @@ static errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx,
                             const char *third_val,
                             char **value)
 {
+    struct ldb_dn *dn = NULL;
+    const struct ldb_val *val = NULL;
+    const char *rdn = NULL;
     errno_t ret = EOK;
 
-    struct ldb_dn *dn = NULL;
-    const struct ldb_val *val;
-    const char *rdn;
-    char *str = NULL;
-
-    TALLOC_CTX *tmp = talloc_init(NULL);
-
-    dn = ldb_dn_new(tmp, sysdb_ctx_get_ldb(sysdb), dn_str);
+    dn = ldb_dn_new(mem_ctx, sysdb_ctx_get_ldb(sysdb), dn_str);
     if (dn == NULL) {
+
         goto done;
     }
 
@@ -155,17 +152,15 @@ static errno_t get_third_rdn_value(TALLOC_CTX *mem_ctx,
     }
 
     val = ldb_dn_get_rdn_val(dn);
-    str = talloc_strndup(tmp, (const char *)val->data, val->length);
-    if (str == NULL) {
+    *value = talloc_strndup(mem_ctx, (const char *)val->data, val->length);
+    if (*value == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, "talloc_strdup() failed\n");
         ret = ENOMEM;
         goto done;
     }
 
-    *value = talloc_steal(mem_ctx, str);
-
 done:
-    talloc_free(tmp);
+    talloc_free(dn);
     return ret;
 }
 
@@ -289,6 +284,8 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
             if (ret != EOK) {
                 goto fail;
             }
+            
+            talloc_zfree(attr_vals);
         }
 
         /* get values of a memberDenyCmd attr if any  */
@@ -298,6 +295,8 @@ errno_t build_cmds_filter(TALLOC_CTX *mem,
             if (ret != EOK) {
                 goto fail;
             }
+
+            talloc_zfree(attr_vals);
         }
     }
  
@@ -882,8 +881,8 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
                                    const char **cmds, 
                                    int count, bool prefix)
 {
-    TALLOC_CTX *tmp = talloc_init(NULL);
 
+    TALLOC_CTX *tmp_ctx;
     const char *attr_name = NULL;
     const char *sudo_cmd = NULL;
     char *p_sudo_cmd = NULL;
@@ -892,6 +891,10 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
     bool cmd_exists = false;
     errno_t ret = EOK;
     int j;
+
+    if ((tmp_ctx = talloc_new(NULL)) == NULL) {
+        return ENOMEM;
+    }
 
     if (cmds == NULL) {
         DEBUG(SSSDBG_CRIT_FAILURE, "No IPA command index\n");
@@ -904,11 +907,11 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
 
         /* look up a single command or a group? */
         if (strstr(cmds[j], IPA_SUDO_CONTAINER_CMD_GRPS) == NULL) {
-            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_ID);
+            attr_name = talloc_strdup(tmp_ctx, IPA_SUDO_ATTR_ID);
             cmd_group = false;
             DEBUG(SSSDBG_TRACE_FUNC, "Exporting cmd ipauniqueid=%s\n", cmds[j]);
         } else {
-            attr_name = talloc_strdup(tmp, IPA_SUDO_ATTR_MEMBEROF);
+            attr_name = talloc_strdup(tmp_ctx, IPA_SUDO_ATTR_MEMBEROF);
             cmd_group = true;
             DEBUG(SSSDBG_TRACE_FUNC, "Exporting cmd group: %s\n", cmds[j]);
         }
@@ -919,7 +922,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
             goto fail;
         }
 
-        while ((sudo_cmd = get_sudoCmd_value(tmp, ipa_cmds, ipa_cmds_count, 
+        while ((sudo_cmd = get_sudoCmd_value(tmp_ctx, ipa_cmds, ipa_cmds_count, 
                                         attr_name, cmds[j], cmd_group, &ret)) != NULL)
         {
             /* if the attribute 'sudoCommand' in not already in the rule then
@@ -938,7 +941,7 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
              * commands isn't already exported.
              */
             ret = sysdb_attrs_get_string_array(sudoers, SYSDB_SUDO_CACHE_AT_COMMAND, 
-                                               tmp, &exported_cmds);
+                                               tmp_ctx, &exported_cmds);
             if (ret == EOK) {
                 while (*exported_cmds != NULL) {
                     if (strcmp(*exported_cmds, sudo_cmd) == 0) {
@@ -991,10 +994,12 @@ static int ipa_sudo_assign_command(struct sysdb_attrs *sudoers,
         if (ret != EOK) {
             goto fail;
         }
+
+        talloc_zfree(attr_name);
     }
 
 fail:
-    talloc_free(tmp);
+    talloc_free(tmp_ctx);
     return ret;
 }
 

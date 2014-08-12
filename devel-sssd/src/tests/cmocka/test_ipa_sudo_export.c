@@ -63,111 +63,110 @@ struct sudo_ctx {
     struct be_ctx *be_ctx;
     struct sdap_options *opts;
 
-    struct sudo_rule **ldap;    /* sudoer in LDAP scheme */
+    struct sudo_entry **ldap;   /* sudoer in LDAP scheme */
     size_t ldap_count;
 
-    struct sudo_rule **ipa;     /* sudoer in IPA scheme */
+    struct sudo_entry **ipa;    /* sudoer in IPA scheme */
     struct sysdb_attrs **ipa_sudoers;
     size_t ipa_count;
     struct sysdb_attrs **cmds;  /* IPA sudo commands */
     size_t cmds_count;
 };
 
-//FIXME: substitute 'sudo_rule' with 'sudo_entry'
-struct sudo_rule {
+struct sudo_entry {
     const char *attr;
     const char *val;
 };
 
-
-// FIXME: put real entries into .ldif a file and read them from the file?
-
-struct sudo_rule ipa_cmd1[] = {
+struct sudo_entry ipa_cmd1[] = {
     {"sudoCmd", "/sbin/blkid"},
     {"ipaUniqueID", "fdfcaf84-5a87-11e3-b71d-080027eec4b0"},
     {"memberOf", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd2[] = {
+struct sudo_entry ipa_cmd2[] = {
     {"sudoCmd", "/bin/cat /etc/shadow"},
     {"ipaUniqueID", "6f545188-6630-11e3-92be-0800274dc10b"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd3[] = {
+struct sudo_entry ipa_cmd3[] = {
     {"sudoCmd", "/sbin/fdisk"},
     {"ipaUniqueID", "c484ca28-c019-11e3-84b4-0800274dc10b"},
     {"memberOf", "cn=disc,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd4[] = {
+struct sudo_entry ipa_cmd4[] = {
     {"sudoCmd", "/sbin/usermod"},
     {"ipaUniqueID", "20a53dc2-c79c-11e3-be99-0800274dc10b"},
     {"memberOf", "cn=user,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd5[] = {
+struct sudo_entry ipa_cmd5[] = {
     {"sudoCmd", "/sbin/userdel"},
     {"ipaUniqueID", "35d89eaa-c79c-11e3-ab17-0800274dc10b"},
     {"memberOf", "cn=user,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd6[] = {
+struct sudo_entry ipa_cmd6[] = {
     {"sudoCmd", "/sbin/useradd"},
     {"ipaUniqueID", "41e9a39c-c79c-11e3-8011-0800274dc10b"},
     {"memberOf", "cn=user,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd7[] = {
+struct sudo_entry ipa_cmd7[] = {
     {"sudoCmd", "/sbin/unix_update"},
     {"ipaUniqueID", "87a54b3e-c79c-11e3-9f89-0800274dc10b"},
     {"memberOf", "cn=user,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd8[] = {
+struct sudo_entry ipa_cmd8[] = {
     {"sudoCmd", "/sbin/groupadd"},
     {"ipaUniqueID", "d9c991ea-c79c-11e3-ac02-0800274dc10b"},
     {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd9[] = {
+struct sudo_entry ipa_cmd9[] = {
     {"sudoCmd", "/sbin/groupdel"},
     {"ipaUniqueID", "fcbf4276-c79c-11e3-b1f1-0800274dc10b"},
     {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd10[] = {
+struct sudo_entry ipa_cmd10[] = {
     {"sudoCmd", "/sbin/groupmems"},
     {"ipaUniqueID", "1708d444-c79d-11e3-ac02-0800274dc10b"},
     {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd11[] = {
+struct sudo_entry ipa_cmd11[] = {
     {"sudoCmd", "/sbin/groupmod"},
     {"ipaUniqueID", "26b070b4-c79d-11e3-b620-0800274dc10b"},
     {"memberOf", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_cmd12[] = {
+struct sudo_entry ipa_cmd12[] = {
     {"sudoCmd", "/sbin/dumpcap"},
     {"ipaUniqueID", "48268de6-c79d-11e3-bdc6-0800274dc10b"},
     {"memberOf", "cn=network,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
     {NULL, NULL}
 };
 
-/* 1st IPA sudo rule -------------------------------------------------------- */
-/* TODO: cn has to be first string in ldap rules! */
-struct sudo_rule ipa_rule1[] = {
+/* IPA SUDO RULES
+ * ===========================================================================
+ */
+
+/* cn has to be first string in ldap rules! */
+struct sudo_entry ipa_rule1[] = {
     {"cn", "test1"},
     {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
     {"hostCategory", "all"},
@@ -176,7 +175,7 @@ struct sudo_rule ipa_rule1[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule1[] = {
+struct sudo_entry ldap_rule1[] = {
     {"cn", "test1"},
     {"sudoUser", "admin"},
     {"sudoHost", "ALL"},
@@ -184,10 +183,8 @@ struct sudo_rule ldap_rule1[] = {
     {"sudoCommand", "/sbin/blkid"},
     {NULL, NULL}
 };
-/* -------------------------------------------------------------------------- */
 
-/* 2nd IPA sudo rule -------------------------------------------------------- */
-struct sudo_rule ipa_rule2[] = {
+struct sudo_entry ipa_rule2[] = {
     {"cn", "test2"},
     {"userCategory", "all"},
     {"hostCategory", "all"},
@@ -196,7 +193,7 @@ struct sudo_rule ipa_rule2[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule2[] = {
+struct sudo_entry ldap_rule2[] = {
     {"cn", "test2"},
     {"sudoUser", "ALL"},
     {"sudoHost", "ALL"},
@@ -204,10 +201,9 @@ struct sudo_rule ldap_rule2[] = {
     {"sudoCommand", "ALL"},
     {NULL, NULL}
 };
-/* -------------------------------------------------------------------------- */
 
 /* IPA sudo rule - multiple commands and commands groups */
-struct sudo_rule ipa_rule3[] = {
+struct sudo_entry ipa_rule3[] = {
     {"cn", "test3"},
     {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
     {"memberDenyCmd", "cn=user_group,cn=sudocmdgroups,cn=sudo,dc=example,dc=cz"},
@@ -219,7 +215,7 @@ struct sudo_rule ipa_rule3[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule3[] = {
+struct sudo_entry ldap_rule3[] = {
 	{"cn", "test3"},
 	{"sudoUser", "admin"},
 	{"sudoHost", "client1.example.cz"},
@@ -238,7 +234,7 @@ struct sudo_rule ldap_rule3[] = {
 };
 
 /* IPA sudo rule - multiple options */
-struct sudo_rule ipa_rule4[] = {
+struct sudo_entry ipa_rule4[] = {
     {"cn", "test4"},
     {"ipaSudoOpt", "passprompt=\"Sudo invoked by [%u] on [%H] - Cmd run as %U - Password for user %p:\""},
     {"ipaSudoOpt", "timestamp_timeout=0"},
@@ -251,7 +247,7 @@ struct sudo_rule ipa_rule4[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule4[] = {
+struct sudo_entry ldap_rule4[] = {
     {"cn", "test4"},
     {"sudoUser", "admin"},
     {"sudoHost", "client1.example.cz"},
@@ -269,7 +265,7 @@ struct sudo_rule ldap_rule4[] = {
  * part of a command group but after the export it has to be in sudoCommand
  * attr just once, otherwise LDAP SUDO provider would save such rule!
  */
-struct sudo_rule ipa_rule5[] = {
+struct sudo_entry ipa_rule5[] = {
     {"cn", "test5"},
     {"memberHost", "fqdn=client1.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
     {"memberUser", "uid=admin,cn=users,cn=accounts,dc=example,dc=cz"},
@@ -279,7 +275,7 @@ struct sudo_rule ipa_rule5[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule5[] = {
+struct sudo_entry ldap_rule5[] = {
     {"cn", "test5"},
     {"sudoUser", "admin"},
     {"sudoCommand", "/sbin/fdisk"},
@@ -289,7 +285,7 @@ struct sudo_rule ldap_rule5[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ipa_rule6[] = {
+struct sudo_entry ipa_rule6[] = {
     {"cn", "test6"},
     {"memberHost", "fqdn=client15.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
     {"memberUser", "uid=ivan,cn=users,cn=accounts,dc=example,dc=cz"},
@@ -299,7 +295,7 @@ struct sudo_rule ipa_rule6[] = {
     {NULL, NULL}
 };
 
-struct sudo_rule ldap_rule6[] = {
+struct sudo_entry ldap_rule6[] = {
     {"cn", "test6"},
     {"sudoUser", "ivan"},
     {"sudoCommand", "/sbin/fdisk"},
@@ -310,7 +306,7 @@ struct sudo_rule ldap_rule6[] = {
 };
 
 /* IPA SUDO rule with ilegal LDAP attribute */
-struct sudo_rule ipa_rule7[] = {
+struct sudo_entry ipa_rule7[] = {
     {"cn", "test7"},
     {"memberHost", "fqdn=client15.example.cz,cn=computers,cn=accounts,dc=example,dc=cz"},
     {"memberUser", "uid=ivan,cn=users,cn=accounts,dc=example,dc=cz"},
@@ -318,15 +314,6 @@ struct sudo_rule ipa_rule7[] = {
     {"entryUSN", "43240"},
     {NULL, NULL}
 };
-
-
-/* WHAT TO TEST ? */
-/* =================
- * - situation where there are no command needed for downloaded sudo rules
- * - projit vsechny mista, kde by se to mohlo padnout a zkusit je nasimulovat
- *   ... mozna v jinych testech?
- *
- */
 
 static void debug_printf(const char *format, ...)
                 SSS_ATTRIBUTE_PRINTF(1, 2);
@@ -383,14 +370,6 @@ void __wrap_debug_fn(const char *file,
     fflush(stderr);
 }
 
-bool __wrap_be_is_offline(struct be_ctx *ctx)
-{
-    /* Az budes chtit testovat offline podporu, tak sem staci dat misto
-     * hardcodovaneho true hodnotu kterou specifikujes pomoci will_return
-     */
-    return (bool) mock();
-}
-
 /* A fake sdap_id_conn_data structure */
 struct sdap_id_conn_data {
     /* sdap handle */
@@ -405,6 +384,11 @@ struct sdap_id_op {
     struct sdap_id_conn_data *conn_data;
     struct tevent_req *connect_req;
 };
+
+bool __wrap_be_is_offline(struct be_ctx *ctx)
+{
+    return (bool) mock();
+}
 
 int __wrap__dp_opt_get_int(struct dp_option *opts,
                     int id, const char *location) {
@@ -426,9 +410,6 @@ struct tevent_req *__wrap_sdap_id_op_connect_send(struct sdap_id_op *op,
                                            TALLOC_CTX *memctx,
                                            int *ret_out)
 {
-    /* Asi budes muset vytvorit i dummy conn_data a sdap_handle
-     * aby ti fungovalo sdap_id_op_handle
-     */
     *ret_out = EOK;
     return test_request_send(memctx, mock_ptr_type(struct tevent_context *), EOK);
 }
@@ -465,9 +446,6 @@ int __wrap_sdap_get_generic_recv(struct tevent_req *req,
                                  size_t *reply_count,
                                  struct sysdb_attrs ***reply)
 {
-    /* Volajici naplni *reply pomoci will_return() a ty
-     * si ji tady seberes pomoci mock()
-     */
     *reply_count = mock_type(size_t);
     *reply = mock_ptr_type(struct sysdb_attrs **);
 
@@ -516,7 +494,9 @@ void __wrap_sdap_get_id_specific_filter(TALLOC_CTX *mem_ctx,
     return;
 }
 
-static int _setup_sysdb_tests(struct sysdb_ctx **_sysdb, bool enumerate)
+static int _setup_sysdb_tests(TALLOC_CTX *mem_ctx, 
+                              struct sysdb_ctx **_sysdb, 
+                              bool enumerate)
 {
     struct sysdb_ctx *sysdb;
     char *conf_db;
@@ -544,8 +524,7 @@ static int _setup_sysdb_tests(struct sysdb_ctx **_sysdb, bool enumerate)
     }
     DEBUG(3, "CONFDB: %s\n", conf_db);
 
-
-    sysdb->ldb = ldb_init(NULL, NULL);
+    sysdb->ldb = ldb_init(mem_ctx, NULL);
     if (sysdb->ldb == NULL) {
         return EIO;
     }
@@ -557,27 +536,13 @@ static int _setup_sysdb_tests(struct sysdb_ctx **_sysdb, bool enumerate)
         return EIO;
     }
 
-    //FIXME:    :ta
-    sysdb->ldb_file = talloc_strdup(sysdb, "/home/base/thesis/sssd/i686/tests_ipa_sudo_export/tests_conf.ldb");
-
-    /* FIXME: clear sysdb if it already exists
-    struct ldb_dn *sudo_dn;
-    sudo_dn = ldb_dn_new(sysdb, sysdb->ldb, "cn=sudorules,cn=custom,cn=unit_tests,cn=sysdb");
-    if (ldb_dn_validate(sudo_dn) == false) {
-        DEBUG(0, "Invalid DN\n");
-        return EIO;
-    }
-    if (ldb_delete(sysdb->ldb, sudo_dn) != LDB_SUCCESS) {
-        DEBUG(0, "Error while removin sudo rules from test sysdb\n");
-        return EIO;
-    }
-    */
+    sysdb->ldb_file = talloc_strdup(sysdb, conf_db);
 
     *_sysdb = sysdb;
 
     return EOK;
 }
-struct sysdb_attrs *create_entry(TALLOC_CTX *mem, struct sudo_rule *entry)
+struct sysdb_attrs *create_entry(TALLOC_CTX *mem, struct sudo_entry *entry)
 {
     struct ldb_message_element *new_el = NULL;
     int i;
@@ -604,7 +569,7 @@ struct sysdb_attrs *create_entry(TALLOC_CTX *mem, struct sudo_rule *entry)
 }
 
 /* take ldap sudo rules and return same result as IPA would have returned */
-void get_sysdb_attrs(TALLOC_CTX *mem, struct sudo_rule *rule[], int count, 
+void get_sysdb_attrs(TALLOC_CTX *mem, struct sudo_entry *rule[], int count, 
                      struct sysdb_attrs **_sudoers[])
 {
     int i;
@@ -706,7 +671,7 @@ int create_ldap_sudoers(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
     int i;
 
     /* create LDAP sudoers */
-    ctx->ldap = talloc_zero_array(mem, struct sudo_rule *, count);
+    ctx->ldap = talloc_zero_array(mem, struct sudo_entry *, count);
     if (ctx->ldap == NULL) {
         talloc_free(ctx);
         fail_msg("talloc_zero_array() failed\n");
@@ -716,7 +681,7 @@ int create_ldap_sudoers(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
 
     for (i = 0; i < count; i++) {
         /* put rule into array of LDAP rules */
-        ctx->ldap[i] = va_arg(rules, struct sudo_rule *);
+        ctx->ldap[i] = va_arg(rules, struct sudo_entry *);
     }
 
     ctx->ldap_count = count;
@@ -731,7 +696,7 @@ int create_ipa_sudoers(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
     int i;
 
     /* create fake IPA sudoers */
-    ctx->ipa = talloc_zero_array(mem, struct sudo_rule *, count);
+    ctx->ipa = talloc_zero_array(mem, struct sudo_entry *, count);
     if (ctx->ipa == NULL) {
         talloc_free(ctx);
         fail_msg("talloc_zero_array() failed\n");
@@ -740,7 +705,7 @@ int create_ipa_sudoers(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
     va_start(rules, count);
 
     for (i = 0; i < count; i++) {
-        ctx->ipa[i] = va_arg(rules, struct sudo_rule *);
+        ctx->ipa[i] = va_arg(rules, struct sudo_entry *);
     }
 
     get_sysdb_attrs(ctx, ctx->ipa, count, &ctx->ipa_sudoers);
@@ -766,7 +731,7 @@ int create_ipa_sudo_cmds(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
     va_start(cmds, count);
 
     for (i = 0; i < count; i++) {
-        ctx->cmds[i] = create_entry(ctx, va_arg(cmds, struct sudo_rule *));
+        ctx->cmds[i] = create_entry(ctx, va_arg(cmds, struct sudo_entry *));
     }
 
     ctx->cmds_count = count;
@@ -779,17 +744,15 @@ int create_ipa_sudo_cmds(TALLOC_CTX *mem, struct sudo_ctx *ctx, int count, ...)
 /* set up environment for sudo */
 void setup_sudo_env(void **state) {
 
-    TALLOC_CTX *mem = talloc_init(NULL);
-
     struct sudo_ctx *sudo_ctx;
 
-    sudo_ctx = talloc_zero(mem, struct sudo_ctx);
+    sudo_ctx = talloc_zero(NULL, struct sudo_ctx);
     assert_non_null(sudo_ctx);
 
     /* tevent and sysdb */
-    sudo_ctx->test_ctx = create_ev_test_ctx(mem);
+    sudo_ctx->test_ctx = create_ev_test_ctx(sudo_ctx);
     assert_non_null(sudo_ctx->test_ctx);
-    _setup_sysdb_tests(&sudo_ctx->test_ctx->sysdb, false);
+    _setup_sysdb_tests(sudo_ctx, &sudo_ctx->test_ctx->sysdb, false);
     assert_non_null(sudo_ctx->test_ctx->sysdb);
 
     sudo_ctx->be_ctx = talloc_zero(sudo_ctx, struct be_ctx);
@@ -797,8 +760,9 @@ void setup_sudo_env(void **state) {
     sudo_ctx->be_ctx->domain = talloc_zero(sudo_ctx->be_ctx, struct sss_domain_info);
     assert_non_null(sudo_ctx->be_ctx->domain);
     sudo_ctx->be_ctx->domain->name = talloc_strdup(sudo_ctx->be_ctx->domain, "unit_tests");
-    // FIXME: na sysdb se odkazuji dvakrat, jak z domeny tak z kontextu sudo
-    // ...!
+
+    /* FIXME: there are two refrences at sysdb. First from domain and second
+     * from tmp sudo context */
     sudo_ctx->be_ctx->domain->sysdb = sudo_ctx->test_ctx->sysdb;
     sudo_ctx->be_ctx->domain->sudo_timeout = 60;
 
@@ -806,26 +770,26 @@ void setup_sudo_env(void **state) {
     sudo_ctx->be_ctx->domain->sysdb = sudo_ctx->test_ctx->sysdb;
 
     /* sudo maps, search bases, IPA SCHema */
-    sudo_ctx->opts = talloc_zero(mem, struct sdap_options);
+    sudo_ctx->opts = talloc_zero(sudo_ctx, struct sdap_options);
     assert_non_null(sudo_ctx->opts);
     sudo_ctx->opts->sudorule_map =  native_sudorule_map;
     sudo_ctx->opts->ipa_sudorule_map = ipa_sudorule_map;
     sudo_ctx->opts->ipa_sudocmds_map = ipa_sudocmds_map;
     sudo_ctx->opts->schema_type = SDAP_SCHEMA_IPA_V1;
 
-    sudo_ctx->opts->sdom = talloc_zero(mem, struct sdap_domain);
+    sudo_ctx->opts->sdom = talloc_zero(sudo_ctx, struct sdap_domain);
     if (sudo_ctx->opts->sdom == NULL) {
         fail_msg("talloc_zero() failed\n");
         goto fail;
     }
 
-    sudo_ctx->opts->sdom->sudo_search_bases = talloc_zero_array(mem, struct sdap_search_base *, 2);
+    sudo_ctx->opts->sdom->sudo_search_bases = talloc_zero_array(sudo_ctx, struct sdap_search_base *, 2);
     if (sudo_ctx->opts->sdom->sudo_search_bases == NULL) {
         fail_msg("talloc_zero_array() failed\n");
         goto fail;
     }
 
-    sudo_ctx->opts->sdom->sudo_search_bases[0] = talloc_zero(mem, struct sdap_search_base);
+    sudo_ctx->opts->sdom->sudo_search_bases[0] = talloc_zero(sudo_ctx, struct sdap_search_base);
     sudo_ctx->opts->sdom->sudo_search_bases[1] = NULL;
     if (sudo_ctx->opts->sdom->sudo_search_bases[0] == NULL) {
         fail_msg("talloc_zero() failed\n");
@@ -1069,7 +1033,6 @@ void test_none_sudo_rules_send(void **state)
  * LDAP filter multiple times */
 void test_cmd_filter(void **state)
 {
-    struct tevent_req *req;
     struct sudo_ctx *sudo_ctx;
     const char *filter;
     const char *correct_filter;
@@ -1179,19 +1142,21 @@ static void test_successful_export_done(struct tevent_req *subreq)
     struct sdap_sudo_refresh_state *state;
     struct sysdb_attrs **attrs = NULL;
     size_t count;
+    int dp_error = 0;
+    int error = 0;
     int ret;
 
     /* req from ipa_sudo_refresh_send() */
     ctx = tevent_req_callback_data(subreq, struct sudo_ctx);
     state = tevent_req_data(subreq, struct sdap_sudo_refresh_state);
 
-    ret = ipa_sudo_refresh_recv(state, subreq, &state->dp_error,
-                                &state->error, NULL, &count, &attrs);
+    ret = ipa_sudo_refresh_recv(state, subreq, &dp_error, &error, NULL, 
+                                &count, &attrs);
     assert_int_equal(ret, EOK);
     talloc_zfree(subreq);
 
-    assert_int_equal(state->dp_error, DP_ERR_OK);
-    assert_int_equal(state->error, EOK);
+    assert_int_equal(dp_error, DP_ERR_OK);
+    assert_int_equal(error, EOK);
 
     compare_sudoers(ctx, ctx);
 
@@ -1222,18 +1187,17 @@ static void test_fail_export_done(struct tevent_req *subreq)
     ctx->test_ctx->error = EOK;
 }
 
-// FIXME!
 void setup_sudo_env_teardown(void **state)
 {
-    //printf("environment teardown function\n");
-    //
     struct sudo_ctx *sudo_ctx = *state;
-    talloc_free(sudo_ctx); //FIXME: SIGARBR :-(
+
+    talloc_zfree(sudo_ctx->test_ctx->sysdb->ldb);
+    talloc_free(sudo_ctx);
 }
 
 int main(int argc, const char *argv[])
 {
-    /* FIXME: create sysdb only once and purge it before every test */
+    /* FIXME: create sysdb only once and purge it before every test ? */
     const UnitTest tests[] = {
 
         /* test export of IPA sudo rules into native LDAP sudo scheme */
